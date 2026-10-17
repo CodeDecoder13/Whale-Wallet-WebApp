@@ -13,7 +13,7 @@ class Receipt extends Model
 
     protected function casts(): array
     {
-        return ['parsed_json' => 'array'];
+        return ['parsed_json' => 'array', 'corrections_json' => 'array'];
     }
 
     /** What the browser may see: status, a user-safe error and the draft. Never the path. */

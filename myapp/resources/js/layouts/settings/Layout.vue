@@ -25,6 +25,10 @@ const sidebarNavItems: NavItem[] = [
         href: tokens(),
     },
     {
+        title: 'Your data',
+        href: '/settings/data',
+    },
+    {
         title: 'Appearance',
         href: editAppearance(),
     },

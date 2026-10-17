@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ImagePlus, TriangleAlert } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { toast } from 'vue-sonner';
-import ReceiptController from '@/actions/App/Http/Controllers/ReceiptController';
+import { confirm, destroy, keep, show, store } from '@/routes/receipts';
 import AiConsent from '@/components/AiConsent.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -104,7 +104,7 @@ async function upload(files: FileList | File[]) {
         uploading.value = true;
 
         try {
-            const item = await api<Item>(ReceiptController.store.url(), body);
+            const item = await api<Item>(store.url(), body);
             previews[item.id] = URL.createObjectURL(file);
             items.value.unshift(item);
             hydrate(item);
@@ -147,7 +147,7 @@ onMounted(() => {
 
             try {
                 const fresh = await api<Item>(
-                    ReceiptController.show.url(item.id),
+                    show.url(item.id),
                 );
                 items.value[i] = fresh;
                 hydrate(fresh);
@@ -172,7 +172,7 @@ async function save(item: Item) {
     errors[item.id] = {};
 
     try {
-        await api(ReceiptController.confirm.url(item.id), forms[item.id]);
+        await api(confirm.url(item.id), forms[item.id]);
         drop(item);
         toast.success('Saved to your transactions.');
     } catch (e) {
@@ -189,13 +189,13 @@ async function save(item: Item) {
 }
 
 async function discard(item: Item) {
-    await api(ReceiptController.destroy.url(item.id), undefined, 'DELETE');
+    await api(destroy.url(item.id), undefined, 'DELETE');
     drop(item);
 }
 
 const toggleKeep = (e: Event) =>
     router.post(
-        ReceiptController.keep.url(),
+        keep.url(),
         { keep: (e.target as HTMLInputElement).checked },
         { preserveScroll: true },
     );

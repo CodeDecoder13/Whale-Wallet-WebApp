@@ -43,6 +43,15 @@ class AuthController extends Controller
         return response()->json(null, 204);
     }
 
+    /** Account deletion for the app (stores require it); needs the password like the web form. */
+    public function destroy(Request $request): JsonResponse
+    {
+        $request->validate(['password' => ['required', 'current_password']]);
+        $request->user()->delete();
+
+        return response()->json(null, 204);
+    }
+
     public function me(Request $request): UserResource
     {
         return new UserResource($request->user());

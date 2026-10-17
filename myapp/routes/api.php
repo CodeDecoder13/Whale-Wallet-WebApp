@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RecurringItemController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\Settings\DataController;
 use App\Http\Controllers\TransactionController as WebTransactionController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,9 @@ Route::name('api.')->prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
+        Route::delete('me', [AuthController::class, 'destroy'])->middleware('throttle:6,1');
+        Route::get('export', [DataController::class, 'export']);
+        Route::delete('chat', [DataController::class, 'clearChat']);
 
         Route::middleware('verified')->group(function () {
             Route::get('dashboard', [DashboardController::class, 'dashboard']);

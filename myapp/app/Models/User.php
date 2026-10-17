@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -35,6 +36,15 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    /** Rows cascade in the database; files and polymorphic tokens do not. */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $user) {
+            $user->tokens()->delete();
+            Storage::disk('local')->delete($user->receipts()->withoutGlobalScopes()->whereNotNull('path')->pluck('path')->all());
+        });
+    }
 
     public function incomeSources(): HasMany
     {

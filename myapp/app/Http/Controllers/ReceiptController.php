@@ -52,8 +52,16 @@ class ReceiptController extends Controller
             $receipt = Receipt::lockForUpdate()->findOrFail($receipt->id);
             abort_unless($receipt->status === 'parsed', 409, 'This receipt was already handled.');
 
-            $create->handle([...$request->validated(), 'source' => TransactionSource::Receipt, 'receipt_id' => $receipt->id]);
-            $receipt->update(['status' => 'confirmed']);
+            $data = $request->validated();
+            $create->handle([...$data, 'source' => TransactionSource::Receipt, 'receipt_id' => $receipt->id]);
+
+            // what the user changed on the confirm card, so parsing mistakes can be measured later
+            $draft = $receipt->parsed_json ?? [];
+            $corrections = collect(['merchant', 'amount', 'card_id', 'category_id', 'occurred_at'])
+                ->mapWithKeys(fn ($k) => [$k => [substr((string) ($draft[$k] ?? ''), 0, 10), substr((string) ($data[$k] ?? ''), 0, 10)]])
+                ->reject(fn ($v) => $v[0] === $v[1])
+                ->map(fn ($v) => ['from' => $v[0], 'to' => $v[1]]);
+            $receipt->update(['status' => 'confirmed', 'corrections_json' => $corrections->all()]);
 
             if (! $request->user()->keep_receipts && $receipt->path) {
                 Storage::disk('local')->delete($receipt->path);

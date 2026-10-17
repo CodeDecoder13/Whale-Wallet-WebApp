@@ -3,7 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { Paperclip, SendHorizontal } from '@lucide/vue';
 import { nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import ChatController from '@/actions/App/Http/Controllers/ChatController';
+import { confirm, messages } from '@/routes/chat';
 import AiConsent from '@/components/AiConsent.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
@@ -95,7 +95,7 @@ async function send(body: string | File) {
             draft?: Draft;
             quick_replies?: string[];
             receipt_id?: number;
-        }>(ChatController.messages.url(), form);
+        }>(messages.url(), form);
         msgs.value.push({
             id: r.id,
             role: 'assistant',
@@ -138,7 +138,7 @@ const onFile = (e: Event) => {
 async function save(m: Msg) {
     try {
         const r = await api<{ transaction_id: number }>(
-            ChatController.confirm.url(m.id!),
+            confirm.url(m.id!),
             {},
         );
         m.draft!.saved = r.transaction_id;
