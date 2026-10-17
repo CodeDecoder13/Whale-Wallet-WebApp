@@ -55,7 +55,7 @@ class RecurringItem extends Model
     public function occurrences(CarbonInterface $from, CarbonInterface $to): array
     {
         $dates = [];
-        for ($k = 0; $this->next_due_on && ($d = $this->nth($k)) <= $to; $k++) {
+        for ($k = 0; $this->next_due_on && $k < ($this->installments ?? PHP_INT_MAX) && ($d = $this->nth($k)) <= $to; $k++) {
             if ($d >= $from) {
                 $dates[] = $d;
             }
@@ -75,6 +75,17 @@ class RecurringItem extends Model
         if ($k > 0) {
             $this->update(['next_due_on' => $this->nth($k)]);
         }
+    }
+
+    /** Loan payments still to come (today included). */
+    public function paymentsLeft(): int
+    {
+        $left = 0;
+        for ($k = 0; $this->next_due_on && $k < $this->installments; $k++) {
+            $left += $this->nth($k)->gte(today());
+        }
+
+        return $left;
     }
 
     protected function casts(): array

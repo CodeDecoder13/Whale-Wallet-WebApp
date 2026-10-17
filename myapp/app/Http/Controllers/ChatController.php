@@ -21,15 +21,26 @@ class ChatController extends Controller
 {
     public function index(Request $request): Response
     {
+        return Inertia::render('chat/Index', $this->history($request));
+    }
+
+    /** The same data as the page, for the floating chat window. */
+    public function recent(Request $request): JsonResponse
+    {
+        return response()->json($this->history($request));
+    }
+
+    private function history(Request $request): array
+    {
         $thread = ChatThread::latest('id')->first();
         $incomeReceipts = Receipt::where('purpose', 'income')->pluck('id');
 
-        return Inertia::render('chat/Index', [
+        return [
             'consented' => (bool) $request->user()->ai_consent_at,
             'messages' => $thread?->messages()->latest('id')->limit(50)->get(['id', 'role', 'content', 'draft_json', 'receipt_id'])
                 ->each(fn ($m) => $m->income = $m->receipt_id && $incomeReceipts->contains($m->receipt_id))
                 ->reverse()->values() ?? [],
-        ]);
+        ];
     }
 
     /** Returns { reply, draft?, quick_replies? }. An attached image goes through the receipt pipeline. */

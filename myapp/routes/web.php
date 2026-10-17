@@ -53,6 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('receipts/{receipt}', [ReceiptController::class, 'destroy'])->name('receipts.destroy');
 
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::get('chat/recent', [ChatController::class, 'recent'])->name('chat.recent');
     Route::post('chat/messages', [ChatController::class, 'messages'])->middleware(['ai.consent', 'throttle:20,1'])->name('chat.messages');
     Route::post('chat/drafts/{message}/confirm', [ChatController::class, 'confirm'])->name('chat.confirm');
 
