@@ -7,6 +7,7 @@ import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import BankPicker from '@/components/BankPicker.vue';
 import { Label } from '@/components/ui/label';
 
 defineProps<{ types: string[] }>();
@@ -20,7 +21,7 @@ const form = useForm({
     pay_date_1: '15',
     pay_date_2: '30',
     bills: [] as { name: string; amount: string; day: string }[],
-    card: { name: '', type: 'ewallet', balance: '0' },
+    card: { name: '', type: 'ewallet', balance: '0', color: null as string | null },
     pod: { name: '', target_amount: '' },
 });
 
@@ -151,11 +152,20 @@ function next() {
 
             <template v-else-if="step === 2">
                 <div class="grid gap-2">
+                    <Label>Pick your bank or wallet</Label>
+                    <BankPicker
+                        :name="form.card.name"
+                        :color="form.card.color"
+                        @pick="(b) => Object.assign(form.card, b)"
+                    />
+                </div>
+                <div class="grid gap-2">
                     <Label for="card-name">Card name</Label>
                     <Input
                         id="card-name"
                         v-model="form.card.name"
                         placeholder="GCash"
+                        @input="form.card.color = null"
                         required
                     />
                 </div>

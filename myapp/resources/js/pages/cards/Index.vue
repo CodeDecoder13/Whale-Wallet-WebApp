@@ -3,12 +3,14 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ArrowUpRight, Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import CardController from '@/actions/App/Http/Controllers/CardController';
+import BankPicker from '@/components/BankPicker.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cardGradient } from '@/lib/banks';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { index } from '@/routes/cards';
 import { index as transactionsIndex } from '@/routes/transactions';
@@ -19,6 +21,7 @@ type WalletCard = {
     type: string;
     balance: number;
     monthly_limit: number | null;
+    color: string | null;
     spent: number;
 };
 
@@ -28,7 +31,7 @@ defineOptions({
 
 defineProps<{ cards: WalletCard[]; types: string[] }>();
 
-const blank = { name: '', type: 'ewallet', balance: '0', monthly_limit: '' };
+const blank = { name: '', type: 'ewallet', balance: '0', monthly_limit: '', color: null as string | null };
 const editing = ref<number | null>(null);
 const form = useForm({ ...blank });
 
@@ -39,6 +42,7 @@ function edit(c: WalletCard) {
         type: c.type,
         balance: toPesos(c.balance),
         monthly_limit: toPesos(c.monthly_limit),
+        color: c.color,
     });
     form.reset();
 }
@@ -110,7 +114,8 @@ const tile = (c: WalletCard, i: number) =>
                 v-for="(c, i) in cards"
                 :key="c.id"
                 class="flex min-h-44 flex-col gap-1 rounded-xl bg-linear-to-br p-5 text-white"
-                :class="tile(c, i)"
+                :class="c.color && usage(c) < 1 ? '' : tile(c, i)"
+                :style="c.color && usage(c) < 1 ? { background: cardGradient(c.color) } : undefined"
             >
                 <div class="flex items-center justify-between gap-2 text-sm">
                     <span class="font-medium">{{ c.name }}</span>
@@ -155,9 +160,17 @@ const tile = (c: WalletCard, i: number) =>
             <h3 class="font-medium sm:col-span-2">
                 {{ editing ? 'Edit card' : 'Add card' }}
             </h3>
+            <div class="grid gap-2 sm:col-span-2">
+                <Label>Bank or wallet</Label>
+                <BankPicker
+                    :name="form.name"
+                    :color="form.color"
+                    @pick="(b) => Object.assign(form, b)"
+                />
+            </div>
             <div class="grid gap-2">
                 <Label for="name">Name</Label>
-                <Input id="name" v-model="form.name" required />
+                <Input id="name" v-model="form.name" required @input="form.color = null" />
                 <InputError :message="form.errors.name" />
             </div>
             <div class="grid gap-2">

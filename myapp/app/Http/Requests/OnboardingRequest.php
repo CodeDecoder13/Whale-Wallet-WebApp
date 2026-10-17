@@ -39,6 +39,7 @@ class OnboardingRequest extends FormRequest
             'card.name' => ['required', 'string', 'max:80'],
             'card.type' => ['required', Rule::enum(CardType::class)],
             'card.balance' => ['required', 'integer'],
+            'card.color' => ['nullable', 'string', 'max:20'],
             'pod' => ['nullable', 'array'],
             'pod.name' => ['nullable', 'string', 'max:80'],
             'pod.target_amount' => ['required_with:pod.name', 'nullable', 'integer', 'min:1'],
