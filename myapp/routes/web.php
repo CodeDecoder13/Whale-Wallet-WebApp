@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CardController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PodController;
@@ -23,6 +24,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('transactions/quick', [TransactionController::class, 'quick'])->name('transactions.quick');
     Route::post('transactions/transfer', [TransactionController::class, 'transfer'])->name('transactions.transfer');
     Route::get('transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
+    Route::get('transactions/export.md', [TransactionController::class, 'exportMarkdown'])->name('transactions.export-md');
+    Route::put('transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
+    Route::delete('transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
+
+    Route::resource('categories', CategoryController::class)->only(['index', 'store', 'update', 'destroy']);
 });
 
 require __DIR__.'/settings.php';

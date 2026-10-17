@@ -27,6 +27,9 @@ class TransferBetween
 
             return Transaction::create([
                 'card_id' => ($src instanceof Card ? $src : $dst)->id,
+                'to_card_id' => $src instanceof Card && $dst instanceof Card ? $dst->id : null,
+                'to_pod_id' => $dst instanceof Pod ? $dst->id : null,
+                'from_pod_id' => $src instanceof Pod ? $src->id : null,
                 'type' => TransactionType::Transfer,
                 'amount' => $amount,
                 'merchant' => 'Transfer',

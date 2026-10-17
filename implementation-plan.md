@@ -8,7 +8,7 @@ Style: ponytail (lazy = fewest files, reuse before write, one check per money pa
 | Milestone | Status |
 |---|---|
 | M0 Foundations | Done. Redis/Horizon, S3, Pest, Playwright and first GitHub CI run moved to M5. App is in `myapp/` on the Vue starter kit with the blue brand theme |
-| M1 Budget core | Data layer and screens done and committed. Closing out: transaction edit/delete, category management, Markdown export, browser check |
+| M1 Budget core | Data layer and screens done and committed. Complete (edit/delete, categories, Markdown export, browser check) |
 | M2 to M5 | Not started |
 
 Libraries now installed: unovis (ts + vue), tanstack vue-table, vee-validate + zod, vue test-utils, jsdom. The deferral for TanStack Table and vee-validate + Zod below is lifted by the user; Playwright, Redis/Horizon, vue-echarts stay deferred. Vitest is bundled in `vp`. Tests are PHPUnit, not Pest.

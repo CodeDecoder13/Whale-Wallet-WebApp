@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Search } from '@lucide/vue';
-import { reactive, watch } from 'vue';
+import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from '@lucide/vue';
+import { reactive, ref, watch } from 'vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPeso, toPesos } from '@/lib/currency';
-import { exportMethod, index } from '@/routes/transactions';
+import { index as categoriesIndex } from '@/routes/categories';
+import { exportMd, exportMethod, index } from '@/routes/transactions';
 
 type Txn = {
     id: number;
@@ -21,6 +22,8 @@ type Txn = {
     occurred_at: string;
     source: string;
     note: string | null;
+    card_id: number;
+    category_id: number | null;
     card: { name: string };
     category: { name: string } | null;
 };
@@ -110,11 +113,49 @@ const parseQuick = () =>
         preserveScroll: true,
         onSuccess: () => quick.reset(),
     });
-const saveExpense = () =>
-    expense.post(TransactionController.store.url(), {
-        preserveScroll: true,
-        onSuccess: () => expense.reset('merchant', 'amount', 'note', 'source'),
+const editing = ref<number | null>(null);
+
+function edit(t: Txn) {
+    editing.value = t.id;
+    Object.assign(expense, {
+        merchant: t.merchant ?? '',
+        amount: toPesos(t.amount),
+        card_id: String(t.card_id),
+        category_id: t.category_id ? String(t.category_id) : '',
+        occurred_at: t.occurred_at.slice(0, 10),
+        note: t.note ?? '',
+        source: t.source,
     });
+    document.getElementById('add-expense')?.scrollIntoView();
+}
+
+function cancelEdit() {
+    editing.value = null;
+    expense.reset();
+}
+
+function remove(t: Txn) {
+    if (confirm(`Delete ${t.merchant}? Its amount returns to the balance.`)) {
+        router.delete(TransactionController.destroy.url(t.id), {
+            preserveScroll: true,
+        });
+    }
+}
+
+function saveExpense() {
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            editing.value = null;
+            expense.reset('merchant', 'amount', 'note', 'source');
+        },
+    };
+    if (editing.value) {
+        expense.put(TransactionController.update.url(editing.value), options);
+    } else {
+        expense.post(TransactionController.store.url(), options);
+    }
+}
 const saveTransfer = () =>
     transfer.post(TransactionController.transfer.url(), {
         preserveScroll: true,
@@ -134,9 +175,17 @@ const sign = { expense: '-', income: '+', transfer: '' };
                 title="Transactions"
                 description="Every expense is charged to a card. Transfers are not spending."
             />
-            <Button as-child variant="outline">
-                <a :href="exportMethod.url()" download>Export CSV</a>
-            </Button>
+            <div class="flex flex-wrap gap-2">
+                <Button as-child variant="outline">
+                    <Link :href="categoriesIndex().url">Categories</Link>
+                </Button>
+                <Button as-child variant="outline">
+                    <a :href="exportMethod.url()" download>Export CSV</a>
+                </Button>
+                <Button as-child variant="outline">
+                    <a :href="exportMd.url()" download>Export Markdown</a>
+                </Button>
+            </div>
         </div>
 
         <div class="rounded-xl border bg-card p-5">
@@ -210,6 +259,9 @@ const sign = { expense: '-', income: '+', transfer: '' };
                             <th class="p-3 font-normal">Card</th>
                             <th class="p-3 font-normal">Source</th>
                             <th class="p-3 text-right font-normal">Amount</th>
+                            <th class="p-3">
+                                <span class="sr-only">Actions</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -281,10 +333,29 @@ const sign = { expense: '-', income: '+', transfer: '' };
                             >
                                 {{ sign[t.type] }}{{ formatPeso(t.amount) }}
                             </td>
+                            <td class="p-3 whitespace-nowrap">
+                                <button
+                                    v-if="t.type === 'expense'"
+                                    type="button"
+                                    aria-label="Edit"
+                                    class="rounded-md p-1.5 hover:bg-accent"
+                                    @click="edit(t)"
+                                >
+                                    <Pencil class="size-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-label="Delete"
+                                    class="rounded-md p-1.5 hover:bg-accent"
+                                    @click="remove(t)"
+                                >
+                                    <Trash2 class="size-4" />
+                                </button>
+                            </td>
                         </tr>
                         <tr v-if="!transactions.data.length">
                             <td
-                                colspan="6"
+                                colspan="7"
                                 class="p-6 text-center text-muted-foreground"
                             >
                                 No transactions found.
@@ -348,9 +419,11 @@ const sign = { expense: '-', income: '+', transfer: '' };
             >
                 <h3 class="font-medium sm:col-span-2">
                     {{
-                        expense.source === 'quick'
-                            ? 'Confirm quick entry'
-                            : 'Add expense'
+                        editing
+                            ? 'Edit expense'
+                            : expense.source === 'quick'
+                              ? 'Confirm quick entry'
+                              : 'Add expense'
                     }}
                 </h3>
                 <div class="grid gap-2">
@@ -419,9 +492,17 @@ const sign = { expense: '-', income: '+', transfer: '' };
                     <Input id="note" v-model="expense.note" />
                     <InputError :message="expense.errors.note" />
                 </div>
-                <div class="sm:col-span-2">
+                <div class="flex flex-wrap items-center gap-2 sm:col-span-2">
                     <Button :disabled="expense.processing || !cards.length">
                         Save expense
+                    </Button>
+                    <Button
+                        v-if="editing"
+                        type="button"
+                        variant="ghost"
+                        @click="cancelEdit"
+                    >
+                        Cancel
                     </Button>
                     <p
                         v-if="!cards.length"

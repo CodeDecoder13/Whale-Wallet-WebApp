@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Actions\CreateTransaction;
+use App\Actions\DeleteTransaction;
 use App\Actions\ParseQuickEntry;
 use App\Actions\TransferBetween;
+use App\Actions\UpdateTransaction;
 use App\Http\Requests\QuickEntryRequest;
 use App\Http\Requests\TransactionRequest;
 use App\Http\Requests\TransferRequest;
 use App\Models\Card;
 use App\Models\Category;
 use App\Models\Pod;
+use App\Enums\TransactionType;
 use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,6 +62,22 @@ class TransactionController extends Controller
         return to_route('transactions.index');
     }
 
+    /** Only expenses are editable; a transfer must be deleted and redone. */
+    public function update(TransactionRequest $request, Transaction $transaction, UpdateTransaction $update): RedirectResponse
+    {
+        abort_unless($transaction->type === TransactionType::Expense, 422, __('Transfers cannot be edited.'));
+        $update->handle($transaction, $request->validated());
+
+        return back();
+    }
+
+    public function destroy(Transaction $transaction, DeleteTransaction $delete): RedirectResponse
+    {
+        $delete->handle($transaction);
+
+        return back();
+    }
+
     public function transfer(TransferRequest $request, TransferBetween $transfer): RedirectResponse
     {
         $transfer->handle(...$request->safe()->only(['from', 'to', 'amount']));
@@ -90,20 +109,40 @@ class TransactionController extends Controller
             $out = fopen('php://output', 'w');
             fputcsv($out, ['date', 'type', 'merchant', 'amount', 'card', 'category', 'note', 'source']);
 
-            foreach (Transaction::with(['card:id,name', 'category:id,name'])->orderBy('occurred_at')->orderBy('id')->lazy() as $t) {
-                fputcsv($out, array_map($this->safeCell(...), [
-                    $t->occurred_at->toDateString(),
-                    $t->type->value,
-                    $t->merchant,
-                    number_format($t->amount / 100, 2, '.', ''),
-                    $t->card->name,
-                    $t->category?->name,
-                    $t->note,
-                    $t->source->value,
-                ]));
+            foreach ($this->exportRows() as $row) {
+                fputcsv($out, array_map($this->safeCell(...), $row));
             }
             fclose($out);
         }, 'transactions.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    public function exportMarkdown(): StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            echo "| date | type | merchant | amount | card | category | note | source |\n|---|---|---|---|---|---|---|---|\n";
+
+            foreach ($this->exportRows() as $row) {
+                // pipes and line breaks would break the table
+                echo '| '.implode(' | ', array_map(fn ($c) => preg_replace('/\s+/', ' ', str_replace('|', '\|', (string) $c)), $row))." |\n";
+            }
+        }, 'transactions.md', ['Content-Type' => 'text/markdown']);
+    }
+
+    /** All of the user's transactions as plain rows, oldest first (shared by both exports). */
+    private function exportRows(): \Generator
+    {
+        foreach (Transaction::with(['card:id,name', 'category:id,name'])->orderBy('occurred_at')->orderBy('id')->lazy() as $t) {
+            yield [
+                $t->occurred_at->toDateString(),
+                $t->type->value,
+                $t->merchant,
+                number_format($t->amount / 100, 2, '.', ''),
+                $t->card->name,
+                $t->category?->name,
+                $t->note,
+                $t->source->value,
+            ];
+        }
     }
 
     /** Stops spreadsheets from running user text that starts with a formula character. */

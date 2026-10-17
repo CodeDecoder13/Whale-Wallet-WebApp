@@ -1,0 +1,151 @@
+- generic [ref=f2e3]:
+  - generic [ref=f2e6]:
+    - generic [ref=f2e7]:
+      - list [ref=f2e8]:
+        - listitem [ref=f2e9]:
+          - link "WhaleWallet" [ref=f2e10] [cursor=pointer]:
+            - /url: /dashboard
+      - generic [ref=f2e12]:
+        - generic [ref=f2e13]: DU
+        - generic [ref=f2e15]:
+          - generic [ref=f2e16]: Demo User
+          - generic [ref=f2e17]: demo@example.com
+    - list [ref=f2e20]:
+      - listitem [ref=f2e21]:
+        - link "Dashboard" [ref=f2e22] [cursor=pointer]:
+          - /url: /dashboard
+      - listitem [ref=f2e29]:
+        - link "Cards" [ref=f2e30] [cursor=pointer]:
+          - /url: /cards
+      - listitem [ref=f2e35]:
+        - link "Pods" [ref=f2e36] [cursor=pointer]:
+          - /url: /pods
+      - listitem [ref=f2e41]:
+        - link "Transactions" [ref=f2e42] [cursor=pointer]:
+          - /url: /transactions
+      - listitem [ref=f2e47]:
+        - link "Settings" [ref=f2e48] [cursor=pointer]:
+          - /url: /settings/profile
+    - generic [ref=f2e53]:
+      - list [ref=f2e56]:
+        - listitem [ref=f2e57]:
+          - link "Need help?" [ref=f2e58] [cursor=pointer]:
+            - /url: mailto:help@whalewallet.app
+      - list [ref=f2e63]:
+        - listitem [ref=f2e64]:
+          - button "DU Demo User" [ref=f2e65]:
+            - generic [ref=f2e66]: DU
+            - generic [ref=f2e68]: Demo User
+  - main [ref=f2e73]:
+    - generic [ref=f2e74]:
+      - generic [ref=f2e75]:
+        - generic [ref=f2e76]: Saturday, 17 October 2026
+        - generic [ref=f2e77]: Transactions
+      - generic [ref=f2e78]: October 2026
+      - searchbox "Search transactions" [ref=f2e85]
+      - link "Add expense" [ref=f2e86] [cursor=pointer]:
+        - /url: /transactions#add-expense
+      - button "Toggle dark mode" [ref=f2e89]
+      - generic [ref=f2e92]: DU
+    - generic [ref=f2e94]:
+      - generic [ref=f2e95]:
+        - generic [ref=f2e96]:
+          - heading "Transactions" [level=2] [ref=f2e97]
+          - paragraph [ref=f2e98]: Every expense is charged to a card. Transfers are not spending.
+        - generic [ref=f2e99]:
+          - link "Categories" [ref=f2e100] [cursor=pointer]:
+            - /url: /categories
+          - link "Export CSV" [ref=f2e101] [cursor=pointer]:
+            - /url: /transactions/export
+          - link "Export Markdown" [ref=f2e102] [cursor=pointer]:
+            - /url: /transactions/export.md
+      - generic [ref=f2e103]:
+        - generic [ref=f2e104]:
+          - textbox "Search transactions" [ref=f2e109]
+          - textbox "From date" [ref=f2e110]
+          - textbox "To date" [ref=f2e111]
+          - combobox "Card" [ref=f2e112]:
+            - option "All cards" [selected]
+            - option "GCash"
+          - combobox "Category" [ref=f2e113]:
+            - option "All categories" [selected]
+            - option "Bills"
+            - option "Entertainment"
+            - option "Food"
+            - option "Health"
+            - option "Other"
+            - option "Shopping"
+            - option "Transport"
+          - button "Filter" [ref=f2e114]
+          - button "Clear" [ref=f2e115]
+        - table [ref=f2e117]:
+          - rowgroup [ref=f2e118]:
+            - row [ref=f2e119]:
+              - columnheader "Transaction" [ref=f2e120]
+              - columnheader "Category" [ref=f2e121]
+              - columnheader "Date" [ref=f2e122]
+              - columnheader "Card" [ref=f2e123]
+              - columnheader "Source" [ref=f2e124]
+              - columnheader "Amount" [ref=f2e125]
+              - columnheader "Actions" [ref=f2e126]
+          - rowgroup [ref=f2e128]:
+            - row [ref=f2e129]:
+              - cell "No transactions found." [ref=f2e130]
+        - generic [ref=f2e131]:
+          - generic [ref=f2e132]: Showing 0 of 0 transactions
+          - generic [ref=f2e133]: "1"
+      - generic [ref=f2e135]:
+        - generic [ref=f2e136]: Quick entry
+        - generic [ref=f2e137]:
+          - textbox "Quick entry" [ref=f2e138]:
+            - /placeholder: Jollibee 250
+          - button "Fill form" [ref=f2e139]
+      - generic [ref=f2e140]:
+        - generic [ref=f2e141]:
+          - heading "Add expense" [level=3] [ref=f2e142]
+          - generic [ref=f2e143]:
+            - generic [ref=f2e144]: Merchant
+            - textbox "Merchant" [ref=f2e145]
+          - generic [ref=f2e146]:
+            - generic [ref=f2e147]: Amount (PHP)
+            - spinbutton "Amount (PHP)" [ref=f2e148]
+          - generic [ref=f2e149]:
+            - generic [ref=f2e150]: Card
+            - combobox "Card" [ref=f2e151]:
+              - option "GCash" [selected]
+          - generic [ref=f2e152]:
+            - generic [ref=f2e153]: Category
+            - combobox "Category" [ref=f2e154]:
+              - option "Uncategorized" [selected]
+              - option "Bills"
+              - option "Entertainment"
+              - option "Food"
+              - option "Health"
+              - option "Other"
+              - option "Shopping"
+              - option "Transport"
+          - generic [ref=f2e155]:
+            - generic [ref=f2e156]: Date
+            - textbox "Date" [ref=f2e157]: 2026-10-17
+          - generic [ref=f2e158]:
+            - generic [ref=f2e159]: Note
+            - textbox "Note" [ref=f2e160]
+          - button "Save expense" [ref=f2e162]
+        - generic [ref=f2e163]:
+          - heading "Transfer" [level=3] [ref=f2e164]
+          - generic [ref=f2e165]:
+            - generic [ref=f2e166]: From
+            - combobox "From" [ref=f2e167]:
+              - option "Choose" [disabled] [selected]
+              - 'option "Card: GCash"'
+          - generic [ref=f2e168]:
+            - generic [ref=f2e169]: To
+            - combobox "To" [ref=f2e170]:
+              - option "Choose" [disabled] [selected]
+              - 'option "Card: GCash"'
+          - generic [ref=f2e171]:
+            - generic [ref=f2e172]: Amount (PHP)
+            - spinbutton "Amount (PHP)" [ref=f2e173]
+          - button "Transfer" [ref=f2e175]
+  - region "Notifications alt+T":
+    - list

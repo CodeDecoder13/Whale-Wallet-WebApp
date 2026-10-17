@@ -137,7 +137,9 @@
     --sidebar: #ffffff;
 }
 
-.dark {
+:root.dark {
+    --vis-donut-central-label-text-color: #e8f1fb;
+    --vis-donut-central-sub-label-text-color: #e8f1fb;
     --background: #081b33;
     --foreground: #e8f1fb;
     --card: #0f2744;

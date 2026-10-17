@@ -109,10 +109,10 @@ Complete milestones in order. Each task has acceptance criteria; do not mark don
 - [x] Quick entry: parse text like `Jollibee 250` into a draft (simple rules first; Gemini fallback only after M3).
 - [x] Dashboard: safe-to-spend today, income vs fixed vs discretionary, category chart, upcoming bills.
 - [x] Seeder using the founder's example: income 35,000, loan 9,000 (due the 27th), rent 8,000, subscriptions about 2,156 per month.
-- [x] CSV export. [ ] Markdown export.
-- [ ] Edit and delete transactions (delete/edit must reverse or adjust the card balance in a DB transaction).
-- [ ] Category management (add, rename, delete categories).
-- [ ] Browser check of all M1 pages with data (transactions rows, pod rings, dark mode, onboarding).
+- [x] CSV and Markdown export.
+- [x] Edit and delete transactions (delete/edit must reverse or adjust the card balance in a DB transaction).
+- [x] Category management (add, rename, delete categories).
+- [x] Browser check of all M1 pages with data (transactions rows, pod rings, dark mode, onboarding).
 - **Done when:** a seeded user sees correct totals (example remaining after fixed costs: 15,844) and all rows are user-scoped (a test proves user A cannot read user B's data).
 
 ### M2: Forecast, subscriptions, recommendations

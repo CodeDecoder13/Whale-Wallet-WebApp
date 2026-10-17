@@ -1,0 +1,126 @@
+- generic [ref=f1e43]:
+  - generic [ref=f1e46]:
+    - generic [ref=f1e47]:
+      - list [ref=f1e48]:
+        - listitem [ref=f1e49]:
+          - link "WhaleWallet" [ref=f1e50] [cursor=pointer]:
+            - /url: /dashboard
+      - generic [ref=f1e52]:
+        - generic [ref=f1e53]: DU
+        - generic [ref=f1e55]:
+          - generic [ref=f1e56]: Demo User
+          - generic [ref=f1e57]: demo@example.com
+    - list [ref=f1e60]:
+      - listitem [ref=f1e61]:
+        - link "Dashboard" [ref=f1e62] [cursor=pointer]:
+          - /url: /dashboard
+      - listitem [ref=f1e69]:
+        - link "Cards" [ref=f1e70] [cursor=pointer]:
+          - /url: /cards
+      - listitem [ref=f1e75]:
+        - link "Pods" [ref=f1e76] [cursor=pointer]:
+          - /url: /pods
+      - listitem [ref=f1e81]:
+        - link "Transactions" [ref=f1e82] [cursor=pointer]:
+          - /url: /transactions
+      - listitem [ref=f1e87]:
+        - link "Settings" [ref=f1e88] [cursor=pointer]:
+          - /url: /settings/profile
+    - generic [ref=f1e93]:
+      - list [ref=f1e96]:
+        - listitem [ref=f1e97]:
+          - link "Need help?" [ref=f1e98] [cursor=pointer]:
+            - /url: mailto:help@whalewallet.app
+      - list [ref=f1e103]:
+        - listitem [ref=f1e104]:
+          - button "DU Demo User" [ref=f1e105]:
+            - generic [ref=f1e106]: DU
+            - generic [ref=f1e108]: Demo User
+  - main [ref=f1e113]:
+    - generic [ref=f1e114]:
+      - generic [ref=f1e115]:
+        - generic [ref=f1e116]: Saturday, 17 October 2026
+        - generic [ref=f1e117]: Dashboard
+      - generic [ref=f1e118]: October 2026
+      - searchbox "Search transactions" [ref=f1e125]
+      - link "Add expense" [ref=f1e126] [cursor=pointer]:
+        - /url: /transactions#add-expense
+      - button "Toggle dark mode" [ref=f1e129]
+      - generic [ref=f1e132]: DU
+    - generic [ref=f1e134]:
+      - generic [ref=f1e135]:
+        - heading "Good morning, Demo" [level=1] [ref=f1e136]
+        - paragraph [ref=f1e137]: Here's your money at a glance.
+      - generic [ref=f1e138]:
+        - generic [ref=f1e139]: Safe to spend today
+        - generic [ref=f1e141]: ₱1,056.26
+        - paragraph [ref=f1e142]: ₱15,844.00 left this month after fixed bills and spending so far.
+      - generic [ref=f1e144]:
+        - generic [ref=f1e145]:
+          - generic [ref=f1e146]: Income
+          - generic [ref=f1e147]: ₱35,000.00
+          - generic [ref=f1e148]: This month
+        - generic [ref=f1e149]:
+          - generic [ref=f1e150]: Fixed expenses
+          - generic [ref=f1e151]: ₱19,156.00
+          - generic [ref=f1e152]: 54.7% of income
+        - generic [ref=f1e153]:
+          - generic [ref=f1e154]: Left to spend
+          - generic [ref=f1e155]: ₱15,844.00
+          - generic [ref=f1e156]: After bills and spending
+        - generic [ref=f1e157]:
+          - generic [ref=f1e158]: Spent this month
+          - generic [ref=f1e159]: ₱0.00
+          - generic [ref=f1e160]: 0.0% of income
+      - generic [ref=f1e161]:
+        - generic [ref=f1e162]:
+          - heading "Where each peso goes" [level=2] [ref=f1e163]
+          - paragraph [ref=f1e164]: Monthly income allocation
+          - list [ref=f1e168]:
+            - listitem [ref=f1e169]:
+              - generic [ref=f1e171]: Fixed expenses
+              - generic [ref=f1e172]: ₱19,156.00
+              - generic [ref=f1e173]: 54.7%
+            - listitem [ref=f1e174]:
+              - generic [ref=f1e176]: Spending
+              - generic [ref=f1e177]: ₱0.00
+              - generic [ref=f1e178]: 0.0%
+            - listitem [ref=f1e179]:
+              - generic [ref=f1e181]: Left over
+              - generic [ref=f1e182]: ₱15,844.00
+              - generic [ref=f1e183]: 45.3%
+        - generic [ref=f1e184]:
+          - heading "Spending by category" [level=2] [ref=f1e185]
+          - paragraph [ref=f1e186]: Where your spending goes
+          - paragraph [ref=f1e187]: No spending logged this month.
+      - generic [ref=f1e188]:
+        - heading "Upcoming bills" [level=2] [ref=f1e189]
+        - paragraph [ref=f1e190]: Next 14 days
+        - list [ref=f1e191]:
+          - listitem [ref=f1e192]:
+            - generic [ref=f1e193]: "Y"
+            - generic [ref=f1e194]:
+              - generic [ref=f1e195]: YouTube Premium
+              - generic [ref=f1e196]: 18 Oct
+            - generic [ref=f1e197]: ₱189.00
+          - listitem [ref=f1e198]:
+            - generic [ref=f1e199]: G
+            - generic [ref=f1e200]:
+              - generic [ref=f1e201]: Gym
+              - generic [ref=f1e202]: 20 Oct
+            - generic [ref=f1e203]: ₱159.00
+          - listitem [ref=f1e204]:
+            - generic [ref=f1e205]: C
+            - generic [ref=f1e206]:
+              - generic [ref=f1e207]: ChatGPT
+              - generic [ref=f1e208]: 22 Oct
+            - generic [ref=f1e209]: ₱662.00
+          - listitem [ref=f1e210]:
+            - generic [ref=f1e211]: L
+            - generic [ref=f1e212]:
+              - generic [ref=f1e213]: Loan
+              - generic [ref=f1e214]: 27 Oct
+            - generic [ref=f1e215]: ₱9,000.00
+      - paragraph [ref=f1e216]: Budgeting guidance based on the numbers you entered, not licensed financial advice.
+  - region "Notifications alt+T":
+    - list
