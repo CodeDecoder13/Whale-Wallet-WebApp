@@ -42,7 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         static::deleting(function (self $user) {
             $user->tokens()->delete();
-            Storage::disk('local')->delete($user->receipts()->withoutGlobalScopes()->whereNotNull('path')->pluck('path')->all());
+            Storage::disk()->delete($user->receipts()->withoutGlobalScopes()->whereNotNull('path')->pluck('path')->all());
         });
     }
 

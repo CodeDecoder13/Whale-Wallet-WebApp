@@ -144,8 +144,8 @@ class ParseReceipt implements ShouldQueue
     /** Re-encodes the stored image as JPEG with its longest side at most 1600px; returns the absolute path. */
     private function downscale(Receipt $receipt): string
     {
-        $disk = Storage::disk('local');
-        $src = @imagecreatefromstring((string) @file_get_contents($disk->path($receipt->path)));
+        $disk = Storage::disk();
+        $src = @imagecreatefromstring((string) $disk->get($receipt->path));
 
         if (! $src) {
             throw new UnexpectedValueException('That file could not be read as an image.');
@@ -160,21 +160,24 @@ class ParseReceipt implements ShouldQueue
         imagecopyresampled($out, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
 
         $new = preg_replace('/\.\w+$/', '.jpg', $receipt->path);
-        imagejpeg($out, $disk->path($new), 85);
+        // the AI provider needs a local file, and a remote disk has no path(), so write to temp and upload
+        $tmp = sys_get_temp_dir().'/'.basename($new); // ulid-prefixed, so unique
+        imagejpeg($out, $tmp, 85);
+        $disk->put($new, file_get_contents($tmp));
 
         if ($new !== $receipt->path) {
             $disk->delete($receipt->path);
             $receipt->update(['path' => $new]);
         }
 
-        return $disk->path($new);
+        return $tmp;
     }
 
     /** A receipt that cannot be read has no further use for its image. */
     private function markFailed(Receipt $receipt, string $message): void
     {
         if ($receipt->path) {
-            Storage::disk('local')->delete($receipt->path);
+            Storage::disk()->delete($receipt->path);
         }
 
         $receipt->update(['status' => 'failed', 'error' => $message, 'path' => null]);

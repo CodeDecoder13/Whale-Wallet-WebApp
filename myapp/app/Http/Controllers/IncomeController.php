@@ -40,7 +40,7 @@ class IncomeController extends Controller
         $row = IncomeSource::whereNotNull('month')->findOrFail($income);
 
         if ($receipt = $row->receipt_id ? Receipt::find($row->receipt_id) : null) {
-            $receipt->path && Storage::disk('local')->delete($receipt->path);
+            $receipt->path && Storage::disk()->delete($receipt->path);
             $receipt->delete();
         }
         $row->delete();

@@ -66,7 +66,7 @@ class ReceiptController extends Controller
             $receipt->update(['status' => 'confirmed', 'corrections_json' => $corrections->all()]);
 
             if (! $request->user()->keep_receipts && $receipt->path) {
-                Storage::disk('local')->delete($receipt->path);
+                Storage::disk()->delete($receipt->path);
                 $receipt->update(['path' => null]);
             }
         });
@@ -77,7 +77,7 @@ class ReceiptController extends Controller
     public function destroy(Receipt $receipt): JsonResponse
     {
         if ($receipt->path) {
-            Storage::disk('local')->delete($receipt->path);
+            Storage::disk()->delete($receipt->path);
         }
         $receipt->delete();
 
