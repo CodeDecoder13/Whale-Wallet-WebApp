@@ -20,7 +20,7 @@ class SubscriptionController extends Controller
 
         return Inertia::render('subscriptions/Index', [
             'items' => $items->map(fn ($i) => [
-                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments']),
+                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo']),
                 'kind' => $i->kind->value,
                 'next_due_on' => $i->next_due_on?->toDateString(),
                 'left' => $i->installments ? $i->paymentsLeft() : null,

@@ -4,9 +4,12 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import ForecastChart from '@/components/ForecastChart.vue';
 import IncomeDialog from '@/components/IncomeDialog.vue';
+import Mascot from '@/components/Mascot.vue';
+import WelcomeBackDialog from '@/components/WelcomeBackDialog.vue';
 import type { Point } from '@/components/ForecastChart.vue';
 import { formatPeso } from '@/lib/currency';
 import { dashboard, forecast as forecastPage } from '@/routes';
+import { edit as profileEdit } from '@/routes/profile';
 import { index as tipsPage } from '@/routes/tips';
 
 type Slice = { name: string; total: number };
@@ -20,11 +23,14 @@ const props = defineProps<{
     };
     forecast: {
         days: number;
+        payday: string;
+        at_payday: number;
         series: Point[];
         lowest: { date: string; amount: number };
         safe_per_day: number;
     };
     consented: boolean;
+    welcome: boolean;
     income_entries: {
         id: number;
         name: string;
@@ -36,6 +42,7 @@ const props = defineProps<{
         id: number;
         status: 'queued' | 'parsing' | 'parsed' | 'failed' | 'confirmed';
         error: string | null;
+        claimed: number | null;
         draft: {
             amount: number;
             occurred_at: string;
@@ -103,6 +110,8 @@ const split = computed(() =>
     })),
 );
 
+const welcomeOpen = ref(props.welcome);
+
 // ?income=1 (from Whale Chat) opens the dialog so a proof sent there can be confirmed
 const incomeOpen = ref(
     typeof window !== 'undefined' &&
@@ -132,34 +141,91 @@ const dueDate = (d: string) =>
         </div>
 
         <div
-            class="relative overflow-hidden rounded-2xl bg-linear-to-br from-navy to-navy-2 p-8 text-white"
+            class="grid grid-cols-[minmax(0,1fr)] items-center gap-6 overflow-hidden rounded-2xl bg-linear-to-br from-navy to-navy-2 p-6 text-white sm:grid-cols-[auto_minmax(0,1fr)] md:gap-8 md:p-8 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.15fr)]"
         >
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <span class="size-2 rounded-full bg-brand-light" />
-                Safe to spend today
+            <Mascot
+                pose="hero"
+                bare
+                class="pointer-events-none hidden w-40 shrink-0 sm:block md:w-52"
+            />
+
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 text-sm font-medium">
+                    <span class="size-2 rounded-full bg-brand-light" />
+                    Safe to spend today
+                </div>
+                <div class="mt-2 text-5xl font-bold tracking-tight">
+                    {{ formatPeso(forecast.safe_per_day) }}
+                </div>
+                <p class="mt-2 max-w-md text-sm text-white/75">
+                    {{
+                        forecast.safe_per_day === 0 && forecast.lowest.amount < 0
+                            ? 'Bills and spending outrun your balance before payday, so nothing is safe to spend yet.'
+                            : `Spread over the ${forecast.days} ${forecast.days === 1 ? 'day' : 'days'} until payday.`
+                    }}
+                </p>
+
+                <dl class="mt-5 grid max-w-md grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <dt class="text-xs text-white/60">Lowest point</dt>
+                        <dd
+                            class="mt-0.5 font-semibold"
+                            :class="forecast.lowest.amount < 0 && 'text-warm'"
+                        >
+                            {{ formatPeso(forecast.lowest.amount) }}
+                        </dd>
+                        <dd class="text-xs text-white/60">
+                            {{ dueDate(forecast.lowest.date) }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-white/60">At payday</dt>
+                        <dd class="mt-0.5 font-semibold">
+                            {{ formatPeso(forecast.at_payday) }}
+                        </dd>
+                        <dd class="text-xs text-white/60">
+                            {{ dueDate(forecast.payday) }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-white/60">Payday in</dt>
+                        <dd class="mt-0.5 font-semibold">
+                            {{ forecast.days }}
+                            {{ forecast.days === 1 ? 'day' : 'days' }}
+                        </dd>
+                        <dd>
+                            <Link
+                                :href="`${profileEdit().url}#payday`"
+                                class="text-xs text-white/60 underline underline-offset-4 hover:text-white"
+                            >
+                                Change payday
+                            </Link>
+                        </dd>
+                    </div>
+                </dl>
+
+                <Link
+                    :href="forecastPage()"
+                    class="mt-5 inline-block text-sm font-medium text-white underline underline-offset-4"
+                >
+                    See the full forecast
+                </Link>
             </div>
-            <div class="mt-3 text-5xl font-bold tracking-tight">
-                {{ formatPeso(forecast.safe_per_day) }}
-            </div>
-            <p class="mt-4 max-w-md text-sm text-white/80">
-                Lowest balance before payday:
-                {{ formatPeso(forecast.lowest.amount) }} on
-                {{ dueDate(forecast.lowest.date) }}, {{ forecast.days }}
-                {{ forecast.days === 1 ? 'day' : 'days' }} to go.
-            </p>
-            <div class="mt-5 max-w-md">
+
+            <div
+                class="rounded-xl bg-white/5 p-4 ring-1 ring-white/10 sm:col-span-2 lg:col-span-1"
+            >
+                <div class="mb-2 flex items-baseline justify-between text-xs text-white/60">
+                    <span>Projected balance</span>
+                    <span>Today to {{ dueDate(forecast.payday) }}</span>
+                </div>
                 <ForecastChart
                     :series="forecast.series"
                     compact
+                    :height="170"
                     color="var(--color-brand-light)"
                 />
             </div>
-            <Link
-                :href="forecastPage()"
-                class="mt-3 inline-block text-sm font-medium text-white underline underline-offset-4"
-            >
-                See the full forecast
-            </Link>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -185,6 +251,14 @@ const dueDate = (d: string) =>
                 </button>
             </div>
         </div>
+
+        <WelcomeBackDialog
+            v-model:open="welcomeOpen"
+            :name="firstName"
+            :left="summary.safe"
+            :forecast="forecast"
+            :upcoming="upcoming"
+        />
 
         <IncomeDialog
             v-model:open="incomeOpen"

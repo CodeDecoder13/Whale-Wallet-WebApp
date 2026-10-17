@@ -23,6 +23,7 @@ type Proof = {
     id: number;
     status: 'queued' | 'parsing' | 'parsed' | 'failed' | 'confirmed';
     error: string | null;
+    claimed: number | null;
     draft: {
         amount: number;
         occurred_at: string;
@@ -215,6 +216,18 @@ const day = (d: string | null) =>
                 <form v-if="active" class="grid gap-4" @submit.prevent="save">
                     <p class="text-xs text-muted-foreground">
                         Check what I read from your screenshot, then save.
+                    </p>
+                    <p
+                        v-if="
+                            active.claimed &&
+                            active.draft &&
+                            active.claimed !== active.draft.amount
+                        "
+                        class="rounded-md border border-warm/50 bg-warm/10 p-2 text-xs"
+                    >
+                        You told Whale Chat {{ formatPeso(active.claimed) }},
+                        but the proof reads {{ formatPeso(active.draft.amount) }}.
+                        Check the amount before saving.
                     </p>
                     <div class="grid gap-2">
                         <Label for="income-amount">Amount (PHP)</Label>

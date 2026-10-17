@@ -19,6 +19,6 @@ class Receipt extends Model
     /** What the browser may see: status, a user-safe error and the draft. Never the path. */
     public function toClient(): array
     {
-        return ['id' => $this->id, 'status' => $this->status, 'error' => $this->error, 'draft' => $this->parsed_json];
+        return ['id' => $this->id, 'status' => $this->status, 'error' => $this->error, 'draft' => $this->parsed_json, 'claimed' => $this->claimed_amount];
     }
 }

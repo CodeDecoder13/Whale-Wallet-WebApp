@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, usePage } from '@inertiajs/vue3';
+import { Form, Head, useForm, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
@@ -25,6 +25,18 @@ defineOptions({
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+
+const props = defineProps<{ pay_dates: number[] }>();
+const payday = useForm({
+    first: String(props.pay_dates[0] ?? ''),
+    second: String(props.pay_dates[1] ?? ''),
+});
+
+function savePayday() {
+    payday
+        .transform((d) => ({ pay_dates: [d.first, d.second].filter(Boolean) }))
+        .patch(ProfileController.payday.url(), { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -100,6 +112,40 @@ const user = computed(() => page.props.auth.user);
             </div>
         </Form>
     </div>
+
+    <form id="payday" class="mt-10 space-y-6" @submit.prevent="savePayday">
+        <Heading
+            variant="small"
+            title="Payday"
+            description="The day or days of the month your income arrives. The forecast counts down to the next one."
+        />
+        <div class="grid max-w-sm grid-cols-2 gap-4">
+            <div class="grid gap-2">
+                <Label for="payday-first">Payday (day of month)</Label>
+                <Input
+                    id="payday-first"
+                    v-model="payday.first"
+                    type="number"
+                    min="1"
+                    max="31"
+                    required
+                />
+            </div>
+            <div class="grid gap-2">
+                <Label for="payday-second">Second payday (optional)</Label>
+                <Input
+                    id="payday-second"
+                    v-model="payday.second"
+                    type="number"
+                    min="1"
+                    max="31"
+                />
+            </div>
+            <InputError class="col-span-2" :message="Object.values(payday.errors)[0]"
+            />
+        </div>
+        <Button :disabled="payday.processing">Save payday</Button>
+    </form>
 
     <DeleteUser />
 </template>

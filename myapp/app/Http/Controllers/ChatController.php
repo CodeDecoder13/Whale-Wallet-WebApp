@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Actions\CreateTransaction;
 use App\Actions\HandleChatMessage;
 use App\Actions\StoreReceipt;
+use App\Enums\RecurringKind;
 use App\Enums\TransactionSource;
 use App\Models\ChatMessage;
 use App\Models\ChatThread;
 use App\Models\Receipt;
+use App\Models\RecurringItem;
 use App\Services\Ai\AiErrors;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,11 +58,13 @@ class ChatController extends Controller
 
         if ($request->hasFile('image')) {
             // a screenshot sent right after the salary prompt (or captioned "salary") is a salary proof
-            $income = HandleChatMessage::isSalary($data['text'] ?? '')
-                || $thread->messages()->where('role', 'assistant')->latest('id')->value('content') === HandleChatMessage::SALARY_PROMPT;
+            $last = $thread->messages()->where('role', 'assistant')->latest('id')->first()?->draft_json;
+            $income = HandleChatMessage::isSalary($data['text'] ?? '') || ($last['kind'] ?? null) === 'income';
             $receipt = $store->handle($user, $request->file('image'), $income ? 'income' : 'expense');
+            $claimed = ($last['kind'] ?? null) === 'income' ? ($last['amount'] ?? null) : null;
+            $claimed && $receipt->update(['claimed_amount' => $claimed]);
             $reply = $income
-                ? 'Got your proof. I am reading it now; confirm the reference number, date and amount from Add income on your dashboard.'
+                ? 'Got your proof. I am reading it now'.($claimed ? ' and will check it against ₱'.number_format($claimed / 100, 2) : '').'; confirm the reference number, date and amount from Add income on your dashboard.'
                 : 'Got your receipt. I am reading it now; confirm it on the Receipts page.';
             $thread->messages()->create(['role' => 'user', 'content' => $data['text'] ?? 'Sent a receipt', 'receipt_id' => $receipt->id]);
             $message = $thread->messages()->create(['role' => 'assistant', 'content' => $reply, 'receipt_id' => $receipt->id]);
@@ -85,7 +89,17 @@ class ChatController extends Controller
         $id = DB::transaction(function () use ($message, $create) {
             $message = ChatMessage::lockForUpdate()->findOrFail($message->id);
             $d = $message->draft_json;
-            abort_unless($d && ! $d['missing'] && empty($d['saved']), 422, 'There is no complete draft to save here.');
+            abort_unless($d && ! $d['missing'] && empty($d['saved']) && ($d['kind'] ?? null) !== 'income', 422, 'There is no complete draft to save here.');
+
+            if (($d['kind'] ?? null) === 'loan') {
+                $loan = RecurringItem::create([
+                    'name' => $d['merchant'], 'amount' => $d['amount'], 'cadence' => 'monthly', 'kind' => RecurringKind::Debt,
+                    'installments' => $d['payments'], 'next_due_on' => $d['occurred_at'],
+                ]);
+                $message->update(['draft_json' => $d + ['saved' => $loan->id]]);
+
+                return $loan->id;
+            }
 
             $transaction = $create->handle([
                 'merchant' => $d['merchant'], 'amount' => $d['amount'], 'card_id' => $d['card_id'],

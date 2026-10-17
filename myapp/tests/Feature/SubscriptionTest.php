@@ -157,6 +157,16 @@ class SubscriptionTest extends TestCase
         $this->assertNull($item->fresh()->installments);
     }
 
+    public function test_logo_must_be_a_small_image_data_uri()
+    {
+        $this->actingAs(User::factory()->create());
+        $bill = ['name' => 'Gym', 'amount' => '500', 'cadence' => 'monthly', 'next_due_on' => '2026-03-10', 'kind' => 'bill'];
+
+        $this->post(route('subscriptions.store'), [...$bill, 'logo' => 'https://evil.test/x.png'])->assertSessionHasErrors('logo');
+        $this->post(route('subscriptions.store'), [...$bill, 'logo' => 'data:image/png;base64,AAAA'])->assertRedirect();
+        $this->assertSame('data:image/png;base64,AAAA', RecurringItem::sole()->logo);
+    }
+
     public function test_cannot_touch_another_users_item_or_an_installment_plan()
     {
         [$a, $b] = User::factory(2)->create();

@@ -26,4 +26,16 @@ class DashboardTest extends TestCase
         $response = $this->get(route('dashboard'));
         $response->assertOk();
     }
+
+    public function test_welcome_back_shows_once_per_login()
+    {
+        $user = User::factory()->create(['password' => bcrypt('P@ssw0rd12')]);
+        Card::factory()->for($user)->create();
+
+        $this->get(route('dashboard'))->assertRedirect(); // signed out
+        $this->post(route('login.store'), ['email' => $user->email, 'password' => 'P@ssw0rd12']);
+
+        $this->get(route('dashboard'))->assertInertia(fn ($page) => $page->where('welcome', true));
+        $this->get(route('dashboard'))->assertInertia(fn ($page) => $page->where('welcome', false));
+    }
 }

@@ -62,6 +62,15 @@ class FakeAiProvider implements AiProvider
             }
         }
 
+        if (preg_match('/\b(loan|utang|borrowed)\b/i', $text) && ! str_contains($t, '?')) {
+            preg_match('/\bto (?:my )?(\w+)/i', $text, $who);
+            preg_match('/(\d[\d,]*(?:\.\d+)?)\s*(k)?\b/i', $text, $amt);
+            $amount = isset($amt[1]) ? (string) ((float) str_replace(',', '', $amt[1]) * (empty($amt[2]) ? 1 : 1000)) : null;
+            preg_match('/\b(once|one time|\d+ (?:payments|months|times))\b/i', $text, $n);
+
+            return ['intent' => 'add_loan', 'reply' => '', 'draft' => ['merchant' => $who[1] ?? null, 'amount' => $amount, 'category' => null, 'card' => null, 'occurred_at' => null, 'payments' => $n[1] ?? null], 'question' => null];
+        }
+
         if (preg_match('/(?:spent|paid|bought)\s+(?:₱|php\s*)?(\d[\d,]*(?:\.\d+)?)\s+(?:at|on|for)\s+(.+)/iu', $text, $m)) {
             return $log(['amount' => $m[1], 'merchant' => trim($m[2], " .!?\t")]);
         }

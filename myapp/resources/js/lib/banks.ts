@@ -28,6 +28,13 @@ export const banks: BankPreset[] = [
     { name: 'Cash', type: 'cash', color: '#475569' },
 ];
 
+/** The preset colour for a card name ("BDO Savings" is BDO), or null for anything custom. */
+export const bankColor = (name: string): string | null => {
+    const n = name.toLowerCase();
+
+    return banks.find((b) => n.includes(b.name.toLowerCase()))?.color ?? null;
+};
+
 /** Card background: a darker-to-base gradient of the preset colour. */
 export const cardGradient = (color: string) =>
     `linear-gradient(135deg, color-mix(in srgb, ${color} 70%, black), ${color})`;

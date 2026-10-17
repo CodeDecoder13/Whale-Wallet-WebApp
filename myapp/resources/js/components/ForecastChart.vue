@@ -7,6 +7,7 @@ export type Point = { date: string; balance: number };
 const props = defineProps<{
     series: Point[];
     compact?: boolean;
+    height?: number;
     color?: string;
 }>();
 
@@ -25,7 +26,7 @@ const tick = (i: number) => {
 <template>
     <VisXYContainer
         :data="series"
-        :height="compact ? 64 : 280"
+        :height="height ?? (compact ? 64 : 280)"
         :margin="compact ? { top: 4, bottom: 4 } : undefined"
     >
         <VisArea :x="x" :y="y" :color="color" :opacity="0.18" />

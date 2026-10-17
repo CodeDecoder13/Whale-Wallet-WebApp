@@ -103,20 +103,36 @@ class IncomeTest extends TestCase
         $this->postJson(route('receipts.confirm', $proof->id), ['merchant' => 'x', 'amount' => '1', 'occurred_at' => '2026-03-01'])->assertStatus(422);
     }
 
-    public function test_chat_asks_for_a_screenshot_and_files_it_as_a_salary_proof()
+    public function test_chat_asks_how_much_then_for_a_screenshot_and_files_it_as_a_salary_proof()
     {
         Queue::fake();
         $this->actingAs($this->user());
 
-        $this->postJson(route('chat.messages'), ['text' => 'I got my salary today'])->assertOk()->assertJsonPath('reply', HandleChatMessage::SALARY_PROMPT);
+        $r = $this->postJson(route('chat.messages'), ['text' => 'I got my salary today'])->assertOk();
+        $this->assertSame(['income', ['amount']], [$r->json('draft.kind'), $r->json('draft.missing')]);
+        $this->assertStringContainsString('How much', $r->json('reply'));
+
+        $r = $this->postJson(route('chat.messages'), ['text' => '25k'])->assertOk();
+        $this->assertSame([2_500_000, []], [$r->json('draft.amount'), $r->json('draft.missing')]);
+        $this->assertStringContainsString('screenshot', $r->json('reply'));
 
         $r = $this->postJson(route('chat.messages'), ['image' => UploadedFile::fake()->image('transfer.png')])->assertOk()->assertJsonPath('income', true);
-        $this->assertSame('income', Receipt::findOrFail($r->json('receipt_id'))->purpose);
+        $proof = Receipt::findOrFail($r->json('receipt_id'));
+        $this->assertSame(['income', 2_500_000], [$proof->purpose, $proof->claimed_amount]);
         Queue::assertPushed(ParseReceipt::class);
 
         // an ordinary receipt afterwards is still an expense
         $this->postJson(route('chat.messages'), ['text' => 'hello'])->assertOk();
         $r = $this->postJson(route('chat.messages'), ['image' => UploadedFile::fake()->image('r.png')])->assertJsonPath('income', false);
         $this->assertSame('expense', Receipt::findOrFail($r->json('receipt_id'))->purpose);
+    }
+
+    public function test_an_amount_in_the_first_message_skips_the_question_and_is_never_saved_as_an_expense()
+    {
+        $this->actingAs($this->user());
+
+        $r = $this->postJson(route('chat.messages'), ['text' => 'received my 13th month pay 30,000'])->assertOk();
+        $this->assertSame([3_000_000, []], [$r->json('draft.amount'), $r->json('draft.missing')]);
+        $this->postJson(route('chat.confirm', $r->json('id')))->assertStatus(422);
     }
 }

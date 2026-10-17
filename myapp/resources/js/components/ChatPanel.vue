@@ -6,6 +6,8 @@ type Draft = {
     category: string | null;
     occurred_at: string;
     missing: string[];
+    kind?: 'loan' | 'income';
+    payments?: number | null;
     saved?: number;
 };
 export type ChatProps = {
@@ -28,6 +30,7 @@ import { nextTick, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { confirm, messages } from '@/routes/chat';
 import AiConsent from '@/components/AiConsent.vue';
+import Mascot from '@/components/Mascot.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -144,7 +147,11 @@ async function save(m: Msg) {
     try {
         const r = await api<{ transaction_id: number }>(confirm.url(m.id!), {});
         m.draft!.saved = r.transaction_id;
-        toast.success('Saved to your transactions.');
+        toast.success(
+            m.draft!.kind === 'loan'
+                ? 'Saved to Bills & Subs.'
+                : 'Saved to your transactions.',
+        );
     } catch (e) {
         toast.error((e as ApiError).message);
     }
@@ -168,7 +175,8 @@ const ready = (m: Msg) =>
                 v-if="!msgs.length"
                 class="m-auto text-center text-sm text-muted-foreground"
             >
-                <p>Try one of these.</p>
+                <Mascot pose="happy" round class="mx-auto mb-2 size-16" />
+                <p>Hi! Try one of these.</p>
                 <div class="mt-3 flex flex-wrap justify-center gap-2">
                     <Button
                         v-for="s in suggestions"
@@ -197,6 +205,12 @@ const ready = (m: Msg) =>
                             : 'bg-muted text-foreground'
                     "
                 >
+                    <Mascot
+                        v-if="m.role === 'assistant'"
+                        :pose="m.error ? 'worried' : 'happy'"
+                        round
+                        class="float-left mr-2 size-8"
+                    />
                     {{ m.content }}
                     <Link
                         v-if="m.error"
@@ -220,7 +234,10 @@ const ready = (m: Msg) =>
 
                 <div
                     v-if="
-                        m.draft && !m.dismissed && !m.draft.missing.length
+                        m.draft &&
+                        m.draft.kind !== 'income' &&
+                        !m.dismissed &&
+                        !m.draft.missing.length
                     "
                     class="w-full max-w-[85%] rounded-xl border bg-background p-4 text-sm"
                 >
@@ -233,9 +250,16 @@ const ready = (m: Msg) =>
                         </span>
                     </div>
                     <p class="mt-1 text-xs text-muted-foreground">
-                        {{ m.draft.card }} ·
-                        {{ m.draft.category ?? 'No category' }} ·
-                        {{ m.draft.occurred_at }}
+                        <template v-if="m.draft.kind === 'loan'">
+                            Loan · {{ m.draft.payments }}
+                            {{ m.draft.payments === 1 ? 'payment' : 'payments' }}
+                            · first due {{ m.draft.occurred_at }}
+                        </template>
+                        <template v-else>
+                            {{ m.draft.card }} ·
+                            {{ m.draft.category ?? 'No category' }} ·
+                            {{ m.draft.occurred_at }}
+                        </template>
                     </p>
                     <p
                         v-if="m.draft.saved"
@@ -276,7 +300,7 @@ const ready = (m: Msg) =>
                 v-if="sending"
                 class="flex items-center gap-2 text-sm text-muted-foreground"
             >
-                <Spinner class="text-brand" /> Thinking...
+                <Mascot pose="thinking" round class="size-8" /> Thinking...
             </div>
         </div>
 

@@ -4,13 +4,14 @@ import { ArrowUpRight, Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import CardController from '@/actions/App/Http/Controllers/CardController';
 import BankPicker from '@/components/BankPicker.vue';
+import BrandLogo from '@/components/BrandLogo.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cardGradient } from '@/lib/banks';
+import { bankColor, cardGradient } from '@/lib/banks';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { index } from '@/routes/cards';
 import { index as transactionsIndex } from '@/routes/transactions';
@@ -80,6 +81,16 @@ const gradients = [
     'from-brand to-brand-light',
     'from-brand-deep to-brand-light',
 ];
+// colour comes from the card, else from the bank in its name, else a rotating brand gradient
+const hue = (c: WalletCard) => c.color ?? bankColor(c.name);
+const kind = (t: string) =>
+    t === 'credit' ? 'Credit' : t === 'cash' ? 'Cash' : 'Debit';
+const typeLabel: Record<string, string> = {
+    bank: 'Debit (bank account)',
+    ewallet: 'Debit (e-wallet)',
+    credit: 'Credit card',
+    cash: 'Cash',
+};
 const tile = (c: WalletCard, i: number) =>
     usage(c) >= 1 ? 'from-warm to-warm/80' : gradients[i % gradients.length];
 </script>
@@ -114,13 +125,22 @@ const tile = (c: WalletCard, i: number) =>
                 v-for="(c, i) in cards"
                 :key="c.id"
                 class="flex min-h-44 flex-col gap-1 rounded-xl bg-linear-to-br p-5 text-white"
-                :class="c.color && usage(c) < 1 ? '' : tile(c, i)"
-                :style="c.color && usage(c) < 1 ? { background: cardGradient(c.color) } : undefined"
+                :class="hue(c) && usage(c) < 1 ? '' : tile(c, i)"
+                :style="
+                    hue(c) && usage(c) < 1
+                        ? { background: cardGradient(hue(c)!) }
+                        : undefined
+                "
             >
-                <div class="flex items-center justify-between gap-2 text-sm">
-                    <span class="font-medium">{{ c.name }}</span>
-                    <span class="text-xs capitalize opacity-80">
-                        {{ c.type }}
+                <div class="flex items-center gap-3 text-sm">
+                    <BrandLogo :name="c.name" />
+                    <span class="min-w-0 flex-1 truncate font-medium">
+                        {{ c.name }}
+                    </span>
+                    <span
+                        class="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium"
+                    >
+                        {{ kind(c.type) }}
                     </span>
                 </div>
                 <div class="mt-3 text-3xl font-semibold">
@@ -177,7 +197,7 @@ const tile = (c: WalletCard, i: number) =>
                 <Label for="type">Type</Label>
                 <SelectNative id="type" v-model="form.type">
                     <option v-for="t in types" :key="t" :value="t">
-                        {{ t }}
+                        {{ typeLabel[t] ?? t }}
                     </option>
                 </SelectNative>
                 <InputError :message="form.errors.type" />

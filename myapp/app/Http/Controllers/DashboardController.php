@@ -35,6 +35,7 @@ class DashboardController extends Controller
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
                 ->map(fn ($e) => [...$e->only(['id', 'name', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),
             'income_proofs' => Receipt::where('purpose', 'income')->where('status', '!=', 'confirmed')->latest('id')->limit(3)->get()->map->toClient()->values(),
+            'welcome' => (bool) $request->session()->pull('welcome', false),
             'consented' => (bool) $request->user()->ai_consent_at,
             'forecast' => $forecast,
             'tips' => Recommendation::whereNull('dismissed_at')->latest('id')->limit(3)->get(['id', 'text']),

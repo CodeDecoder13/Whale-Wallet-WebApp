@@ -22,6 +22,7 @@ class ProfileController extends Controller
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'pay_dates' => $request->user()->pay_dates ?? [],
         ]);
     }
 
@@ -39,6 +40,23 @@ class ProfileController extends Controller
         $request->user()->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
+
+        return to_route('profile.edit');
+    }
+
+    /** Days of the month income arrives; the forecast counts down to the next one. */
+    public function payday(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'pay_dates' => ['required', 'array', 'min:1', 'max:2'],
+            'pay_dates.*' => ['integer', 'between:1,31', 'distinct'],
+        ]);
+        $days = array_map('intval', $data['pay_dates']);
+        sort($days);
+
+        $request->user()->forceFill(['pay_dates' => $days, 'pay_cycle' => count($days) > 1 ? 'semi_monthly' : 'monthly'])->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Payday updated.')]);
 
         return to_route('profile.edit');
     }

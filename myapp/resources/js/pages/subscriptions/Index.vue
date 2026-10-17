@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Plus } from '@lucide/vue';
+import { LayoutGrid, Plus, Table2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import SubscriptionController from '@/actions/App/Http/Controllers/SubscriptionController';
+import BrandLogo from '@/components/BrandLogo.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { findBrand } from '@/lib/brandLogos';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { index } from '@/routes/subscriptions';
 
@@ -28,6 +30,7 @@ type Item = {
     kind: Kind;
     next_due_on: string | null;
     installments: number | null;
+    logo: string | null;
     left: number | null;
     monthly: number;
 };
@@ -48,6 +51,50 @@ const tab = ref<(typeof tabs)[number]['key']>('all');
 const shown = computed(() =>
     props.items.filter((i) => tab.value === 'all' || i.kind === tab.value),
 );
+const sort = ref<'due' | 'high' | 'low' | 'name'>('due');
+const view = ref<'table' | 'cards'>('table');
+const sorted = computed(() =>
+    [...shown.value].sort((a, b) =>
+        sort.value === 'high'
+            ? b.monthly - a.monthly
+            : sort.value === 'low'
+              ? a.monthly - b.monthly
+              : sort.value === 'name'
+                ? a.name.localeCompare(b.name)
+                : (a.next_due_on ?? '9999').localeCompare(b.next_due_on ?? '9999'),
+    ),
+);
+const detail = (s: Item) =>
+    s.kind !== 'debt'
+        ? s.cadence
+        : s.installments === null
+          ? 'monthly'
+          : s.left
+            ? `${s.left} of ${s.installments} payments left`
+            : 'paid off';
+// No built-in logo for this name: offer an upload. The browser shrinks it to 128px so it stays tiny.
+const needsLogo = computed(() => form.name.trim() && !findBrand(form.name));
+
+function pickLogo(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+        const scale = Math.min(1, 128 / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        form.logo = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+}
+
 const total = computed(() => shown.value.reduce((n, i) => n + i.monthly, 0));
 const other = (k: Kind): Kind => (k === 'bill' ? 'subscription' : 'bill');
 const label = (k: Kind) => (k === 'debt' ? 'loan' : k);
@@ -68,6 +115,7 @@ const blank = {
     next_due_on: '',
     kind: 'bill' as Kind,
     installments: '',
+    logo: null as string | null,
 };
 const open = ref(false);
 const editing = ref<number | null>(null);
@@ -82,9 +130,16 @@ function edit(s: Item) {
         next_due_on: s.next_due_on ?? '',
         kind: s.kind,
         installments: s.installments?.toString() ?? '',
+        logo: s.logo,
     });
     form.reset();
     open.value = true;
+}
+
+// A loan needs a payment count, so open the form with Loan chosen instead of flipping blindly.
+function makeLoan(s: Item) {
+    edit(s);
+    form.kind = 'debt';
 }
 
 function add() {
@@ -159,7 +214,7 @@ const dueDate = (d: string | null) =>
             <Button @click="add"><Plus /> Add new</Button>
         </div>
 
-        <div class="flex gap-2 text-sm">
+        <div class="flex flex-wrap items-center gap-2 text-sm">
             <Button
                 v-for="t in tabs"
                 :key="t.key"
@@ -169,6 +224,26 @@ const dueDate = (d: string | null) =>
                 @click="tab = t.key"
             >
                 {{ t.label }}
+            </Button>
+            <SelectNative
+                v-model="sort"
+                class="ml-auto w-auto"
+                aria-label="Sort by"
+            >
+                <option value="due">Due soonest</option>
+                <option value="high">Highest amount</option>
+                <option value="low">Lowest amount</option>
+                <option value="name">Name</option>
+            </SelectNative>
+            <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                :aria-label="view === 'table' ? 'Show as cards' : 'Show as table'"
+                @click="view = view === 'table' ? 'cards' : 'table'"
+            >
+                <LayoutGrid v-if="view === 'table'" />
+                <Table2 v-else />
             </Button>
         </div>
 
@@ -185,58 +260,97 @@ const dueDate = (d: string | null) =>
         <p v-if="!shown.length" class="text-sm text-muted-foreground">
             Nothing here yet.
         </p>
-        <ul v-else class="divide-y rounded-xl border bg-card text-sm">
+        <div
+            v-else-if="view === 'table'"
+            class="overflow-x-auto rounded-xl border bg-card"
+        >
+            <table class="w-full text-left text-sm">
+                <thead class="border-b text-xs text-muted-foreground uppercase">
+                    <tr>
+                        <th class="p-3 font-medium">Name</th>
+                        <th class="p-3 font-medium">Type</th>
+                        <th class="p-3 font-medium">Next due</th>
+                        <th class="p-3 font-medium">Repeats</th>
+                        <th class="p-3 text-right font-medium">Amount</th>
+                        <th class="p-3 text-right font-medium">Monthly</th>
+                        <th class="p-3" />
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    <tr v-for="s in sorted" :key="s.id">
+                        <td class="p-3">
+                            <div class="flex items-center gap-3 font-medium">
+                                <BrandLogo :name="s.name" :logo="s.logo" /> {{ s.name }}
+                            </div>
+                        </td>
+                        <td class="p-3">
+                            <span
+                                class="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase"
+                            >
+                                {{ label(s.kind) }}
+                            </span>
+                        </td>
+                        <td class="p-3 whitespace-nowrap">
+                            {{ dueDate(s.next_due_on) }}
+                        </td>
+                        <td class="p-3 capitalize">{{ detail(s) }}</td>
+                        <td class="p-3 text-right">
+                            {{ formatPeso(s.amount) }}
+                        </td>
+                        <td class="p-3 text-right font-semibold">
+                            {{ formatPeso(s.monthly) }}
+                        </td>
+                        <td class="p-3">
+                            <div
+                                class="flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
+                            >
+                                <button type="button" @click="edit(s)">
+                                    Edit
+                                </button>
+                                <button
+                                    v-if="s.kind !== 'debt'"
+                                    type="button"
+                                    @click="flip(s)"
+                                >
+                                    Make {{ other(s.kind) }}
+                                </button>
+                                <button v-if="s.kind !== 'debt'" type="button" @click="makeLoan(s)">
+                                    Make loan
+                                </button>
+                                <button type="button" @click="remove(s)">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <ul v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <li
-                v-for="s in shown"
+                v-for="s in sorted"
                 :key="s.id"
-                class="flex flex-wrap items-center gap-3 p-4"
+                class="flex flex-col gap-3 rounded-xl border bg-card p-4 text-sm"
             >
-                <span
-                    class="flex size-9 items-center justify-center rounded-lg bg-accent font-semibold text-accent-foreground"
-                >
-                    {{ s.name.charAt(0).toUpperCase() }}
-                </span>
-                <div class="min-w-0 flex-1">
-                    <div class="font-medium">
-                        {{ s.name }}
-                        <span
-                            class="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground uppercase"
-                        >
-                            {{ label(s.kind) }}
-                        </span>
-                    </div>
-                    <div class="text-xs text-muted-foreground">
-                        <template v-if="s.kind === 'debt'">
-                            {{
-                                s.installments === null
-                                    ? 'Monthly'
-                                    : s.left
-                                      ? `${s.left} of ${s.installments} payments left, next ${dueDate(s.next_due_on)}`
-                                      : 'Paid off'
-                            }}
-                        </template>
-                        <template v-else>
-                            Next charge {{ dueDate(s.next_due_on) }},
-                            {{ s.cadence }}
-                        </template>
+                <div class="flex items-center gap-3">
+                    <BrandLogo :name="s.name" :logo="s.logo" />
+                    <div class="min-w-0 flex-1">
+                        <div class="truncate font-medium">{{ s.name }}</div>
+                        <div class="text-xs text-muted-foreground capitalize">
+                            {{ label(s.kind) }} · {{ detail(s) }}
+                        </div>
                     </div>
                 </div>
-                <div class="text-right">
-                    <div class="font-semibold">
-                        {{ formatPeso(s.monthly) }}
-                        <span class="text-xs font-normal text-muted-foreground">
-                            / month
-                        </span>
-                    </div>
-                    <div
-                        v-if="s.cadence !== 'monthly'"
-                        class="text-xs text-muted-foreground"
-                    >
-                        {{ formatPeso(s.amount) }} {{ s.cadence }}
-                    </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-semibold">
+                        {{ formatPeso(s.amount) }}
+                    </span>
+                    <span class="text-xs text-muted-foreground">
+                        Due {{ dueDate(s.next_due_on) }}
+                    </span>
                 </div>
                 <div
-                    class="flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
+                    class="mt-auto flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
                 >
                     <button type="button" @click="edit(s)">Edit</button>
                     <button
@@ -245,6 +359,9 @@ const dueDate = (d: string | null) =>
                         @click="flip(s)"
                     >
                         Make {{ other(s.kind) }}
+                    </button>
+                    <button v-if="s.kind !== 'debt'" type="button" @click="makeLoan(s)">
+                        Make loan
                     </button>
                     <button type="button" @click="remove(s)">Delete</button>
                 </div>
@@ -330,6 +447,20 @@ const dueDate = (d: string | null) =>
                         />
                         <InputError :message="form.errors.next_due_on" />
                     </div>
+                    <div v-if="form.name.trim()" class="flex items-center gap-3 sm:col-span-2">
+                        <BrandLogo :name="form.name" :logo="form.logo" />
+                        <template v-if="form.logo">
+                            <button type="button" class="text-xs font-medium underline" @click="form.logo = null">
+                                Remove logo
+                            </button>
+                        </template>
+                        <label v-else-if="needsLogo" class="grid gap-1 text-xs text-muted-foreground">
+                            No logo found for this name. Upload one (optional)
+                            <input type="file" accept="image/png,image/jpeg,image/webp" @change="pickLogo" />
+                        </label>
+                        <span v-else class="text-xs text-muted-foreground">Logo found automatically</span>
+                    </div>
+                    <InputError class="sm:col-span-2" :message="form.errors.logo" />
                     <div class="flex gap-2 sm:col-span-2">
                         <Button :disabled="form.processing">Save</Button>
                         <Button type="button" variant="ghost" @click="cancel">

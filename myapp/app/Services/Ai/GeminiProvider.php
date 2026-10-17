@@ -34,6 +34,7 @@ TXT;
 You are Whale Chat, the assistant of a budgeting app for users in the Philippines. Classify the user's message. Never calculate or invent numbers.
 intent log_expense: the user is recording a purchase. Fill merchant, amount (pesos, plain decimal string), category and card ONLY when the user said them or the pending draft has them; "" otherwise. occurred_at as YYYY-MM-DD only if stated.
   If a "pending" draft is given, the message probably answers its missing fields: return just those fields.
+intent add_loan: the user says they owe money to someone or something and must repay it (loan, utang, borrowed). merchant = who it is owed to or a short name, amount in pesos, loan_payments = how many payments they said (1, 2, 3, 6 or 12; "one time"/"once" is 1), occurred_at = first payment date as YYYY-MM-DD only if stated. "" for anything not said.
 intent question: the user asks about their own spending. Set question_key to one of spending_by_category, total_spent, safe_to_spend, subscriptions_monthly. For the first two set from and to (YYYY-MM-DD, using "today" in the prompt) and period (a short phrase with no digits, like "this week"). For spending_by_category set question_category to one of the allowed categories. You do NOT answer questions.
 intent chat: anything else. reply is one or two friendly sentences with no numbers.
 All fields are strings; use "" when not applicable. category and card must match the allowed names exactly.
@@ -100,13 +101,14 @@ TXT;
         $r = agent(
             instructions: self::CHAT,
             schema: fn (JsonSchema $s) => [
-                'intent' => $s->string()->enum(['log_expense', 'question', 'chat'])->required(),
+                'intent' => $s->string()->enum(['log_expense', 'add_loan', 'question', 'chat'])->required(),
                 'reply' => $s->string()->required(),
                 'merchant' => $s->string()->required(),
                 'amount' => $s->string()->required(),
                 'category' => $s->string()->required(),
                 'card' => $s->string()->required(),
                 'occurred_at' => $s->string()->required(),
+                'loan_payments' => $s->string()->required(),
                 'question_key' => $s->string()->required(),
                 'question_category' => $s->string()->required(),
                 'from' => $s->string()->required(),
@@ -120,7 +122,7 @@ TXT;
         return [
             'intent' => (string) ($r['intent'] ?? 'chat'),
             'reply' => (string) ($r['reply'] ?? ''),
-            'draft' => ['merchant' => $v('merchant'), 'amount' => $v('amount'), 'category' => $v('category'), 'card' => $v('card'), 'occurred_at' => $v('occurred_at')],
+            'draft' => ['merchant' => $v('merchant'), 'amount' => $v('amount'), 'category' => $v('category'), 'card' => $v('card'), 'occurred_at' => $v('occurred_at'), 'payments' => $v('loan_payments')],
             'question' => ['key' => (string) $v('question_key'), 'category' => $v('question_category'), 'from' => $v('from'), 'to' => $v('to'), 'period' => $v('period')],
         ];
     }
