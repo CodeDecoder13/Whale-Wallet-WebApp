@@ -7,6 +7,7 @@ use App\Contracts\AiProvider;
 use App\Models\Recommendation;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Ai\FakeAiProvider;
 use App\Services\Ai\GeminiProvider;
 use Database\Seeders\DatabaseSeeder;
 use DomainException;
@@ -63,7 +64,7 @@ class RecommendationTest extends TestCase
     public function test_generation_saves_the_valid_tips_only()
     {
         $user = $this->demo();
-        $this->app->instance(AiProvider::class, new class implements AiProvider
+        $this->app->instance(AiProvider::class, new class extends FakeAiProvider
         {
             public function recommend(array $aggregates): array
             {
@@ -92,7 +93,7 @@ class RecommendationTest extends TestCase
     public function test_wrong_tip_count_is_rejected()
     {
         $user = $this->demo();
-        $this->app->instance(AiProvider::class, new class implements AiProvider
+        $this->app->instance(AiProvider::class, new class extends FakeAiProvider
         {
             public function recommend(array $aggregates): array
             {
@@ -153,7 +154,7 @@ class RecommendationTest extends TestCase
     {
         $user = $this->demo();
         $seen = [];
-        $this->app->instance(AiProvider::class, new class($seen) implements AiProvider
+        $this->app->instance(AiProvider::class, new class($seen) extends FakeAiProvider
         {
             public function __construct(public array &$seen) {}
 

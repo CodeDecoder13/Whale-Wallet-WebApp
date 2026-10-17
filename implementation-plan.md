@@ -10,7 +10,8 @@ Style: ponytail (lazy = fewest files, reuse before write, one check per money pa
 | M0 Foundations | Done. Redis/Horizon, S3, Pest, Playwright and first GitHub CI run moved to M5. App is in `myapp/` on the Vue starter kit with the blue brand theme |
 | M1 Budget core | Data layer and screens done and committed. Complete (edit/delete, categories, Markdown export, browser check) |
 | M2 Forecast, subscriptions, tips | Built, not committed: ForecastService + tests, subscriptions page, forecast page, AI tips behind `AiProvider` (Gemini + Fake), consent gate. Only the manual real-Gemini check is left open |
-| M3 to M5 | Not started |
+| M3 Receipts and Whale Chat | Built, not committed: consent middleware, receipt upload + `ParseReceipt` queue job + confirm card, Whale Chat (drafts, fixed-function answers), rate limits, 8 fixtures + `receipts:eval`, feature tests. Open: real-model accuracy run. `AI_FAKE=true` runs the app on the fake provider for demos |
+| M4 to M5 | Not started |
 
 Libraries now installed: laravel/ai (composer), unovis (ts + vue), tanstack vue-table, vee-validate + zod, vue test-utils, jsdom. The deferral for TanStack Table and vee-validate + Zod below is lifted by the user; Playwright, Redis/Horizon, vue-echarts stay deferred. Vitest is bundled in `vp`. Tests are PHPUnit, not Pest.
 

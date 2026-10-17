@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\AiProvider;
+use App\Services\Ai\FakeAiProvider;
 use App\Services\Ai\GeminiProvider;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -17,7 +18,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(AiProvider::class, GeminiProvider::class); // tests rebind it to FakeAiProvider
+        // AI_FAKE=true runs the whole app on the offline fake (demos, browser checks); tests always bind the fake
+        $this->app->bind(AiProvider::class, config('services.fake_ai') ? FakeAiProvider::class : GeminiProvider::class);
     }
 
     /**

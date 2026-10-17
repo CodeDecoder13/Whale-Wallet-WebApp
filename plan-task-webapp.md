@@ -126,13 +126,14 @@ Complete milestones in order. Each task has acceptance criteria; do not mark don
 - **Done when:** forecast tests pass, recommendations render with the fake provider in tests, and a real Gemini call works locally with the key in `.env`.
 
 ### M3: Screenshot intake and Whale Chat (web)
-- [ ] Consent screen and `POST /consent/ai`; block AI features until consent exists. (Partially done in M2: Tips page notice, `POST /consent/ai` and the generation gate exist; receipt upload and chat still need the gate.)
-- [ ] Receipt upload (drag and drop, paste, file picker) to the private disk; queue `ParseReceipt`.
-- [ ] `ParseReceipt` job: downscale the image, send to Gemini with a strict JSON schema (merchant, amount, currency, occurred_at, reference, category guess, confidence), validate (amount > 0, plausible date), run duplicate check (same amount + merchant within a time window, or same reference).
-- [ ] Confirm card UI: pre-filled fields, edit, Save. Delete the image after confirmation by default (setting to keep it).
-- [ ] Whale Chat: `chat_threads/messages`; Gemini returns JSON with `intent` (`log_expense`, `question`, `chat`), draft, missing fields and reply. If a field is missing, ask one short follow-up. For `question`, use fixed server functions (for example spending by category for a date range); Gemini only words the answer from returned numbers.
-- [ ] Rate limits per user; on quota errors or 429 from Gemini, return a clear message and offer the manual form.
-- [ ] Screenshot sample set (5 to 10 receipts from e-wallet and bank apps) kept in `tests/Fixtures` with expected fields, for parsing accuracy checks (run with the real model manually, with the fake provider in CI).
+- [x] Consent screen and `POST /consent/ai`; `ai.consent` middleware blocks receipt upload and chat messages (422 JSON with `consent_url`); one shared `AiConsent.vue` card on Tips, Receipts and Chat.
+- [x] Receipt upload (drag and drop, paste, file picker) to the private disk; queue `ParseReceipt`.
+- [x] `ParseReceipt` job: downscale the image, send to Gemini with a strict JSON schema (merchant, amount, currency, occurred_at, reference, category guess, confidence), validate (amount > 0, plausible date), run duplicate check (same amount + merchant within a time window, or same reference).
+- [x] Confirm card UI: pre-filled fields, edit, Save. Delete the image after confirmation by default (setting to keep it).
+- [x] Whale Chat: `chat_threads/messages`; Gemini returns JSON with `intent` (`log_expense`, `question`, `chat`), draft, missing fields and reply. If a field is missing, ask one short follow-up. For `question`, use fixed server functions (for example spending by category for a date range); Gemini only words the answer from returned numbers.
+- [x] Rate limits per user; on quota errors or 429 from Gemini, return a clear message and offer the manual form.
+- [x] 8 synthetic receipts (GCash, Maya, BPI, BDO style) in `tests/Fixtures/receipts` with `expected.json` (regenerate with `php tests/Fixtures/receipts/generate.php`); the fake provider answers from it in CI.
+- [ ] Real-model accuracy: run `php artisan receipts:eval` (real Gemini calls, one per fixture, needs `GEMINI_API_KEY`) and record the field-accuracy table here. Also a manual real-Gemini receipt upload and chat message with the queue worker running.
 - **Done when:** uploading a sample receipt produces a correct draft, nothing saves before Save, duplicates are flagged, and chat can log and answer the example conversation (Jollibee 250, "how much food this week?").
 
 ### M4: Mobile API readiness (work with `plan-task-mobile.md`)

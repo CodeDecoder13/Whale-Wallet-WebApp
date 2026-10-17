@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { Sparkles, X } from '@lucide/vue';
 import { ref } from 'vue';
 import RecommendationController from '@/actions/App/Http/Controllers/RecommendationController';
+import AiConsent from '@/components/AiConsent.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { index } from '@/routes/tips';
@@ -48,25 +49,7 @@ const post = (url: string) =>
             </Button>
         </div>
 
-        <section
-            v-if="!consented"
-            class="max-w-2xl rounded-xl border border-brand/40 bg-accent/40 p-6"
-        >
-            <h2 class="font-medium">Before the first tip</h2>
-            <p class="mt-2 text-sm text-muted-foreground">
-                Tips are written by Google Gemini. Google may use free-tier
-                inputs to improve its products. Only aggregated numbers are sent
-                (totals, percentages and your forecast), never merchants or
-                individual transactions.
-            </p>
-            <Button
-                class="mt-4"
-                :disabled="busy"
-                @click="post(RecommendationController.consent.url())"
-            >
-                I agree
-            </Button>
-        </section>
+        <AiConsent v-if="!consented" />
 
         <template v-else>
             <p v-if="!tips.length" class="text-sm text-muted-foreground">

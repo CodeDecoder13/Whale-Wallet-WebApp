@@ -14,7 +14,7 @@ class Category extends Model
 
     protected $guarded = ['user_id'];
 
-    private const DEFAULTS = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Other'];
+    public const DEFAULTS = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Other'];
 
     public static function seedFor(User $user): void
     {

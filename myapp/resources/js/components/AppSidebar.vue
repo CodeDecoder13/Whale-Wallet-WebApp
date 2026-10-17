@@ -3,9 +3,11 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     CircleHelp,
     LayoutGrid,
+    MessageCircle,
     PiggyBank,
     Receipt,
     Repeat,
+    ScanLine,
     Settings,
     Sparkles,
     TrendingUp,
@@ -28,7 +30,9 @@ import {
 import UserInfo from '@/components/UserInfo.vue';
 import { dashboard, forecast } from '@/routes';
 import { index as cards } from '@/routes/cards';
+import { index as chat } from '@/routes/chat';
 import { index as pods } from '@/routes/pods';
+import { index as receipts } from '@/routes/receipts';
 import { edit as profile } from '@/routes/profile';
 import { index as subscriptions } from '@/routes/subscriptions';
 import { index as tips } from '@/routes/tips';
@@ -42,9 +46,11 @@ const mainNavItems: NavItem[] = [
     { title: 'Cards', href: cards(), icon: Wallet },
     { title: 'Pods', href: pods(), icon: PiggyBank },
     { title: 'Transactions', href: transactions(), icon: Receipt },
+    { title: 'Receipts', href: receipts(), icon: ScanLine },
     { title: 'Forecast', href: forecast(), icon: TrendingUp },
     { title: 'Subscriptions', href: subscriptions(), icon: Repeat },
     { title: 'Tips', href: tips(), icon: Sparkles },
+    { title: 'Whale Chat', href: chat(), icon: MessageCircle },
     { title: 'Settings', href: profile(), icon: Settings },
 ];
 

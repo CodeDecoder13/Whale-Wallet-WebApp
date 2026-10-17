@@ -33,6 +33,9 @@ return [
         'model' => env('GEMINI_MODEL') ?: 'gemini-3.5-flash-lite',
     ],
 
+    // true = answer receipts and chat from tests/Fixtures instead of calling Gemini (offline demos)
+    'fake_ai' => env('AI_FAKE', false),
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

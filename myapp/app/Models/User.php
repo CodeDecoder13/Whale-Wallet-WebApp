@@ -65,6 +65,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(Recommendation::class);
     }
 
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(Receipt::class);
+    }
+
+    public function chatThreads(): HasMany
+    {
+        return $this->hasMany(ChatThread::class);
+    }
+
     public function recurringItems(): HasMany
     {
         return $this->hasMany(RecurringItem::class);
@@ -82,6 +92,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'ai_consent_at' => 'datetime',
+            'keep_receipts' => 'boolean',
             'pay_dates' => 'array',
         ];
     }
