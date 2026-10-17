@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { VisDonut, VisSingleContainer } from '@unovis/vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import ForecastChart from '@/components/ForecastChart.vue';
+import IncomeDialog from '@/components/IncomeDialog.vue';
 import type { Point } from '@/components/ForecastChart.vue';
 import { formatPeso } from '@/lib/currency';
 import { dashboard, forecast as forecastPage } from '@/routes';
@@ -23,6 +24,25 @@ const props = defineProps<{
         lowest: { date: string; amount: number };
         safe_per_day: number;
     };
+    consented: boolean;
+    income_entries: {
+        id: number;
+        name: string;
+        amount: number;
+        reference: string | null;
+        received_on: string | null;
+    }[];
+    income_proofs: {
+        id: number;
+        status: 'queued' | 'parsing' | 'parsed' | 'failed' | 'confirmed';
+        error: string | null;
+        draft: {
+            amount: number;
+            occurred_at: string;
+            reference: string | null;
+            merchant: string;
+        } | null;
+    }[];
     tips: { id: number; text: string }[];
     categories: Slice[];
     upcoming: {
@@ -44,7 +64,13 @@ const pctOfIncome = (n: number) =>
     props.summary.income ? Math.min(100, (n / props.summary.income) * 100) : 0;
 
 const tiles = computed(() => [
-    ['Income', props.summary.income, 'This month'],
+    [
+        'Income',
+        props.summary.income,
+        props.income_entries.length
+            ? 'Received this month'
+            : 'Expected this month',
+    ],
     [
         'Fixed expenses',
         props.summary.fixed,
@@ -75,6 +101,12 @@ const split = computed(() =>
         bar: bar as string,
         pct: pctOfIncome(amount as number),
     })),
+);
+
+// ?income=1 (from Whale Chat) opens the dialog so a proof sent there can be confirmed
+const incomeOpen = ref(
+    typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).has('income'),
 );
 
 const user = computed(() => usePage().props.auth.user);
@@ -143,8 +175,23 @@ const dueDate = (d: string) =>
                 <div class="mt-3 text-xs text-brand-deep dark:text-brand-light">
                     {{ note }}
                 </div>
+                <button
+                    v-if="label === 'Income'"
+                    type="button"
+                    class="mt-2 text-xs font-medium underline underline-offset-4"
+                    @click="incomeOpen = true"
+                >
+                    + Add income
+                </button>
             </div>
         </div>
+
+        <IncomeDialog
+            v-model:open="incomeOpen"
+            :consented="consented"
+            :entries="income_entries"
+            :proofs="income_proofs"
+        />
 
         <div class="grid gap-4 lg:grid-cols-2">
             <section class="rounded-xl border bg-card p-6">

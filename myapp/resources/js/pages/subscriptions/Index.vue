@@ -1,52 +1,94 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import SubscriptionController from '@/actions/App/Http/Controllers/SubscriptionController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { index } from '@/routes/subscriptions';
 
-type Subscription = {
+type Kind = 'bill' | 'subscription';
+type Item = {
     id: number;
     name: string;
     amount: number;
     cadence: string;
+    kind: Kind;
     next_due_on: string | null;
     monthly: number;
 };
 
 defineOptions({
-    layout: { breadcrumbs: [{ title: 'Subscriptions', href: index() }] },
+    layout: { breadcrumbs: [{ title: 'Bills & Subs', href: index() }] },
 });
 
-defineProps<{ subscriptions: Subscription[]; monthly_total: number }>();
+const props = defineProps<{ items: Item[] }>();
+
+const tabs = [
+    { key: 'all', label: 'All' },
+    { key: 'bill', label: 'Bills' },
+    { key: 'subscription', label: 'Subscriptions' },
+] as const;
+const tab = ref<(typeof tabs)[number]['key']>('all');
+const shown = computed(() =>
+    props.items.filter((i) => tab.value === 'all' || i.kind === tab.value),
+);
+const total = computed(() => shown.value.reduce((n, i) => n + i.monthly, 0));
+const other = (k: Kind): Kind => (k === 'bill' ? 'subscription' : 'bill');
 
 const cadences = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
-const blank = { name: '', amount: '', cadence: 'monthly', next_due_on: '' };
+const blank = {
+    name: '',
+    amount: '',
+    cadence: 'monthly',
+    next_due_on: '',
+    kind: 'bill' as Kind,
+};
+const open = ref(false);
 const editing = ref<number | null>(null);
 const form = useForm({ ...blank });
 
-function edit(s: Subscription) {
+function edit(s: Item) {
     editing.value = s.id;
     form.defaults({
         name: s.name,
         amount: toPesos(s.amount),
         cadence: s.cadence,
         next_due_on: s.next_due_on ?? '',
+        kind: s.kind,
     });
     form.reset();
+    open.value = true;
+}
+
+function add() {
+    editing.value = null;
+    form.defaults({
+        ...blank,
+        kind: tab.value === 'subscription' ? 'subscription' : 'bill',
+    });
+    form.reset();
+    open.value = true;
 }
 
 function cancel() {
+    open.value = false;
     editing.value = null;
     form.defaults({ ...blank });
     form.reset();
+    form.clearErrors();
 }
 
 function submit() {
@@ -58,7 +100,22 @@ function submit() {
     }
 }
 
-function remove(s: Subscription) {
+// One click moves an item between bills and subscriptions.
+function flip(s: Item) {
+    router.put(
+        SubscriptionController.update.url(s.id),
+        {
+            name: s.name,
+            amount: toPesos(s.amount),
+            cadence: s.cadence,
+            next_due_on: s.next_due_on,
+            kind: other(s.kind),
+        },
+        { preserveScroll: true },
+    );
+}
+
+function remove(s: Item) {
     if (confirm(`Delete ${s.name}?`)) {
         router.delete(SubscriptionController.destroy.url(s.id), {
             preserveScroll: true,
@@ -76,41 +133,47 @@ const dueDate = (d: string | null) =>
 </script>
 
 <template>
-    <Head title="Subscriptions" />
+    <Head title="Bills & Subscriptions" />
 
     <div class="flex flex-col gap-6 p-4 md:p-8">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <Heading
                 class="mb-0!"
-                title="Subscriptions"
+                title="Bills & Subscriptions"
                 description="Recurring charges and what they cost each month."
             />
-            <Button as-child>
-                <a href="#subscription-form"><Plus /> Add subscription</a>
+            <Button @click="add"><Plus /> Add new</Button>
+        </div>
+
+        <div class="flex gap-2 text-sm">
+            <Button
+                v-for="t in tabs"
+                :key="t.key"
+                type="button"
+                size="sm"
+                :variant="tab === t.key ? 'default' : 'outline'"
+                @click="tab = t.key"
+            >
+                {{ t.label }}
             </Button>
         </div>
 
         <div class="rounded-xl border bg-card p-5">
             <div class="text-xs text-muted-foreground">Monthly total</div>
             <div class="mt-3 text-3xl font-semibold">
-                {{ formatPeso(monthly_total) }}
+                {{ formatPeso(total) }}
             </div>
             <div class="mt-2 text-xs text-brand-deep dark:text-brand-light">
-                {{ subscriptions.length }}
-                {{
-                    subscriptions.length === 1
-                        ? 'subscription'
-                        : 'subscriptions'
-                }}
+                {{ shown.length }} {{ shown.length === 1 ? 'item' : 'items' }}
             </div>
         </div>
 
-        <p v-if="!subscriptions.length" class="text-sm text-muted-foreground">
-            No subscriptions yet.
+        <p v-if="!shown.length" class="text-sm text-muted-foreground">
+            Nothing here yet.
         </p>
         <ul v-else class="divide-y rounded-xl border bg-card text-sm">
             <li
-                v-for="s in subscriptions"
+                v-for="s in shown"
                 :key="s.id"
                 class="flex flex-wrap items-center gap-3 p-4"
             >
@@ -120,7 +183,14 @@ const dueDate = (d: string | null) =>
                     {{ s.name.charAt(0).toUpperCase() }}
                 </span>
                 <div class="min-w-0 flex-1">
-                    <div class="font-medium">{{ s.name }}</div>
+                    <div class="font-medium">
+                        {{ s.name }}
+                        <span
+                            class="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground uppercase"
+                        >
+                            {{ s.kind }}
+                        </span>
+                    </div>
                     <div class="text-xs text-muted-foreground">
                         Next charge {{ dueDate(s.next_due_on) }},
                         {{ s.cadence }}
@@ -144,66 +214,80 @@ const dueDate = (d: string | null) =>
                     class="flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
                 >
                     <button type="button" @click="edit(s)">Edit</button>
+                    <button type="button" @click="flip(s)">
+                        Make {{ other(s.kind) }}
+                    </button>
                     <button type="button" @click="remove(s)">Delete</button>
                 </div>
             </li>
         </ul>
 
-        <form
-            id="subscription-form"
-            class="grid max-w-3xl scroll-mt-24 gap-4 rounded-xl border bg-card p-6 sm:grid-cols-2"
-            @submit.prevent="submit"
-        >
-            <h3 class="font-medium sm:col-span-2">
-                {{ editing ? 'Edit subscription' : 'Add subscription' }}
-            </h3>
-            <div class="grid gap-2">
-                <Label for="name">Name</Label>
-                <Input id="name" v-model="form.name" required />
-                <InputError :message="form.errors.name" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="amount">Amount per charge (PHP)</Label>
-                <Input
-                    id="amount"
-                    v-model="form.amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                />
-                <InputError :message="form.errors.amount" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="cadence">Repeats</Label>
-                <SelectNative id="cadence" v-model="form.cadence">
-                    <option v-for="c in cadences" :key="c" :value="c">
-                        {{ c }}
-                    </option>
-                </SelectNative>
-                <InputError :message="form.errors.cadence" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="next_due_on">Next charge</Label>
-                <Input
-                    id="next_due_on"
-                    v-model="form.next_due_on"
-                    type="date"
-                    required
-                />
-                <InputError :message="form.errors.next_due_on" />
-            </div>
-            <div class="flex gap-2 sm:col-span-2">
-                <Button :disabled="form.processing">Save</Button>
-                <Button
-                    v-if="editing"
-                    type="button"
-                    variant="ghost"
-                    @click="cancel"
+        <Dialog :open="open" @update:open="(v) => !v && cancel()">
+            <DialogContent class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>
+                        {{ editing ? 'Edit item' : 'Add item' }}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Bills and subscriptions repeat on the schedule you set.
+                    </DialogDescription>
+                </DialogHeader>
+                <form
+                    class="grid gap-4 sm:grid-cols-2"
+                    @submit.prevent="submit"
                 >
-                    Cancel
-                </Button>
-            </div>
-        </form>
+                    <div class="grid gap-2">
+                        <Label for="kind">Type</Label>
+                        <SelectNative id="kind" v-model="form.kind">
+                            <option value="bill">Bill</option>
+                            <option value="subscription">Subscription</option>
+                        </SelectNative>
+                        <InputError :message="form.errors.kind" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="name">Name</Label>
+                        <Input id="name" v-model="form.name" required />
+                        <InputError :message="form.errors.name" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="amount">Amount per charge (PHP)</Label>
+                        <Input
+                            id="amount"
+                            v-model="form.amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            required
+                        />
+                        <InputError :message="form.errors.amount" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="cadence">Repeats</Label>
+                        <SelectNative id="cadence" v-model="form.cadence">
+                            <option v-for="c in cadences" :key="c" :value="c">
+                                {{ c }}
+                            </option>
+                        </SelectNative>
+                        <InputError :message="form.errors.cadence" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="next_due_on">Next charge</Label>
+                        <Input
+                            id="next_due_on"
+                            v-model="form.next_due_on"
+                            type="date"
+                            required
+                        />
+                        <InputError :message="form.errors.next_due_on" />
+                    </div>
+                    <div class="flex gap-2 sm:col-span-2">
+                        <Button :disabled="form.processing">Save</Button>
+                        <Button type="button" variant="ghost" @click="cancel">
+                            Cancel
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

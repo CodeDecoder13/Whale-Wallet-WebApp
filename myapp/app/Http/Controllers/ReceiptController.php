@@ -24,7 +24,7 @@ class ReceiptController extends Controller
         return Inertia::render('receipts/Index', [
             'consented' => (bool) $request->user()->ai_consent_at,
             'keepReceipts' => $request->user()->keep_receipts,
-            'receipts' => Receipt::where('status', '!=', 'confirmed')->latest('id')->limit(10)->get()->map->toClient()->values(),
+            'receipts' => Receipt::where('purpose', 'expense')->where('status', '!=', 'confirmed')->latest('id')->limit(10)->get()->map->toClient()->values(),
             'cards' => Card::orderBy('name')->get(['id', 'name']),
             'categories' => Category::orderBy('name')->get(['id', 'name']),
         ]);
@@ -35,9 +35,10 @@ class ReceiptController extends Controller
     {
         $request->validate([
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192', 'dimensions:max_width=8000,max_height=8000'],
+            'purpose' => ['nullable', 'in:expense,income'],
         ]);
 
-        return response()->json($store->handle($request->user(), $request->file('image'))->refresh()->toClient(), 202);
+        return response()->json($store->handle($request->user(), $request->file('image'), $request->input('purpose', 'expense'))->refresh()->toClient(), 202);
     }
 
     public function show(Receipt $receipt): JsonResponse
@@ -51,6 +52,7 @@ class ReceiptController extends Controller
         DB::transaction(function () use ($request, $receipt, $create) {
             $receipt = Receipt::lockForUpdate()->findOrFail($receipt->id);
             abort_unless($receipt->status === 'parsed', 409, 'This receipt was already handled.');
+            abort_unless($receipt->purpose === 'expense', 422, 'This is a salary proof; confirm it from Add income.');
 
             $data = $request->validated();
             $create->handle([...$data, 'source' => TransactionSource::Receipt, 'receipt_id' => $receipt->id]);

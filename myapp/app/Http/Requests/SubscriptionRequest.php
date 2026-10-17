@@ -13,6 +13,7 @@ class SubscriptionRequest extends PesoRequest
             'amount' => ['required', 'integer', 'min:1'],
             'cadence' => ['required', 'in:weekly,biweekly,monthly,quarterly,yearly'],
             'next_due_on' => ['required', 'date'],
+            'kind' => ['required', 'in:bill,subscription'],
         ];
     }
 }

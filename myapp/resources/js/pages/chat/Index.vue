@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { api, ApiError } from '@/lib/api';
 import { formatPeso } from '@/lib/currency';
+import { dashboard } from '@/routes';
 import { index as receipts } from '@/routes/receipts';
 import { index } from '@/routes/chat';
 import { index as transactions } from '@/routes/transactions';
@@ -31,6 +32,7 @@ type Msg = {
     draft?: Draft | null;
     quick?: string[];
     receipt_id?: number | null;
+    income?: boolean;
     error?: boolean;
     dismissed?: boolean;
 };
@@ -43,6 +45,7 @@ const props = defineProps<{
         content: string;
         draft_json: Draft | null;
         receipt_id: number | null;
+        income?: boolean;
     }[];
 }>();
 
@@ -63,6 +66,7 @@ const msgs = ref<Msg[]>(
         content: m.content,
         draft: m.draft_json,
         receipt_id: m.receipt_id,
+        income: m.income,
     })),
 );
 const text = ref('');
@@ -95,6 +99,7 @@ async function send(body: string | File) {
             draft?: Draft;
             quick_replies?: string[];
             receipt_id?: number;
+            income?: boolean;
         }>(messages.url(), form);
         msgs.value.push({
             id: r.id,
@@ -103,6 +108,7 @@ async function send(body: string | File) {
             draft: r.draft,
             quick: r.quick_replies,
             receipt_id: r.receipt_id,
+            income: r.income,
         });
     } catch (e) {
         const err = e as ApiError;
@@ -137,10 +143,7 @@ const onFile = (e: Event) => {
 
 async function save(m: Msg) {
     try {
-        const r = await api<{ transaction_id: number }>(
-            confirm.url(m.id!),
-            {},
-        );
+        const r = await api<{ transaction_id: number }>(confirm.url(m.id!), {});
         m.draft!.saved = r.transaction_id;
         toast.success('Saved to your transactions.');
     } catch (e) {
@@ -213,10 +216,14 @@ const ready = (m: Msg) =>
                         </Link>
                         <Link
                             v-if="m.receipt_id"
-                            :href="receipts()"
+                            :href="
+                                m.income
+                                    ? dashboard({ query: { income: 1 } })
+                                    : receipts()
+                            "
                             class="mt-1 block font-medium underline underline-offset-4"
                         >
-                            Open Receipts
+                            {{ m.income ? 'Open Add income' : 'Open Receipts' }}
                         </Link>
                     </div>
 

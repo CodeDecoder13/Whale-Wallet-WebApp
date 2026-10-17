@@ -16,7 +16,14 @@ use Throwable;
  */
 class HandleChatMessage
 {
+    public const SALARY_PROMPT = 'Nice! Attach a screenshot of the salary transfer with the image button. I will read the reference number, date and amount, then you confirm it from Add income on your dashboard.';
+
     public function __construct(private AiProvider $ai, private ParseQuickEntry $quick, private AnswerQuestion $answer) {}
+
+    public static function isSalary(string $text): bool
+    {
+        return ! str_contains($text, '?') && preg_match('/\b(salary|sweldo|sahod|payroll|paycheck|got paid)\b/i', $text) === 1;
+    }
 
     /** @return array{id: int, reply: string, draft?: array, quick_replies?: list<string>} */
     public function handle(User $user, ChatThread $thread, string $text): array
@@ -28,9 +35,12 @@ class HandleChatMessage
         $reply = null;
 
         // rules first: short, no question mark, ends in an amount
-        $quick = ! str_contains($text, '?') && str_word_count($text) <= 5 ? $this->quick->handle($text) : null;
+        $salary = self::isSalary($text);
+        $quick = ! $salary && ! str_contains($text, '?') && str_word_count($text) <= 5 ? $this->quick->handle($text) : null;
 
-        if ($quick) {
+        if ($salary) {
+            $reply = self::SALARY_PROMPT;
+        } elseif ($quick) {
             $fields = ['merchant' => $quick['merchant'], 'amount' => $quick['amount'], 'card' => $quick['card']];
         } else {
             $r = $this->ai->chat($text, $this->context($user, $pending));

@@ -99,53 +99,54 @@ class SubscriptionTest extends TestCase
         );
     }
 
-    public function test_index_lists_only_subscriptions_with_monthly_total()
+    public function test_index_lists_bills_and_subscriptions_only()
     {
         $user = User::factory()->create();
         $mine = ['user_id' => $user->id, 'kind' => RecurringKind::Subscription];
         $this->item([...$mine, 'name' => 'Netflix', 'amount' => 54_900, 'next_due_on' => '2026-03-15']);
         $this->item([...$mine, 'name' => 'Domain', 'amount' => 120_000, 'cadence' => 'yearly', 'next_due_on' => '2026-09-01']);
-        $this->item(['user_id' => $user->id, 'name' => 'Rent', 'amount' => 800_000]);
+        $this->item(['user_id' => $user->id, 'kind' => RecurringKind::Bill, 'name' => 'Rent', 'amount' => 800_000, 'next_due_on' => '2026-03-01']);
+        $this->item(['user_id' => $user->id, 'kind' => RecurringKind::Debt, 'name' => 'Loan']);
         $this->item([...$mine, 'user_id' => User::factory()->create()->id, 'name' => 'Theirs']);
 
         $this->actingAs($user)->get(route('subscriptions.index'))->assertInertia(fn (Assert $page) => $page
             ->component('subscriptions/Index')
-            ->where('monthly_total', 64_900)
-            ->has('subscriptions', 2)
-            ->where('subscriptions.0.name', 'Netflix')
-            ->where('subscriptions.1.monthly', 10_000));
+            ->has('items', 3)
+            ->where('items.0.name', 'Rent')
+            ->where('items.0.kind', 'bill')
+            ->where('items.2.monthly', 10_000));
     }
 
-    public function test_create_update_delete()
+    public function test_create_update_delete_and_flip_kind()
     {
         $user = User::factory()->create();
         $this->actingAs($user);
 
         $this->post(route('subscriptions.store'), [
-            'name' => 'Spotify', 'amount' => '149', 'cadence' => 'monthly', 'next_due_on' => '2026-03-20',
+            'name' => 'Spotify', 'amount' => '149', 'cadence' => 'monthly', 'next_due_on' => '2026-03-20', 'kind' => 'subscription',
         ])->assertRedirect();
 
         $sub = RecurringItem::sole();
         $this->assertSame([14_900, RecurringKind::Subscription], [$sub->amount, $sub->kind]);
 
         $this->put(route('subscriptions.update', $sub->id), [
-            'name' => 'Spotify Duo', 'amount' => '199', 'cadence' => 'yearly', 'next_due_on' => '2026-12-01',
+            'name' => 'Spotify Duo', 'amount' => '199', 'cadence' => 'yearly', 'next_due_on' => '2026-12-01', 'kind' => 'bill',
         ])->assertRedirect();
-        $this->assertSame([19_900, 'yearly'], [$sub->fresh()->amount, $sub->fresh()->cadence]);
+        $this->assertSame([19_900, 'yearly', RecurringKind::Bill], [$sub->fresh()->amount, $sub->fresh()->cadence, $sub->fresh()->kind]);
 
         $this->delete(route('subscriptions.destroy', $sub->id))->assertRedirect();
         $this->assertSame(0, RecurringItem::count());
     }
 
-    public function test_cannot_touch_another_users_subscription_or_a_bill()
+    public function test_cannot_touch_another_users_item_or_a_debt()
     {
         [$a, $b] = User::factory(2)->create();
         $theirs = $this->item(['user_id' => $b->id, 'kind' => RecurringKind::Subscription]);
-        $bill = $this->item(['user_id' => $a->id, 'kind' => RecurringKind::Bill]);
+        $debt = $this->item(['user_id' => $a->id, 'kind' => RecurringKind::Debt]);
         $this->actingAs($a);
 
         $this->delete(route('subscriptions.destroy', $theirs->id))->assertNotFound();
-        $this->delete(route('subscriptions.destroy', $bill->id))->assertNotFound();
+        $this->delete(route('subscriptions.destroy', $debt->id))->assertNotFound();
         $this->assertSame(2, RecurringItem::withoutGlobalScopes()->count());
     }
 

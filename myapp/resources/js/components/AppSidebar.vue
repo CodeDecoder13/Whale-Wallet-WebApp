@@ -48,7 +48,7 @@ const mainNavItems: NavItem[] = [
     { title: 'Transactions', href: transactions(), icon: Receipt },
     { title: 'Receipts', href: receipts(), icon: ScanLine },
     { title: 'Forecast', href: forecast(), icon: TrendingUp },
-    { title: 'Subscriptions', href: subscriptions(), icon: Repeat },
+    { title: 'Bills & Subs', href: subscriptions(), icon: Repeat },
     { title: 'Tips', href: tips(), icon: Sparkles },
     { title: 'Whale Chat', href: chat(), icon: MessageCircle },
     { title: 'Settings', href: profile(), icon: Settings },

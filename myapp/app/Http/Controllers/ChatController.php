@@ -8,6 +8,7 @@ use App\Actions\StoreReceipt;
 use App\Enums\TransactionSource;
 use App\Models\ChatMessage;
 use App\Models\ChatThread;
+use App\Models\Receipt;
 use App\Services\Ai\AiErrors;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,10 +22,13 @@ class ChatController extends Controller
     public function index(Request $request): Response
     {
         $thread = ChatThread::latest('id')->first();
+        $incomeReceipts = Receipt::where('purpose', 'income')->pluck('id');
 
         return Inertia::render('chat/Index', [
             'consented' => (bool) $request->user()->ai_consent_at,
-            'messages' => $thread?->messages()->latest('id')->limit(50)->get(['id', 'role', 'content', 'draft_json', 'receipt_id'])->reverse()->values() ?? [],
+            'messages' => $thread?->messages()->latest('id')->limit(50)->get(['id', 'role', 'content', 'draft_json', 'receipt_id'])
+                ->each(fn ($m) => $m->income = $m->receipt_id && $incomeReceipts->contains($m->receipt_id))
+                ->reverse()->values() ?? [],
         ]);
     }
 
@@ -40,12 +44,17 @@ class ChatController extends Controller
         $thread = isset($data['thread_id']) ? ChatThread::findOrFail($data['thread_id']) : (ChatThread::latest('id')->first() ?? $user->chatThreads()->create());
 
         if ($request->hasFile('image')) {
-            $receipt = $store->handle($user, $request->file('image'));
-            $reply = 'Got your receipt. I am reading it now; confirm it on the Receipts page.';
+            // a screenshot sent right after the salary prompt (or captioned "salary") is a salary proof
+            $income = HandleChatMessage::isSalary($data['text'] ?? '')
+                || $thread->messages()->where('role', 'assistant')->latest('id')->value('content') === HandleChatMessage::SALARY_PROMPT;
+            $receipt = $store->handle($user, $request->file('image'), $income ? 'income' : 'expense');
+            $reply = $income
+                ? 'Got your proof. I am reading it now; confirm the reference number, date and amount from Add income on your dashboard.'
+                : 'Got your receipt. I am reading it now; confirm it on the Receipts page.';
             $thread->messages()->create(['role' => 'user', 'content' => $data['text'] ?? 'Sent a receipt', 'receipt_id' => $receipt->id]);
             $message = $thread->messages()->create(['role' => 'assistant', 'content' => $reply, 'receipt_id' => $receipt->id]);
 
-            return response()->json(['id' => $message->id, 'reply' => $reply, 'receipt_id' => $receipt->id, 'thread_id' => $thread->id]);
+            return response()->json(['id' => $message->id, 'reply' => $reply, 'receipt_id' => $receipt->id, 'income' => $income, 'thread_id' => $thread->id]);
         }
 
         try {

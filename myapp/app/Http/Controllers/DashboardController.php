@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Card;
+use App\Models\IncomeSource;
+use App\Models\Receipt;
 use App\Models\Recommendation;
 use App\Models\RecurringItem;
 use App\Models\Transaction;
@@ -30,6 +32,10 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
+            'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
+                ->map(fn ($e) => [...$e->only(['id', 'name', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),
+            'income_proofs' => Receipt::where('purpose', 'income')->where('status', '!=', 'confirmed')->latest('id')->limit(3)->get()->map->toClient()->values(),
+            'consented' => (bool) $request->user()->ai_consent_at,
             'forecast' => $forecast,
             'tips' => Recommendation::whereNull('dismissed_at')->latest('id')->limit(3)->get(['id', 'text']),
             'categories' => $month()->with('category:id,name')

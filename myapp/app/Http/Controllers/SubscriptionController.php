@@ -9,26 +9,28 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** Subscriptions are recurring_items with kind=subscription. */
+/** Bills and subscriptions are recurring_items; one page edits both and can flip an item's kind. */
 class SubscriptionController extends Controller
 {
+    private const KINDS = [RecurringKind::Bill, RecurringKind::Subscription];
+
     public function index(): Response
     {
-        $items = RecurringItem::where('kind', RecurringKind::Subscription)->orderBy('next_due_on')->get();
+        $items = RecurringItem::whereIn('kind', self::KINDS)->orderBy('next_due_on')->get();
 
         return Inertia::render('subscriptions/Index', [
-            'subscriptions' => $items->map(fn ($i) => [
+            'items' => $items->map(fn ($i) => [
                 ...$i->only(['id', 'name', 'amount', 'cadence']),
+                'kind' => $i->kind->value,
                 'next_due_on' => $i->next_due_on?->toDateString(),
                 'monthly' => $i->monthlyAmount(),
             ]),
-            'monthly_total' => $items->sum(fn ($i) => $i->monthlyAmount()),
         ]);
     }
 
     public function store(SubscriptionRequest $request): RedirectResponse
     {
-        RecurringItem::create([...$request->validated(), 'kind' => RecurringKind::Subscription]);
+        RecurringItem::create($request->validated());
 
         return back();
     }
@@ -49,6 +51,6 @@ class SubscriptionController extends Controller
 
     private function find(int $id): RecurringItem
     {
-        return RecurringItem::where('kind', RecurringKind::Subscription)->findOrFail($id);
+        return RecurringItem::whereIn('kind', self::KINDS)->findOrFail($id);
     }
 }

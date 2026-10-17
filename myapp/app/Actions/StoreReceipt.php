@@ -11,11 +11,11 @@ use Illuminate\Support\Str;
 class StoreReceipt
 {
     /** Keeps the upload on the private disk and queues parsing. No transaction is created. */
-    public function handle(User $user, UploadedFile $image): Receipt
+    public function handle(User $user, UploadedFile $image, string $purpose = 'expense'): Receipt
     {
         $name = Str::ulid().'-'.Str::slug(substr(pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME), 0, 40)).'.'.$image->extension();
 
-        $receipt = $user->receipts()->create(['path' => $image->storeAs("receipts/{$user->id}", $name, 'local')]);
+        $receipt = $user->receipts()->create(['path' => $image->storeAs("receipts/{$user->id}", $name, 'local'), 'purpose' => $purpose]);
         ParseReceipt::dispatch($receipt->id);
 
         return $receipt;

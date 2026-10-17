@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForecastController;
+use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PodController;
 use App\Http\Controllers\ReceiptController;
@@ -32,6 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('transactions/export.md', [TransactionController::class, 'exportMarkdown'])->name('transactions.export-md');
     Route::put('transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::delete('transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
+
+    Route::post('income', [IncomeController::class, 'store'])->name('income.store');
+    Route::delete('income/{income}', [IncomeController::class, 'destroy'])->name('income.destroy');
 
     Route::get('forecast', ForecastController::class)->name('forecast');
     Route::resource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'update', 'destroy']);
