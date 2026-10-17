@@ -11,7 +11,8 @@ Style: ponytail (lazy = fewest files, reuse before write, one check per money pa
 | M1 Budget core | Data layer and screens done and committed. Complete (edit/delete, categories, Markdown export, browser check) |
 | M2 Forecast, subscriptions, tips | Built, not committed: ForecastService + tests, subscriptions page, forecast page, AI tips behind `AiProvider` (Gemini + Fake), consent gate. Only the manual real-Gemini check is left open |
 | M3 Receipts and Whale Chat | Built, not committed: consent middleware, receipt upload + `ParseReceipt` queue job + confirm card, Whale Chat (drafts, fixed-function answers), rate limits, 8 fixtures + `receipts:eval`, feature tests. Open: real-model accuracy run. `AI_FAKE=true` runs the app on the fake provider for demos |
-| M4 to M5 | Not started |
+| M4 Mobile API | Done: `/api/v1` Resources + tests, Sanctum tokens (revoke in settings), devices + `push:bills`/`push:budgets`, Bruno collection in `docs/bruno`. Real-Expo push and staging run still open |
+| M5 Beta hardening | In progress |
 
 Libraries now installed: laravel/ai (composer), unovis (ts + vue), tanstack vue-table, vee-validate + zod, vue test-utils, jsdom. The deferral for TanStack Table and vee-validate + Zod below is lifted by the user; Playwright, Redis/Horizon, vue-echarts stay deferred. Vitest is bundled in `vp`. Tests are PHPUnit, not Pest.
 

@@ -1,0 +1,18 @@
+meta {
+  name: Chat
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base}}/chat/messages
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+body:json {
+  {"text":"how much food this week?"}
+}

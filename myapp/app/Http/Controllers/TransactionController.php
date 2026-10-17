@@ -7,41 +7,28 @@ use App\Actions\DeleteTransaction;
 use App\Actions\ParseQuickEntry;
 use App\Actions\TransferBetween;
 use App\Actions\UpdateTransaction;
+use App\Enums\TransactionType;
 use App\Http\Requests\QuickEntryRequest;
+use App\Http\Requests\TransactionFilterRequest;
 use App\Http\Requests\TransactionRequest;
 use App\Http\Requests\TransferRequest;
 use App\Models\Card;
 use App\Models\Category;
 use App\Models\Pod;
-use App\Enums\TransactionType;
 use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(TransactionFilterRequest $request): Response
     {
-        $f = $request->validate([
-            'q' => ['nullable', 'string', 'max:100'],
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date'],
-            'card_id' => ['nullable', 'integer'],
-            'category_id' => ['nullable', 'integer'],
-        ]);
+        $f = $request->safe()->except('per_page');
 
         $transactions = Transaction::with(['card:id,name', 'category:id,name'])
-            ->when($f['q'] ?? null, fn ($q, $s) => $q->where(
-                fn ($q) => $q->whereRaw('lower(merchant) like ?', ['%'.mb_strtolower($s).'%'])
-                    ->orWhereRaw('lower(note) like ?', ['%'.mb_strtolower($s).'%'])
-            ))
-            ->when($f['from'] ?? null, fn ($q, $d) => $q->whereDate('occurred_at', '>=', $d))
-            ->when($f['to'] ?? null, fn ($q, $d) => $q->whereDate('occurred_at', '<=', $d))
-            ->when($f['card_id'] ?? null, fn ($q, $id) => $q->where('card_id', $id))
-            ->when($f['category_id'] ?? null, fn ($q, $id) => $q->where('category_id', $id))
+            ->filter($f)
             ->latest('occurred_at')->latest('id')
             ->paginate(20)->withQueryString();
 

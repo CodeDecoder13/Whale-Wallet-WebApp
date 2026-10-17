@@ -3,6 +3,7 @@
 use App\Actions\GenerateRecommendations;
 use App\Models\RecurringItem;
 use App\Models\User;
+use App\Services\PushAlerts;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -41,3 +42,14 @@ Artisan::command('recommendations:generate {email}', function (GenerateRecommend
     $tips->each(fn ($tip) => $this->line("- {$tip->text}"));
     $this->info("Saved {$tips->count()} tips using ".config('services.gemini.model').'.');
 })->purpose('Generate AI tips for a user with the configured provider (real Gemini call; needs GEMINI_API_KEY)');
+
+Artisan::command('push:bills', function (PushAlerts $push) {
+    $this->info("Sent {$push->bills()} bill alerts.");
+})->purpose('Push a reminder for bills due in the next 2 days (Expo)');
+
+Artisan::command('push:budgets', function (PushAlerts $push) {
+    $this->info("Sent {$push->budgets()} budget alerts.");
+})->purpose('Push a warning for cards at 80% of, or over, their monthly limit (Expo)');
+
+Schedule::command('push:bills')->dailyAt('08:00')->withoutOverlapping();
+Schedule::command('push:budgets')->hourly()->withoutOverlapping();

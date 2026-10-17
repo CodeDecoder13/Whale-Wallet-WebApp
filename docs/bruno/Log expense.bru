@@ -1,0 +1,18 @@
+meta {
+  name: Log expense
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base}}/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+body:json {
+  {"merchant":"Jollibee","amount":25000,"card_id":1,"occurred_at":"2026-10-17","source":"manual"}
+}

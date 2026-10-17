@@ -13,10 +13,7 @@ class CardController extends Controller
 {
     public function index(): Response
     {
-        $cards = Card::withSum(
-            ['transactions as spent' => fn ($q) => $q->where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth())],
-            'amount',
-        )->orderBy('name')->get()->each(fn ($c) => $c->spent = (int) $c->spent);
+        $cards = Card::withSpent()->orderBy('name')->get()->each(fn ($c) => $c->spent = (int) $c->spent);
 
         return Inertia::render('cards/Index', [
             'cards' => $cards,

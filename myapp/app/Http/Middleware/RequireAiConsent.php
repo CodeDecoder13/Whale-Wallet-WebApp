@@ -19,7 +19,7 @@ class RequireAiConsent
         $message = 'Accept the AI notice first. It is on the Receipts, Whale Chat and Tips pages.';
 
         if ($request->expectsJson()) {
-            return response()->json(['message' => $message, 'consent_url' => route('tips.index')], 422);
+            return response()->json(['message' => $message, 'consent_url' => $request->is('api/*') ? url('/api/v1/consent/ai') : route('tips.index')], 422);
         }
 
         Inertia::flash('toast', ['type' => 'error', 'message' => $message]);

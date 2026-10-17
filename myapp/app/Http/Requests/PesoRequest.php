@@ -11,6 +11,10 @@ abstract class PesoRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->is('api/*')) {
+            return; // the API already sends centavos
+        }
+
         foreach ($this->pesos as $field) {
             $this->merge([$field => self::centavos($this->input($field))]);
         }
