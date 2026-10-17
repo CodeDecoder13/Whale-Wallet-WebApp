@@ -7,6 +7,7 @@ type Draft = {
     occurred_at: string;
     missing: string[];
     kind?: 'loan' | 'income';
+    recurring_id?: number;
     payments?: number | null;
     saved?: number;
 };
@@ -150,7 +151,9 @@ async function save(m: Msg) {
         toast.success(
             m.draft!.kind === 'loan'
                 ? 'Saved to Bills & Subs.'
-                : 'Saved to your transactions.',
+                : m.draft!.recurring_id
+                  ? 'Bill marked as paid.'
+                  : 'Saved to your transactions.',
         );
     } catch (e) {
         toast.error((e as ApiError).message);
@@ -162,13 +165,13 @@ const ready = (m: Msg) =>
 </script>
 
 <template>
-    <div>
+    <div class="flex min-h-0 flex-col">
     <AiConsent v-if="!consented" />
 
-    <div v-else class="flex flex-col gap-3">
+    <div v-else class="flex min-h-0 flex-1 flex-col gap-3">
         <div
             ref="log"
-            :class="[logClass ?? 'h-[calc(100svh-22rem)] min-h-72', 'flex flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4']"
+            :class="[logClass ?? 'min-h-0 flex-1', 'flex flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4']"
             aria-live="polite"
         >
             <div
@@ -198,7 +201,7 @@ const ready = (m: Msg) =>
                 :class="m.role === 'user' ? 'items-end' : 'items-start'"
             >
                 <div
-                    class="max-w-[85%] rounded-2xl px-4 py-2 text-sm"
+                    class="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-xl lg:max-w-2xl lg:text-[15px]"
                     :class="
                         m.role === 'user'
                             ? 'bg-primary text-primary-foreground'
@@ -239,7 +242,7 @@ const ready = (m: Msg) =>
                         !m.dismissed &&
                         !m.draft.missing.length
                     "
-                    class="w-full max-w-[85%] rounded-xl border bg-background p-4 text-sm"
+                    class="w-full max-w-[85%] rounded-xl border bg-background p-4 text-sm sm:max-w-xl lg:max-w-2xl"
                 >
                     <div class="flex items-baseline justify-between gap-3">
                         <span class="font-medium">{{

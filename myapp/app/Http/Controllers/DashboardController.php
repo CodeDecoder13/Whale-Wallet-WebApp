@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CardType;
+use App\Enums\RecurringKind;
 use App\Models\Card;
+use App\Models\Pod;
 use App\Models\IncomeSource;
 use App\Models\Receipt;
 use App\Models\Recommendation;
@@ -17,6 +20,25 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    /**
+     * Centavos. Assets: cash, bank and e-wallet balances plus savings pods. Debts: loans still to pay
+     * (payments left x amount) and what is owed on credit cards (a credit card balance goes negative as you spend).
+     *
+     * @return array{assets: int, debts: int, total: int}
+     */
+    private function netWorth(): array
+    {
+        $cards = Card::get(['type', 'balance']);
+        $credit = (int) $cards->where('type', CardType::Credit)->sum('balance');
+        $loans = (int) RecurringItem::where('kind', RecurringKind::Debt)->whereNotNull('installments')->get()
+            ->sum(fn ($i) => $i->amount * $i->paymentsLeft());
+
+        $assets = (int) $cards->where('type', '!=', CardType::Credit)->sum('balance') + (int) Pod::sum('saved_amount') + max(0, $credit);
+        $debts = $loans + max(0, -$credit);
+
+        return ['assets' => $assets, 'debts' => $debts, 'total' => $assets - $debts];
+    }
+
     public function __invoke(Request $request, BudgetSummary $budget, ForecastLoader $loader): Response|RedirectResponse
     {
         if (! Card::exists()) {
@@ -31,6 +53,7 @@ class DashboardController extends Controller
         $forecast = $loader->for($request->user());
 
         return Inertia::render('Dashboard', [
+            'net_worth' => $this->netWorth(),
             'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
                 ->map(fn ($e) => [...$e->only(['id', 'name', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),
@@ -43,7 +66,7 @@ class DashboardController extends Controller
                 ->selectRaw('category_id, sum(amount) as total')->groupBy('category_id')->orderByDesc('total')->get()
                 ->map(fn ($r) => ['name' => $r->category?->name ?? 'Uncategorized', 'total' => (int) $r->total]),
             'upcoming' => RecurringItem::whereBetween('next_due_on', [today(), today()->addDays(14)->endOfDay()])
-                ->orderBy('next_due_on')->get(['id', 'name', 'amount', 'next_due_on']),
+                ->orderBy('next_due_on')->get(['id', 'name', 'amount', 'next_due_on', 'logo']),
         ]);
     }
 }

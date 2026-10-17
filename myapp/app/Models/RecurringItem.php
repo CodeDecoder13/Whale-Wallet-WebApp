@@ -77,6 +77,14 @@ class RecurringItem extends Model
         }
     }
 
+    /** After a payment: the next charge date, and one fewer payment left on a loan (0 left means paid off). */
+    public function advanceAfterPayment(): void
+    {
+        $left = $this->installments === null ? null : max(0, $this->installments - 1);
+
+        $this->update(['installments' => $left, 'next_due_on' => $left === 0 ? $this->next_due_on : $this->nth(1)]);
+    }
+
     /** Loan payments still to come (today included). */
     public function paymentsLeft(): int
     {

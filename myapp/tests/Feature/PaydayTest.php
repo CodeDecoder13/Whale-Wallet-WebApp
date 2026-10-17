@@ -25,4 +25,17 @@ class PaydayTest extends TestCase
         $this->patch(route('profile.payday'), ['pay_dates' => ['5', '5']])->assertSessionHasErrors();
         $this->assertSame([5], $user->fresh()->pay_dates);
     }
+
+    public function test_avatar_is_a_small_jpeg_and_can_be_removed()
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $this->patch(route('profile.avatar'), ['avatar' => 'https://evil.test/me.png'])->assertSessionHasErrors('avatar');
+        $this->patch(route('profile.avatar'), ['avatar' => 'data:image/jpeg;base64,AAAA'])->assertRedirect();
+        $this->assertSame('data:image/jpeg;base64,AAAA', $user->fresh()->avatar);
+
+        $this->patch(route('profile.avatar'), ['avatar' => null]);
+        $this->assertNull($user->fresh()->avatar);
+    }
 }

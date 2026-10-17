@@ -3,10 +3,7 @@ import { Link, router } from '@inertiajs/vue3';
 import { CalendarDays, Moon, Plus, Search, Sun } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAppearance } from '@/composables/useAppearance';
-import { useInitials } from '@/composables/useInitials';
-import { usePage } from '@inertiajs/vue3';
 import { index } from '@/routes/transactions';
 import type { BreadcrumbItem } from '@/types';
 
@@ -20,7 +17,6 @@ const props = withDefaults(
 );
 
 const title = computed(() => props.breadcrumbs.at(-1)?.title ?? '');
-const user = computed(() => usePage().props.auth.user);
 const today = new Date();
 const dateLine = today.toLocaleDateString('en-GB', {
     weekday: 'long',
@@ -33,7 +29,6 @@ const monthLabel = today.toLocaleDateString('en-GB', {
     year: 'numeric',
 });
 
-const { getInitials } = useInitials();
 const { resolvedAppearance, updateAppearance } = useAppearance();
 const q = ref('');
 const search = () => router.get(index().url, q.value ? { q: q.value } : {});
@@ -89,12 +84,5 @@ const search = () => router.get(index().url, q.value ? { q: q.value } : {});
             <Sun v-if="resolvedAppearance === 'dark'" class="size-5" />
             <Moon v-else class="size-5" />
         </button>
-        <Avatar class="size-9">
-            <AvatarFallback
-                class="bg-sidebar-accent text-sm text-sidebar-accent-foreground"
-            >
-                {{ getInitials(user.name) }}
-            </AvatarFallback>
-        </Avatar>
     </header>
 </template>

@@ -5,10 +5,13 @@ import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useInitials } from '@/composables/useInitials';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toDataUrl } from '@/lib/image';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 
@@ -27,6 +30,24 @@ const page = usePage();
 const user = computed(() => page.props.auth.user);
 
 const props = defineProps<{ pay_dates: number[] }>();
+
+// square-crop would be nicer, but a 128px JPEG keeps auth.user small on every page
+const { getInitials } = useInitials();
+const avatar = useForm({ avatar: null as string | null });
+
+async function pickAvatar(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+
+    if (file) {
+        avatar.avatar = await toDataUrl(file, 160, 'image/jpeg', 0.85, true).catch(() => null);
+        avatar.patch(ProfileController.avatar.url(), { preserveScroll: true });
+    }
+}
+
+function removeAvatar() {
+    avatar.avatar = null;
+    avatar.patch(ProfileController.avatar.url(), { preserveScroll: true });
+}
 const payday = useForm({
     first: String(props.pay_dates[0] ?? ''),
     second: String(props.pay_dates[1] ?? ''),
@@ -50,6 +71,35 @@ function savePayday() {
             title="Profile"
             description="Update your name and email address"
         />
+
+        <div class="flex items-center gap-4">
+            <Avatar class="size-16 overflow-hidden rounded-full">
+                <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" class="object-cover" />
+                <AvatarFallback class="bg-sidebar-accent text-lg text-sidebar-accent-foreground">
+                    {{ getInitials(user.name) }}
+                </AvatarFallback>
+            </Avatar>
+            <div class="grid gap-1">
+                <label class="cursor-pointer text-sm font-medium underline underline-offset-4">
+                    {{ user.avatar ? 'Change picture' : 'Upload picture' }}
+                    <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        class="sr-only"
+                        @change="pickAvatar"
+                    />
+                </label>
+                <button
+                    v-if="user.avatar"
+                    type="button"
+                    class="text-left text-xs text-muted-foreground underline underline-offset-4"
+                    @click="removeAvatar"
+                >
+                    Remove
+                </button>
+                <InputError :message="avatar.errors.avatar" />
+            </div>
+        </div>
 
         <Form
             v-bind="ProfileController.update.form()"

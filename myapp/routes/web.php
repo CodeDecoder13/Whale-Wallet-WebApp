@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('forecast', ForecastController::class)->name('forecast');
     Route::resource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::post('subscriptions/{subscription}/pay', [SubscriptionController::class, 'pay'])->name('subscriptions.pay');
 
     Route::get('tips', [RecommendationController::class, 'index'])->name('tips.index');
     Route::post('tips', [RecommendationController::class, 'store'])->middleware('throttle:6,1')->name('tips.store');

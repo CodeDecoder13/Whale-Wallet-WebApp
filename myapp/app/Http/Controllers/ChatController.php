@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreateTransaction;
 use App\Actions\HandleChatMessage;
+use App\Actions\PayRecurring;
 use App\Actions\StoreReceipt;
 use App\Enums\RecurringKind;
 use App\Enums\TransactionSource;
@@ -99,6 +100,15 @@ class ChatController extends Controller
                 $message->update(['draft_json' => $d + ['saved' => $loan->id]]);
 
                 return $loan->id;
+            }
+
+            if (! empty($d['recurring_id'])) {
+                $transaction = app(PayRecurring::class)->handle(
+                    RecurringItem::findOrFail($d['recurring_id']), $d['card_id'], $d['amount'], $d['occurred_at'], TransactionSource::Chat,
+                );
+                $message->update(['draft_json' => $d + ['saved' => $transaction->id]]);
+
+                return $transaction->id;
             }
 
             $transaction = $create->handle([

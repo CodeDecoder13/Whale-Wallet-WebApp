@@ -45,6 +45,7 @@ defineProps<{ cards: WalletCard[]; types: string[] }>();
 
 const blank = { name: '', type: 'ewallet', balance: '0', monthly_limit: '', color: null as string | null, account_name: '', account_number: '', qr: null as string | null };
 const editing = ref<number | null>(null);
+const open = ref(false);
 const form = useForm({ ...blank });
 
 function edit(c: WalletCard) {
@@ -60,6 +61,14 @@ function edit(c: WalletCard) {
         qr: c.qr,
     });
     form.reset();
+    open.value = true;
+}
+
+function add() {
+    editing.value = null;
+    form.defaults({ ...blank });
+    form.reset();
+    open.value = true;
 }
 
 // QR codes need more pixels than a logo to stay scannable
@@ -76,7 +85,9 @@ const masked = (n: string) => `•••• ${n.replace(/\D/g, '').slice(-4)}`;
 const copy = (text: string) => navigator.clipboard?.writeText(text).catch(() => {});
 
 function cancel() {
+    open.value = false;
     editing.value = null;
+    form.clearErrors();
     form.defaults({ ...blank });
     form.reset();
 }
@@ -138,9 +149,7 @@ const tile = (c: WalletCard, i: number) =>
                         <ArrowUpRight /> Move money
                     </Link>
                 </Button>
-                <Button as-child>
-                    <a href="#card-form"><Plus /> Add card</a>
-                </Button>
+                <Button @click="add"><Plus /> Add card</Button>
             </div>
         </div>
 
@@ -219,14 +228,17 @@ const tile = (c: WalletCard, i: number) =>
             </li>
         </ul>
 
-        <form
-            id="card-form"
-            class="grid max-w-3xl scroll-mt-24 gap-4 rounded-xl border bg-card p-6 sm:grid-cols-2"
-            @submit.prevent="submit"
-        >
-            <h3 class="font-medium sm:col-span-2">
-                {{ editing ? 'Edit card' : 'Add card' }}
-            </h3>
+        <Dialog :open="open" @update:open="(v) => !v && cancel()">
+            <DialogContent class="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>
+                        {{ editing ? 'Edit card' : 'Add card' }}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Pick your bank or wallet, or type your own name.
+                    </DialogDescription>
+                </DialogHeader>
+        <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="submit">
             <div class="grid gap-2 sm:col-span-2">
                 <Label>Bank or wallet</Label>
                 <BankPicker
@@ -315,16 +327,13 @@ const tile = (c: WalletCard, i: number) =>
             </div>
             <div class="flex gap-2 sm:col-span-2">
                 <Button :disabled="form.processing">Save</Button>
-                <Button
-                    v-if="editing"
-                    type="button"
-                    variant="ghost"
-                    @click="cancel"
-                >
+                <Button type="button" variant="ghost" @click="cancel">
                     Cancel
                 </Button>
             </div>
         </form>
+            </DialogContent>
+        </Dialog>
 
         <Dialog :open="!!detail" @update:open="(v) => !v && (detail = null)">
             <DialogContent v-if="detail" class="sm:max-w-sm">

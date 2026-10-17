@@ -45,6 +45,7 @@ class HandleChatMessage
         $salary = self::isSalary($text);
         $amountAnswer = $incomeDraft && in_array('amount', $incomeDraft['missing'], true) ? self::amountFrom($text) : null;
         $income = null;
+        $bill = ! $salary && ! $pendingLoan && ! $incomeDraft ? $this->billPayment($user, $text) : null;
         $quick = ! $salary && ! str_contains($text, '?') && str_word_count($text) <= 5 && ! preg_match('/\b(loan|utang|borrowed)\b/i', $text) ? $this->quick->handle($text) : null;
 
         if ($salary || $amountAnswer) {
@@ -54,6 +55,8 @@ class HandleChatMessage
                 : 'Nice! How much did you receive?';
         } elseif ($pendingLoan && ($update = self::loanUpdate($pendingLoan, $text))) {
             $loan = $this->loanDraft($update);
+        } elseif ($bill) {
+            $fields = $bill;
         } elseif ($quick) {
             $fields = ['merchant' => $quick['merchant'], 'amount' => $quick['amount'], 'card' => $quick['card']];
         } else {
@@ -81,6 +84,10 @@ class HandleChatMessage
         }
 
         $draft = $income ?? $loan ?? ($fields !== null ? $this->draft($user, $fields) : null);
+
+        if ($draft && ! empty($fields['recurring_id'])) {
+            $draft['recurring_id'] = (int) $fields['recurring_id'];
+        }
         $quickReplies = [];
 
         if ($draft && ! $income) {
@@ -149,8 +156,44 @@ class HandleChatMessage
             'merchant' => ['Where did you spend it?', []],
             'amount' => ['How much was it?', []],
             'card' => ['Which card should I charge?', $user->cards()->orderBy('name')->pluck('name')->all()],
-            default => ['Log ₱'.number_format($d['amount'] / 100, 2)." at {$d['merchant']} on {$d['card']}? Check the details and tap Save.", []],
+            default => isset($d['recurring_id'])
+                ? ['Mark '.$d['merchant'].' as paid: ₱'.number_format($d['amount'] / 100, 2)." from {$d['card']}? It will be logged as an expense and the next due date moves forward. Check the details and tap Save.", []]
+                : ['Log ₱'.number_format($d['amount'] / 100, 2)." at {$d['merchant']} on {$d['card']}? Check the details and tap Save.", []],
         };
+    }
+
+    /** "paid converge", "bayad na rent 8000": the bill, subscription or loan being paid, as expense fields; null when none matches. */
+    private function billPayment(User $user, string $text): ?array
+    {
+        if (str_contains($text, '?') || ! preg_match('/\b(paid|binayaran|nabayaran|bayad na)\b/i', $text)) {
+            return null;
+        }
+
+        $best = null;
+        $bestLen = 0;
+        foreach ($user->recurringItems()->whereIn('kind', ['bill', 'subscription', 'debt'])->get() as $item) {
+            if ($item->installments === 0) {
+                continue;
+            }
+            // the whole name, or any word of it with 4+ letters ("converge" in "Converge - Wifi")
+            foreach ([mb_strtolower($item->name), ...preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($item->name), -1, PREG_SPLIT_NO_EMPTY)] as $token) {
+                if (mb_strlen($token) >= 4 && preg_match('/\b'.preg_quote($token, '/').'\b/u', mb_strtolower($text)) && mb_strlen($token) > $bestLen) {
+                    [$best, $bestLen] = [$item, mb_strlen($token)];
+                }
+            }
+        }
+
+        if (! $best) {
+            return null;
+        }
+
+        $cardId = $best->card_id;
+        $card = $user->cards()->get()->first(fn ($c) => str_contains(mb_strtolower($text), mb_strtolower($c->name))) ?? ($cardId ? $user->cards()->find($cardId) : null);
+
+        return array_filter([
+            'merchant' => $best->name, 'amount' => self::amountFrom($text) ?? $best->amount, 'card' => $card?->name,
+            'category' => 'Bills', 'recurring_id' => $best->id,
+        ], fn ($v) => $v !== null);
     }
 
     /** Pesos in the text as centavos: "25000", "₱25,000.50" or "25k"; ordinals like 13th are not amounts. */

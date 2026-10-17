@@ -3,7 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\RecurringKind;
+use App\Actions\PayRecurring;
+use App\Http\Requests\PayRequest;
 use App\Http\Requests\SubscriptionRequest;
+use App\Models\Card;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\Date;
 use App\Models\RecurringItem;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -17,15 +22,19 @@ class SubscriptionController extends Controller
     public function index(): Response
     {
         $items = RecurringItem::whereIn('kind', self::KINDS)->orderBy('next_due_on')->get();
+        $paid = Transaction::whereIn('recurring_item_id', $items->modelKeys())
+            ->selectRaw('recurring_item_id, max(occurred_at) as last')->groupBy('recurring_item_id')->pluck('last', 'recurring_item_id');
 
         return Inertia::render('subscriptions/Index', [
             'items' => $items->map(fn ($i) => [
-                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo']),
+                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo', 'card_id']),
                 'kind' => $i->kind->value,
                 'next_due_on' => $i->next_due_on?->toDateString(),
-                'left' => $i->installments ? $i->paymentsLeft() : null,
-                'monthly' => $i->installments && ! $i->paymentsLeft() ? 0 : $i->monthlyAmount(),
+                'left' => $i->installments !== null ? $i->paymentsLeft() : null,
+                'monthly' => $i->installments !== null && ! $i->paymentsLeft() ? 0 : $i->monthlyAmount(),
+                'last_paid' => ($p = $paid[$i->id] ?? null) ? Date::parse($p)->toDateString() : null,
             ]),
+            'cards' => Card::orderBy('name')->get(['id', 'name', 'balance']),
         ]);
     }
 
@@ -39,6 +48,17 @@ class SubscriptionController extends Controller
     public function update(SubscriptionRequest $request, int $subscription): RedirectResponse
     {
         $this->find($subscription)->update($this->shape($request->validated()));
+
+        return back();
+    }
+
+    /** Marks one payment as made: an expense on the chosen card, and the item moves to its next due date. */
+    public function pay(PayRequest $request, int $subscription, PayRecurring $pay): RedirectResponse
+    {
+        $d = $request->validated();
+        $pay->handle($this->find($subscription), $d['card_id'], $d['amount'], $d['paid_on']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Payment recorded.']);
 
         return back();
     }

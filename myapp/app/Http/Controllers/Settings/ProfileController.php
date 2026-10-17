@@ -44,6 +44,20 @@ class ProfileController extends Controller
         return to_route('profile.edit');
     }
 
+    /** The profile picture, shrunk to a small JPEG by the browser; null removes it. */
+    public function avatar(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'avatar' => ['nullable', 'string', 'max:40000', 'starts_with:data:image/jpeg;base64,'],
+        ]);
+
+        $request->user()->forceFill(['avatar' => $data['avatar']])->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile picture updated.')]);
+
+        return to_route('profile.edit');
+    }
+
     /** Days of the month income arrives; the forecast counts down to the next one. */
     public function payday(Request $request): RedirectResponse
     {

@@ -31,6 +31,8 @@ type Item = {
     kind: Kind;
     next_due_on: string | null;
     installments: number | null;
+    card_id: number | null;
+    last_paid: string | null;
     logo: string | null;
     left: number | null;
     monthly: number;
@@ -40,7 +42,10 @@ defineOptions({
     layout: { breadcrumbs: [{ title: 'Bills & Subs', href: index() }] },
 });
 
-const props = defineProps<{ items: Item[] }>();
+const props = defineProps<{
+    items: Item[];
+    cards: { id: number; name: string; balance: number }[];
+}>();
 
 const tabs = [
     { key: 'all', label: 'All' },
@@ -65,9 +70,11 @@ const sorted = computed(() =>
                 : (a.next_due_on ?? '9999').localeCompare(b.next_due_on ?? '9999'),
     ),
 );
+const paidOn = (s: Item) =>
+    s.last_paid ? ` · paid ${dueDate(s.last_paid)}` : '';
 const detail = (s: Item) =>
     s.kind !== 'debt'
-        ? s.cadence
+        ? s.cadence + paidOn(s)
         : s.installments === null
           ? 'monthly'
           : s.left
@@ -129,6 +136,28 @@ function edit(s: Item) {
 function makeLoan(s: Item) {
     edit(s);
     form.kind = 'debt';
+}
+
+// Paying logs an expense on the chosen card and moves the item to its next due date.
+const paying = ref<Item | null>(null);
+const payForm = useForm({ card_id: 0, amount: '', paid_on: '' });
+const payable = (s: Item) => !(s.installments !== null && !s.left);
+
+function pay(s: Item) {
+    paying.value = s;
+    payForm.defaults({
+        card_id: s.card_id ?? props.cards[0]?.id ?? 0,
+        amount: toPesos(s.amount),
+        paid_on: new Date().toISOString().slice(0, 10),
+    });
+    payForm.reset();
+}
+
+function submitPay() {
+    payForm.post(SubscriptionController.pay.url(paying.value!.id), {
+        preserveScroll: true,
+        onSuccess: () => (paying.value = null),
+    });
 }
 
 function add() {
@@ -293,6 +322,9 @@ const dueDate = (d: string | null) =>
                             <div
                                 class="flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
                             >
+                                <button v-if="payable(s)" type="button" class="font-semibold" @click="pay(s)">
+                                    Pay
+                                </button>
                                 <button type="button" @click="edit(s)">
                                     Edit
                                 </button>
@@ -341,6 +373,9 @@ const dueDate = (d: string | null) =>
                 <div
                     class="mt-auto flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
                 >
+                    <button v-if="payable(s)" type="button" class="font-semibold" @click="pay(s)">
+                        Pay
+                    </button>
                     <button type="button" @click="edit(s)">Edit</button>
                     <button
                         v-if="s.kind !== 'debt'"
@@ -356,6 +391,54 @@ const dueDate = (d: string | null) =>
                 </div>
             </li>
         </ul>
+
+        <Dialog :open="!!paying" @update:open="(v) => !v && (paying = null)">
+            <DialogContent v-if="paying" class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Pay {{ paying.name }}</DialogTitle>
+                    <DialogDescription>
+                        This logs an expense on the card you pick and moves the
+                        next due date forward.
+                    </DialogDescription>
+                </DialogHeader>
+                <form class="grid gap-4" @submit.prevent="submitPay">
+                    <div class="grid gap-2">
+                        <Label for="pay-card">Paid from</Label>
+                        <SelectNative id="pay-card" v-model="payForm.card_id" required>
+                            <option v-for="c in cards" :key="c.id" :value="c.id">
+                                {{ c.name }} ({{ formatPeso(c.balance) }})
+                            </option>
+                        </SelectNative>
+                        <InputError :message="payForm.errors.card_id" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label for="pay-amount">Amount (PHP)</Label>
+                            <Input
+                                id="pay-amount"
+                                v-model="payForm.amount"
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                required
+                            />
+                            <InputError :message="payForm.errors.amount" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="pay-date">Paid on</Label>
+                            <Input id="pay-date" v-model="payForm.paid_on" type="date" required />
+                            <InputError :message="payForm.errors.paid_on" />
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <Button :disabled="payForm.processing">Mark as paid</Button>
+                        <Button type="button" variant="ghost" @click="paying = null">
+                            Cancel
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
 
         <Dialog :open="open" @update:open="(v) => !v && cancel()">
             <DialogContent class="sm:max-w-lg">
