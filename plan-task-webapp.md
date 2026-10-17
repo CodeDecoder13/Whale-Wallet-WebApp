@@ -93,22 +93,26 @@ Receipt status uses polling in v1 (client polls `GET /receipts/{id}` every 1 to 
 Complete milestones in order. Each task has acceptance criteria; do not mark done without running the checks.
 
 ### M0: Foundations
-- [ ] Create the Laravel 13 project from the official Vue starter kit; commit.
-- [ ] Configure PostgreSQL, Redis, Horizon, S3-compatible private disk (local MinIO or `local` disk for dev), Pest, Vitest, ESLint, Prettier.
-- [ ] GitHub Actions: PHP tests, JS tests, lint on every push.
-- [ ] Brand tokens from `whale-wallet-logo.svg` (colors, logo in header) as Tailwind theme variables.
-- [ ] `.env.example` lists every key (including `GEMINI_API_KEY`) with no real values.
+- [x] Create the Laravel 13 project from the official Vue starter kit; commit. (in `myapp/`, commit a967ff3)
+- [x] Configure PostgreSQL, Vitest (bundled with `vp test`), ESLint/Prettier (`vp check`). Redis/Horizon, S3 disk and Pest moved to M5 by the user: dev uses `database` queue and `local` disk, tests are PHPUnit.
+- [x] GitHub Actions: `.github/workflows/tests.yml` from the starter kit.
+- [x] Brand tokens from `whale-wallet-logo.svg` (blue #1E88E5 / #1565C0, logo in sidebar) as Tailwind theme variables, light and dark.
+- [x] `.env.example` lists every key (including `GEMINI_API_KEY`) with no real values.
 - **Done when:** a new clone runs `composer install`, `npm install`, `php artisan migrate --seed`, and the login page loads; CI is green.
 
 ### M1: Budget core
-- [ ] Migrations, models, factories, policies for the tables in section 4 (cards, pods, categories, transactions, recurring_items, income_sources).
-- [ ] Onboarding wizard: income and pay dates, fixed bills with due dates, first card, optional savings pod.
-- [ ] Wallet cards UI: create/edit spending cards and savings pods, balances, optional limit with 80 percent warning.
-- [ ] Manual expense log with search and filter; every expense charged to a card; transfers between cards and pods.
-- [ ] Quick entry: parse text like `Jollibee 250` into a draft (simple rules first; Gemini fallback only after M3).
-- [ ] Dashboard: safe-to-spend today, income vs fixed vs discretionary, category chart, upcoming bills.
-- [ ] Seeder using the founder's example: income 35,000, loan 9,000 (due the 27th), rent 8,000, subscriptions about 2,156 per month.
-- [ ] CSV and Markdown export.
+- [x] Migrations, models, factories for the tables in section 4 (cards, pods, categories, transactions, recurring_items, income_sources). Ownership uses the `BelongsToUser` global scope (also covers route-model binding) instead of per-model policies. Caveat: the scope only applies when authenticated, so queue jobs must set the user explicitly.
+- [x] Seeder with the founder's example and a test that remaining after fixed costs is 15,844 (`BudgetSummary`); cross-user isolation test for all six models.
+- [x] Onboarding wizard: income and pay dates, fixed bills with due dates, first card, optional savings pod.
+- [x] Wallet cards UI: create/edit spending cards and savings pods, balances, optional limit with 80 percent warning.
+- [x] Manual expense log with search and filter; every expense charged to a card; transfers between cards and pods.
+- [x] Quick entry: parse text like `Jollibee 250` into a draft (simple rules first; Gemini fallback only after M3).
+- [x] Dashboard: safe-to-spend today, income vs fixed vs discretionary, category chart, upcoming bills.
+- [x] Seeder using the founder's example: income 35,000, loan 9,000 (due the 27th), rent 8,000, subscriptions about 2,156 per month.
+- [x] CSV export. [ ] Markdown export.
+- [ ] Edit and delete transactions (delete/edit must reverse or adjust the card balance in a DB transaction).
+- [ ] Category management (add, rename, delete categories).
+- [ ] Browser check of all M1 pages with data (transactions rows, pod rings, dark mode, onboarding).
 - **Done when:** a seeded user sees correct totals (example remaining after fixed costs: 15,844) and all rows are user-scoped (a test proves user A cannot read user B's data).
 
 ### M2: Forecast, subscriptions, recommendations
@@ -138,10 +142,15 @@ Complete milestones in order. Each task has acceptance criteria; do not mark don
 - **Done when:** the mobile app can complete login, dashboard, log, receipt upload and chat against a staging server.
 
 ### M5: Beta hardening
+- [ ] Deferred from M0: Redis + Horizon, private S3-compatible disk, Pest, Playwright, first green CI run on GitHub.
 - [ ] Privacy: data export, account deletion, delete chat history, audit that no secrets reach the client.
 - [ ] Move AI to the paid Gemini tier (or another provider through the same interface) before onboarding real users.
 - [ ] Parsing accuracy tracking: log corrections users make on confirm cards.
 - [ ] Error monitoring and queue failure alerts.
+
+### Installed libraries (added with the user's approval)
+
+`@unovis/ts`, `@unovis/vue` (charts), `@tanstack/vue-table`, `vee-validate`, `@vee-validate/zod`, `zod`, `@vue/test-utils`, `jsdom`. Vitest comes with `vite-plus` (`vp test`); installing it separately causes a peer conflict. Not yet installed: Horizon/Redis, vue-echarts, Gemini client (VERIFY first), Sanctum (M4).
 
 ## 7. Testing and definition of done
 

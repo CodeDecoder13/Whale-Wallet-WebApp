@@ -13,6 +13,13 @@ class Category extends Model
 
     protected $guarded = ['user_id'];
 
+    private const DEFAULTS = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Other'];
+
+    public static function seedFor(User $user): void
+    {
+        $user->categories()->createMany(array_map(fn ($name) => ['name' => $name], self::DEFAULTS));
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');

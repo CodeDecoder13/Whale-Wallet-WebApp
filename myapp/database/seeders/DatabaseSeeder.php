@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Enums\CardType;
 use App\Enums\RecurringKind;
+use App\Models\Category;
+use App\Models\RecurringItem;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -20,6 +22,8 @@ class DatabaseSeeder extends Seeder
 
         $user->incomeSources()->create(['name' => 'Salary', 'amount' => 3_500_000]);
         $user->cards()->create(['name' => 'GCash', 'type' => CardType::Ewallet, 'balance' => 500_000]);
+
+        Category::seedFor($user);
 
         $items = [
             ['Loan', 900_000, RecurringKind::Debt, 27],
@@ -38,7 +42,7 @@ class DatabaseSeeder extends Seeder
                 'name' => $name,
                 'amount' => $amount,
                 'kind' => $kind,
-                'next_due_on' => now()->startOfMonth()->addMonth()->day($day),
+                'next_due_on' => RecurringItem::nextDue($day),
             ]);
         }
     }

@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid } from '@lucide/vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import {
+    CircleHelp,
+    LayoutGrid,
+    PiggyBank,
+    Receipt,
+    Settings,
+    Wallet,
+} from '@lucide/vue';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -14,34 +22,36 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import UserInfo from '@/components/UserInfo.vue';
 import { dashboard } from '@/routes';
+import { index as cards } from '@/routes/cards';
+import { index as pods } from '@/routes/pods';
+import { edit as profile } from '@/routes/profile';
+import { index as transactions } from '@/routes/transactions';
 import type { NavItem } from '@/types';
 
+const user = computed(() => usePage().props.auth.user);
+
 const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
+    { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+    { title: 'Cards', href: cards(), icon: Wallet },
+    { title: 'Pods', href: pods(), icon: PiggyBank },
+    { title: 'Transactions', href: transactions(), icon: Receipt },
+    { title: 'Settings', href: profile(), icon: Settings },
 ];
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
+        title: 'Need help?',
+        href: 'mailto:help@whalewallet.app',
+        icon: CircleHelp,
     },
 ];
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
+    <Sidebar collapsible="offcanvas">
+        <SidebarHeader class="gap-4 p-4">
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
@@ -51,13 +61,18 @@ const footerNavItems: NavItem[] = [
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
+            <div
+                class="flex items-center gap-2 rounded-lg border bg-card p-2.5 text-card-foreground"
+            >
+                <UserInfo :user="user" show-email />
+            </div>
         </SidebarHeader>
 
         <SidebarContent>
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 
-        <SidebarFooter>
+        <SidebarFooter class="p-4">
             <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>

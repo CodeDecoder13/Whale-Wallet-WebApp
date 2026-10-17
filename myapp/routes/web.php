@@ -1,11 +1,28 @@
 <?php
 
+use App\Http\Controllers\CardController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PodController;
+use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
+    Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+
+    Route::resource('cards', CardController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('pods', PodController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
+    Route::post('transactions', [TransactionController::class, 'store'])->name('transactions.store');
+    Route::post('transactions/quick', [TransactionController::class, 'quick'])->name('transactions.quick');
+    Route::post('transactions/transfer', [TransactionController::class, 'transfer'])->name('transactions.transfer');
+    Route::get('transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
 });
 
 require __DIR__.'/settings.php';
