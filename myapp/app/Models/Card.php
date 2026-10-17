@@ -17,7 +17,7 @@ class Card extends Model
 
     protected function casts(): array
     {
-        return ['type' => CardType::class];
+        return ['type' => CardType::class, 'account_number' => 'encrypted'];
     }
 
     /** Adds `spent`: this month's expenses in centavos (transfers and income do not count). */

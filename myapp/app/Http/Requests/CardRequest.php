@@ -17,6 +17,10 @@ class CardRequest extends PesoRequest
             'balance' => ['required', 'integer'],
             'monthly_limit' => ['nullable', 'integer', 'min:1'],
             'color' => ['nullable', 'string', 'max:20'],
+            'account_name' => ['nullable', 'string', 'max:80'],
+            'account_number' => ['nullable', 'string', 'max:40', 'regex:/^[0-9 -]+$/'],
+            // the browser shrinks the QR to a 480px PNG; anything else is rejected
+            'qr' => ['nullable', 'string', 'max:400000', 'starts_with:data:image/png;base64,'],
         ];
     }
 }

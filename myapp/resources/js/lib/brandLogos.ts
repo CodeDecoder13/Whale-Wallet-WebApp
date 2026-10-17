@@ -70,6 +70,8 @@ const images: [string, string][] = [
     ['unionbank', '/brands/banks/unionbank.svg'],
     ['union bank', '/brands/banks/unionbank.svg'],
     ['metrobank', '/brands/banks/metrobank.gif'],
+    ['maribank', '/brands/banks/maribank.svg'],
+    ['rcbc', '/brands/banks/rcbc.svg'],
 ];
 
 const home = /\b(rent|house|home|mortgage)\b/i;

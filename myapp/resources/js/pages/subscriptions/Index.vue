@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { findBrand } from '@/lib/brandLogos';
+import { toDataUrl } from '@/lib/image';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { index } from '@/routes/subscriptions';
 
@@ -75,24 +76,12 @@ const detail = (s: Item) =>
 // No built-in logo for this name: offer an upload. The browser shrinks it to 128px so it stays tiny.
 const needsLogo = computed(() => form.name.trim() && !findBrand(form.name));
 
-function pickLogo(e: Event) {
+async function pickLogo(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
 
-    if (!file) {
-        return;
+    if (file) {
+        form.logo = await toDataUrl(file, 128).catch(() => null);
     }
-
-    const img = new Image();
-    img.onload = () => {
-        const scale = Math.min(1, 128 / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        form.logo = canvas.toDataURL('image/png');
-        URL.revokeObjectURL(img.src);
-    };
-    img.src = URL.createObjectURL(file);
 }
 
 const total = computed(() => shown.value.reduce((n, i) => n + i.monthly, 0));

@@ -9,10 +9,18 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { bankColor, cardGradient } from '@/lib/banks';
 import { formatPeso, toPesos } from '@/lib/currency';
+import { toDataUrl } from '@/lib/image';
 import { index } from '@/routes/cards';
 import { index as transactionsIndex } from '@/routes/transactions';
 
@@ -23,6 +31,9 @@ type WalletCard = {
     balance: number;
     monthly_limit: number | null;
     color: string | null;
+    account_name: string | null;
+    account_number: string | null;
+    qr: string | null;
     spent: number;
 };
 
@@ -32,7 +43,7 @@ defineOptions({
 
 defineProps<{ cards: WalletCard[]; types: string[] }>();
 
-const blank = { name: '', type: 'ewallet', balance: '0', monthly_limit: '', color: null as string | null };
+const blank = { name: '', type: 'ewallet', balance: '0', monthly_limit: '', color: null as string | null, account_name: '', account_number: '', qr: null as string | null };
 const editing = ref<number | null>(null);
 const form = useForm({ ...blank });
 
@@ -44,9 +55,25 @@ function edit(c: WalletCard) {
         balance: toPesos(c.balance),
         monthly_limit: toPesos(c.monthly_limit),
         color: c.color,
+        account_name: c.account_name ?? '',
+        account_number: c.account_number ?? '',
+        qr: c.qr,
     });
     form.reset();
 }
+
+// QR codes need more pixels than a logo to stay scannable
+async function pickQr(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+
+    if (file) {
+        form.qr = await toDataUrl(file, 480).catch(() => null);
+    }
+}
+
+const detail = ref<WalletCard | null>(null);
+const masked = (n: string) => `•••• ${n.replace(/\D/g, '').slice(-4)}`;
+const copy = (text: string) => navigator.clipboard?.writeText(text).catch(() => {});
 
 function cancel() {
     editing.value = null;
@@ -143,6 +170,26 @@ const tile = (c: WalletCard, i: number) =>
                         {{ kind(c.type) }}
                     </span>
                 </div>
+                <div
+                    v-if="c.account_name || c.account_number || c.qr"
+                    class="mt-3 flex items-center justify-between gap-2 text-xs"
+                >
+                    <span class="min-w-0 opacity-90">
+                        <span v-if="c.account_name" class="block truncate">
+                            {{ c.account_name }}
+                        </span>
+                        <span v-if="c.account_number" class="block">
+                            {{ masked(c.account_number) }}
+                        </span>
+                    </span>
+                    <button
+                        type="button"
+                        class="shrink-0 rounded-full bg-white/20 px-2 py-0.5 font-medium"
+                        @click="detail = c"
+                    >
+                        {{ c.qr ? 'QR' : 'Details' }}
+                    </button>
+                </div>
                 <div class="mt-3 text-3xl font-semibold">
                     {{ formatPeso(c.balance) }}
                 </div>
@@ -224,6 +271,48 @@ const tile = (c: WalletCard, i: number) =>
                 />
                 <InputError :message="form.errors.monthly_limit" />
             </div>
+            <div class="grid gap-2">
+                <Label for="account_name">Account holder (optional)</Label>
+                <Input id="account_name" v-model="form.account_name" maxlength="80" />
+                <InputError :message="form.errors.account_name" />
+            </div>
+            <div class="grid gap-2">
+                <Label for="account_number">Account number (optional)</Label>
+                <Input
+                    id="account_number"
+                    v-model="form.account_number"
+                    inputmode="numeric"
+                    maxlength="40"
+                />
+                <InputError :message="form.errors.account_number" />
+            </div>
+            <div class="grid gap-2 sm:col-span-2">
+                <Label for="qr">QR code (optional)</Label>
+                <div class="flex items-center gap-3">
+                    <img
+                        v-if="form.qr"
+                        :src="form.qr"
+                        alt="QR code preview"
+                        class="size-16 rounded-lg border bg-white object-contain"
+                    />
+                    <input
+                        id="qr"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        class="text-sm"
+                        @change="pickQr"
+                    />
+                    <button
+                        v-if="form.qr"
+                        type="button"
+                        class="text-xs font-medium underline"
+                        @click="form.qr = null"
+                    >
+                        Remove
+                    </button>
+                </div>
+                <InputError :message="form.errors.qr" />
+            </div>
             <div class="flex gap-2 sm:col-span-2">
                 <Button :disabled="form.processing">Save</Button>
                 <Button
@@ -236,5 +325,42 @@ const tile = (c: WalletCard, i: number) =>
                 </Button>
             </div>
         </form>
+
+        <Dialog :open="!!detail" @update:open="(v) => !v && (detail = null)">
+            <DialogContent v-if="detail" class="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>{{ detail.name }}</DialogTitle>
+                    <DialogDescription>
+                        Share these details to receive money.
+                    </DialogDescription>
+                </DialogHeader>
+                <img
+                    v-if="detail.qr"
+                    :src="detail.qr"
+                    alt="QR code"
+                    class="mx-auto size-64 rounded-xl border bg-white object-contain p-2"
+                />
+                <dl class="grid gap-3 text-sm">
+                    <div v-if="detail.account_name">
+                        <dt class="text-xs text-muted-foreground">Account holder</dt>
+                        <dd class="font-medium">{{ detail.account_name }}</dd>
+                    </div>
+                    <div v-if="detail.account_number">
+                        <dt class="text-xs text-muted-foreground">Account number</dt>
+                        <dd class="flex items-center justify-between gap-3 font-medium">
+                            {{ detail.account_number }}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="copy(detail.account_number)"
+                            >
+                                Copy
+                            </Button>
+                        </dd>
+                    </div>
+                </dl>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>
