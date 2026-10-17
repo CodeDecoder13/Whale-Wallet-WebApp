@@ -69,7 +69,12 @@ function remove(c: Category) {
                 <span>
                     <span class="font-medium">{{ c.name }}</span>
                     <span class="ml-2 text-xs text-muted-foreground">
-                        {{ c.transactions_count }} transactions
+                        {{ c.transactions_count }}
+                        {{
+                            c.transactions_count === 1
+                                ? 'transaction'
+                                : 'transactions'
+                        }}
                     </span>
                 </span>
                 <span class="flex gap-3 text-xs font-medium">

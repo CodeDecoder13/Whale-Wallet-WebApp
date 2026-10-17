@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Card;
+use App\Models\Recommendation;
 use App\Models\RecurringItem;
 use App\Models\Transaction;
 use App\Services\BudgetSummary;
+use App\Services\Forecast\ForecastLoader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +15,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, BudgetSummary $budget): Response|RedirectResponse
+    public function __invoke(Request $request, BudgetSummary $budget, ForecastLoader $loader): Response|RedirectResponse
     {
         if (! Card::exists()) {
             return to_route('onboarding.show');
@@ -23,13 +25,13 @@ class DashboardController extends Controller
         $month = fn () => Transaction::where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth());
         $spent = (int) $month()->sum('amount');
 
-        // ponytail: simple version (income - fixed - spent so far); M2 ForecastService replaces it.
         $summary = $budget->for($request->user());
-        $safe = $summary['remaining'] - $spent;
-        $daysLeft = now()->daysInMonth - now()->day + 1;
+        $forecast = $loader->for($request->user());
 
         return Inertia::render('Dashboard', [
-            'summary' => [...$summary, 'spent' => $spent, 'safe' => $safe, 'daily' => max(0, intdiv($safe, $daysLeft))],
+            'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
+            'forecast' => $forecast,
+            'tips' => Recommendation::whereNull('dismissed_at')->latest('id')->limit(3)->get(['id', 'text']),
             'categories' => $month()->with('category:id,name')
                 ->selectRaw('category_id, sum(amount) as total')->groupBy('category_id')->orderByDesc('total')->get()
                 ->map(fn ($r) => ['name' => $r->category?->name ?? 'Uncategorized', 'total' => (int) $r->total]),

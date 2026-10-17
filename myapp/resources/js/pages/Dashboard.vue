@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { VisDonut, VisSingleContainer } from '@unovis/vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import ForecastChart from '@/components/ForecastChart.vue';
+import type { Point } from '@/components/ForecastChart.vue';
 import { formatPeso } from '@/lib/currency';
-import { dashboard } from '@/routes';
+import { dashboard, forecast as forecastPage } from '@/routes';
+import { index as tipsPage } from '@/routes/tips';
 
 type Slice = { name: string; total: number };
 
@@ -13,8 +16,14 @@ const props = defineProps<{
         fixed: number;
         spent: number;
         safe: number;
-        daily: number;
     };
+    forecast: {
+        days: number;
+        series: Point[];
+        lowest: { date: string; amount: number };
+        safe_per_day: number;
+    };
+    tips: { id: number; text: string }[];
     categories: Slice[];
     upcoming: {
         id: number;
@@ -98,15 +107,27 @@ const dueDate = (d: string) =>
                 Safe to spend today
             </div>
             <div class="mt-3 text-5xl font-bold tracking-tight">
-                {{ formatPeso(summary.daily) }}
+                {{ formatPeso(forecast.safe_per_day) }}
             </div>
             <p class="mt-4 max-w-md text-sm text-white/80">
-                {{ formatPeso(summary.safe) }} left this month after fixed bills
-                and spending so far.
+                Lowest balance before payday:
+                {{ formatPeso(forecast.lowest.amount) }} on
+                {{ dueDate(forecast.lowest.date) }}, {{ forecast.days }}
+                {{ forecast.days === 1 ? 'day' : 'days' }} to go.
             </p>
-            <div
-                class="absolute top-1/2 right-16 hidden size-20 -translate-y-1/2 rounded-full bg-linear-to-br from-brand-light to-brand-deep ring-8 ring-white/10 sm:block"
-            />
+            <div class="mt-5 max-w-md">
+                <ForecastChart
+                    :series="forecast.series"
+                    compact
+                    color="var(--color-brand-light)"
+                />
+            </div>
+            <Link
+                :href="forecastPage()"
+                class="mt-3 inline-block text-sm font-medium text-white underline underline-offset-4"
+            >
+                See the full forecast
+            </Link>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -241,6 +262,32 @@ const dueDate = (d: string) =>
                     }}</span>
                 </li>
             </ul>
+        </section>
+
+        <section class="rounded-xl border bg-card p-6">
+            <div class="flex items-center justify-between">
+                <h2 class="font-medium">Whale tips</h2>
+                <Link
+                    :href="tipsPage()"
+                    class="text-xs font-medium text-brand-deep dark:text-brand-light"
+                >
+                    All tips
+                </Link>
+            </div>
+            <p v-if="!tips.length" class="mt-3 text-sm text-muted-foreground">
+                No tips yet. Open Tips to generate some.
+            </p>
+            <ul v-else class="mt-3 grid gap-2 text-sm">
+                <li v-for="t in tips" :key="t.id" class="flex gap-2">
+                    <span
+                        class="mt-2 size-1.5 shrink-0 rounded-full bg-brand"
+                    />
+                    {{ t.text }}
+                </li>
+            </ul>
+            <p class="mt-3 text-xs text-muted-foreground">
+                Budgeting guidance, not financial advice.
+            </p>
         </section>
 
         <p class="text-xs text-muted-foreground">

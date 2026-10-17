@@ -5,7 +5,10 @@ import {
     LayoutGrid,
     PiggyBank,
     Receipt,
+    Repeat,
     Settings,
+    Sparkles,
+    TrendingUp,
     Wallet,
 } from '@lucide/vue';
 import { computed } from 'vue';
@@ -23,10 +26,12 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import UserInfo from '@/components/UserInfo.vue';
-import { dashboard } from '@/routes';
+import { dashboard, forecast } from '@/routes';
 import { index as cards } from '@/routes/cards';
 import { index as pods } from '@/routes/pods';
 import { edit as profile } from '@/routes/profile';
+import { index as subscriptions } from '@/routes/subscriptions';
+import { index as tips } from '@/routes/tips';
 import { index as transactions } from '@/routes/transactions';
 import type { NavItem } from '@/types';
 
@@ -37,6 +42,9 @@ const mainNavItems: NavItem[] = [
     { title: 'Cards', href: cards(), icon: Wallet },
     { title: 'Pods', href: pods(), icon: PiggyBank },
     { title: 'Transactions', href: transactions(), icon: Receipt },
+    { title: 'Forecast', href: forecast(), icon: TrendingUp },
+    { title: 'Subscriptions', href: subscriptions(), icon: Repeat },
+    { title: 'Tips', href: tips(), icon: Sparkles },
     { title: 'Settings', href: profile(), icon: Settings },
 ];
 

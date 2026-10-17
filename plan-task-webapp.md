@@ -116,16 +116,17 @@ Complete milestones in order. Each task has acceptance criteria; do not mark don
 - **Done when:** a seeded user sees correct totals (example remaining after fixed costs: 15,844) and all rows are user-scoped (a test proves user A cannot read user B's data).
 
 ### M2: Forecast, subscriptions, recommendations
-- [ ] Subscription tracker built on `recurring_items`: next charge date, monthly total.
-- [ ] `ForecastService`: known outflows by due date + trailing 30-day average per category (recent weeks weighted more) up to the next payday; outputs daily balance, lowest point and safe-to-spend.
-- [ ] Pest tests: payday boundary, bills on the 27th, month-end, zero history, cards with limits, savings pod contributions set aside each payday.
-- [ ] Forecast chart on the dashboard (Unovis; vue-echarts only if a confidence band is needed).
-- [ ] `AiProvider` interface, `GeminiProvider`, `FakeAiProvider`; recommendation job that sends only aggregated numbers (not raw transactions where avoidable) and returns 3 to 5 tips; show disclaimer.
-- [ ] Recommendations must cite the user's own numbers; reject output that contains figures not present in the input (simple validator).
+- [x] Subscription tracker built on `recurring_items`: next charge date, monthly total (cadence-normalised via `RecurringItem::monthlyAmount()`; daily `recurring:advance` rolls overdue dates forward).
+- [x] `ForecastService`: known outflows by due date + trailing 30-day average per category (recent weeks weighted more) up to the next payday; outputs daily balance, lowest point and safe-to-spend.
+- [x] Table-driven PHPUnit tests (Pest is not installed): payday boundary, bills on the 27th, month-end, zero history, cards with limits, savings pod contributions set aside each payday.
+- [x] Forecast page and dashboard sparkline (Unovis, with a skip-a-subscription what-if; vue-echarts only if a confidence band is needed).
+- [x] `AiProvider` interface, `GeminiProvider`, `FakeAiProvider`; `GenerateRecommendations` action that sends only aggregated numbers (not raw transactions where avoidable) and returns 3 to 5 tips; show disclaimer.
+- [x] Recommendations must cite the user's own numbers; reject output that contains figures not present in the input (simple validator).
+- [ ] Manual real Gemini call: run `php artisan recommendations:generate demo@example.com` (user needs `ai_consent_at`, key in `.env`). Model comes from `GEMINI_MODEL`, default `gemini-3.5-flash-lite` (`config/services.php`).
 - **Done when:** forecast tests pass, recommendations render with the fake provider in tests, and a real Gemini call works locally with the key in `.env`.
 
 ### M3: Screenshot intake and Whale Chat (web)
-- [ ] Consent screen and `POST /consent/ai`; block AI features until consent exists.
+- [ ] Consent screen and `POST /consent/ai`; block AI features until consent exists. (Partially done in M2: Tips page notice, `POST /consent/ai` and the generation gate exist; receipt upload and chat still need the gate.)
 - [ ] Receipt upload (drag and drop, paste, file picker) to the private disk; queue `ParseReceipt`.
 - [ ] `ParseReceipt` job: downscale the image, send to Gemini with a strict JSON schema (merchant, amount, currency, occurred_at, reference, category guess, confidence), validate (amount > 0, plausible date), run duplicate check (same amount + merchant within a time window, or same reference).
 - [ ] Confirm card UI: pre-filled fields, edit, Save. Delete the image after confirmation by default (setting to keep it).
@@ -150,7 +151,7 @@ Complete milestones in order. Each task has acceptance criteria; do not mark don
 
 ### Installed libraries (added with the user's approval)
 
-`@unovis/ts`, `@unovis/vue` (charts), `@tanstack/vue-table`, `vee-validate`, `@vee-validate/zod`, `zod`, `@vue/test-utils`, `jsdom`. Vitest comes with `vite-plus` (`vp test`); installing it separately causes a peer conflict. Not yet installed: Horizon/Redis, vue-echarts, Gemini client (VERIFY first), Sanctum (M4).
+`@unovis/ts`, `@unovis/vue` (charts), `@tanstack/vue-table`, `vee-validate`, `@vee-validate/zod`, `zod`, `@vue/test-utils`, `jsdom`. Vitest comes with `vite-plus` (`vp test`); installing it separately causes a peer conflict. Composer: `laravel/ai` (Laravel AI SDK, Gemini provider; key via `GEMINI_API_KEY`, model via `GEMINI_MODEL`). Not yet installed: Horizon/Redis, vue-echarts, Sanctum (M4).
 
 ## 7. Testing and definition of done
 

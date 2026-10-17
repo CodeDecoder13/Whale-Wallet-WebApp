@@ -60,6 +60,11 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(Transaction::class);
     }
 
+    public function recommendations(): HasMany
+    {
+        return $this->hasMany(Recommendation::class);
+    }
+
     public function recurringItems(): HasMany
     {
         return $this->hasMany(RecurringItem::class);

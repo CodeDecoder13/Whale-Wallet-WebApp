@@ -6,6 +6,7 @@ use App\Models\Card;
 use App\Models\Category;
 use App\Models\IncomeSource;
 use App\Models\Pod;
+use App\Models\Recommendation;
 use App\Models\RecurringItem;
 use App\Models\Transaction;
 use App\Models\User;
@@ -32,7 +33,7 @@ class BudgetTest extends TestCase
     public static function models(): array
     {
         return array_map(fn ($m) => [$m], [
-            IncomeSource::class, Card::class, Pod::class, Category::class, Transaction::class, RecurringItem::class,
+            IncomeSource::class, Card::class, Pod::class, Category::class, Transaction::class, RecurringItem::class, Recommendation::class,
         ]);
     }
 

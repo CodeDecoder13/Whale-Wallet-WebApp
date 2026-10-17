@@ -28,6 +28,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Key lives in config/ai.php (GEMINI_API_KEY). Free-tier-friendly Flash-Lite; GEMINI_MODEL overrides it.
+    'gemini' => [
+        'model' => env('GEMINI_MODEL') ?: 'gemini-3.5-flash-lite',
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
