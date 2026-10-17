@@ -6,7 +6,6 @@ export const banks: BankPreset[] = [
     { name: 'Maya', type: 'ewallet', color: '#0B8A4D' },
     { name: 'GrabPay', type: 'ewallet', color: '#00B14F' },
     { name: 'ShopeePay', type: 'ewallet', color: '#EE4D2D' },
-    { name: 'Coins.ph', type: 'ewallet', color: '#1F6FEB' },
     { name: 'BDO', type: 'bank', color: '#0A3A8C' },
     { name: 'BPI', type: 'bank', color: '#B11116' },
     { name: 'Metrobank', type: 'bank', color: '#1C3F94' },
@@ -22,9 +21,6 @@ export const banks: BankPreset[] = [
     { name: 'CIMB', type: 'bank', color: '#7E1416' },
     { name: 'GoTyme', type: 'bank', color: '#00C2A8' },
     { name: 'Maribank', type: 'bank', color: '#7B3FF2' },
-    { name: 'Tonik', type: 'bank', color: '#5B2EFF' },
-    { name: 'SeaBank', type: 'bank', color: '#F5622D' },
-    { name: 'UNO Digital', type: 'bank', color: '#FF5A1F' },
     { name: 'Cash', type: 'cash', color: '#475569' },
 ];
 
