@@ -83,7 +83,7 @@ class ApiTest extends TestCase
         User::factory()->withTwoFactor()->create(['email' => 'two@example.com']);
 
         $this->postJson('/api/v1/auth/login', ['email' => 'two@example.com', 'password' => 'password', 'device_name' => 'x'])
-            ->assertStatus(422)->assertJsonPath('errors.email.0', fn ($m) => str_contains($m, 'does not support it yet'));
+            ->assertStatus(403)->assertJsonPath('message', fn ($m) => str_contains($m, '2FA'));
         $this->assertSame(0, PersonalAccessToken::count());
     }
 
@@ -437,5 +437,43 @@ class ApiTest extends TestCase
 
         $this->as($a)->getJson('/api/v1/pods')->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'A pod');
         $this->as($b)->getJson('/api/v1/pods')->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'B pod');
+    }
+
+    public function test_account_endpoints_cover_the_web_only_actions()
+    {
+        $user = $this->demo();
+        $card = Card::first();
+        $this->actingAs($user);
+        $bill = RecurringItem::create(['name' => 'Converge', 'amount' => 160_000, 'cadence' => 'monthly', 'kind' => 'bill', 'next_due_on' => '2026-03-21']);
+
+        $this->as($user)->patchJson('/api/v1/me/payday', ['pay_dates' => [30, 15]])->assertOk()->assertJsonPath('data.pay_dates', [15, 30]);
+        $this->as($user)->patchJson('/api/v1/me', ['name' => 'New Name', 'email' => 'demo@example.com'])->assertOk()->assertJsonPath('data.name', 'New Name');
+        $this->as($user)->postJson("/api/v1/recurring-items/{$bill->id}/pay", ['card_id' => $card->id, 'amount' => 160_000, 'paid_on' => '2026-03-10'])->assertSuccessful();
+        $this->assertSame(1, Transaction::where('recurring_item_id', $bill->id)->count());
+        $this->as($user)->postJson('/api/v1/transactions/quick', ['text' => 'Jollibee 250'])->assertOk()->assertJsonPath('amount', 25_000);
+        $this->as($user)->getJson('/api/v1/receipts')->assertOk();
+        $this->as($user)->getJson('/api/v1/chat')->assertOk()->assertJsonStructure(['messages']);
+        $this->as($user)->getJson('/api/v1/dashboard')->assertOk()->assertJsonStructure(['net_worth' => ['assets', 'debts', 'total']]);
+        $this->as($user)->postJson('/api/v1/onboarding', [])->assertStatus(422);
+    }
+
+    public function test_register_returns_a_token()
+    {
+        $this->postJson('/api/v1/auth/register', ['name' => 'Ana', 'email' => 'ana@example.com', 'password' => 'a-Long-pass-123', 'password_confirmation' => 'a-Long-pass-123', 'device_name' => 'Pixel'])
+            ->assertCreated()->assertJsonStructure(['token', 'user' => ['id']]);
+    }
+
+    public function test_settings_toggles_work_after_a_restart()
+    {
+        $user = $this->demo();
+        $token = 'ExponentPushToken[abc]';
+
+        $this->as($user)->postJson('/api/v1/devices', ['expo_push_token' => $token, 'platform' => 'android'])->assertSuccessful();
+        $this->as($user)->deleteJson('/api/v1/devices', ['expo_push_token' => $token, 'platform' => 'android'])->assertNoContent();
+        $this->assertSame(0, Device::count());
+
+        $this->as($user)->deleteJson('/api/v1/consent/ai')->assertOk();
+        $this->assertNull($user->fresh()->ai_consent_at);
+        $this->as($user)->postJson('/api/v1/chat/messages', ['text' => 'hi'])->assertStatus(422)->assertJsonStructure(['consent_url']);
     }
 }

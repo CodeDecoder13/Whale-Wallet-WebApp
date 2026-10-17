@@ -24,7 +24,7 @@ class AuthController extends Controller
 
         // ponytail: the 2FA challenge is a web flow; add a code step here when the mobile app needs it
         if ($user->two_factor_confirmed_at) {
-            throw ValidationException::withMessages(['email' => 'Two-factor authentication is on for this account, and mobile login does not support it yet. Turn it off in the web app to sign in on mobile.']);
+            abort(403, 'Two-factor authentication (2FA) is on for this account, and mobile login does not support it yet. Turn it off in the web app to sign in on mobile.');
         }
 
         $user->tokens()->where('name', $request->device_name)->delete();

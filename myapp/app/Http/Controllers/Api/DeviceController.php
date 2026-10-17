@@ -27,4 +27,12 @@ class DeviceController extends Controller
 
         return response()->json(null, 204);
     }
+
+    /** Turning push off after an app restart: the app still has its token but not the device id. */
+    public function forget(DeviceRequest $request): JsonResponse
+    {
+        Device::where('expo_push_token', $request->expo_push_token)->delete();
+
+        return response()->json(null, 204);
+    }
 }

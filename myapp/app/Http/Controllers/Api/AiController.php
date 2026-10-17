@@ -47,4 +47,12 @@ class AiController extends Controller
 
         return response()->json(['ai_consent_at' => $request->user()->ai_consent_at]);
     }
+
+    /** Switching "AI features" off in the app; chat, receipts and tips answer 422 (with consent_url) until consent is given again. */
+    public function revoke(Request $request): JsonResponse
+    {
+        $request->user()->forceFill(['ai_consent_at' => null])->save();
+
+        return response()->json(['ai_consent_at' => null]);
+    }
 }

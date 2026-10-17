@@ -10,6 +10,10 @@ class OnboardingRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
+        if ($this->is('api/*')) {
+            return; // the API already sends centavos
+        }
+
         $in = $this->all();
         $in['income'] = PesoRequest::centavos($in['income'] ?? null);
         if (is_array($in['card'] ?? null)) {

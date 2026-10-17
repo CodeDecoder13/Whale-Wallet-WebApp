@@ -17,6 +17,7 @@ class PodResource extends JsonResource
             'saved_amount' => $this->saved_amount,
             'monthly_amount' => $this->monthly_amount,
             'target_date' => $this->target_date?->toDateString(),
+            'progress' => $this->target_amount ? min(100, intdiv($this->saved_amount * 100, $this->target_amount)) : 0,
             'currency' => $this->currency,
         ];
     }

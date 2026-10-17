@@ -26,7 +26,7 @@ class DashboardController extends Controller
      *
      * @return array{assets: int, debts: int, total: int}
      */
-    private function netWorth(): array
+    public static function netWorth(): array
     {
         $cards = Card::get(['type', 'balance']);
         $credit = (int) $cards->where('type', CardType::Credit)->sum('balance');
@@ -53,7 +53,7 @@ class DashboardController extends Controller
         $forecast = $loader->for($request->user());
 
         return Inertia::render('Dashboard', [
-            'net_worth' => $this->netWorth(),
+            'net_worth' => self::netWorth(),
             'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
                 ->map(fn ($e) => [...$e->only(['id', 'name', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),

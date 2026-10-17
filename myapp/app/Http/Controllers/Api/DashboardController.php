@@ -11,6 +11,8 @@ use App\Models\Card;
 use App\Models\Pod;
 use App\Models\Recommendation;
 use App\Models\RecurringItem;
+use App\Models\Transaction;
+use App\Services\BudgetSummary;
 use App\Services\Forecast\ForecastLoader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,13 +20,19 @@ use Illuminate\Support\Arr;
 
 class DashboardController extends Controller
 {
-    public function dashboard(Request $request, ForecastLoader $loader): JsonResponse
+    public function dashboard(Request $request, ForecastLoader $loader, BudgetSummary $budget): JsonResponse
     {
-        $forecast = $loader->for($request->user());
+        $forecast = self::withBalance($loader->for($request->user()));
+        $spent = (int) Transaction::where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth())->sum('amount');
+        $left = $budget->for($request->user())['remaining'] - $spent;
 
         return response()->json([
             'safe_to_spend_today' => $forecast['safe_per_day'],
             'forecast' => Arr::except($forecast, 'series'),
+            'left_this_month' => $left,
+            'next_payday' => $forecast['payday'],
+            'days_to_payday' => $forecast['days'],
+            'net_worth' => \App\Http\Controllers\DashboardController::netWorth(),
             'cards' => CardResource::collection(Card::withSpent()->orderBy('name')->get())->resolve(),
             'pods' => PodResource::collection(Pod::orderBy('name')->get())->resolve(),
             'upcoming_bills' => RecurringItemResource::collection(
@@ -41,6 +49,14 @@ class DashboardController extends Controller
 
         $skip = $skip === null ? null : (int) $skip;
 
-        return response()->json($loader->for($request->user(), $skip) + ['skipped' => $skip]);
+        return response()->json(self::withBalance($loader->for($request->user(), $skip)) + ['skipped' => $skip]);
+    }
+
+    /** The mobile app reads lowest.balance; the engine's name for it is lowest.amount. */
+    private static function withBalance(array $forecast): array
+    {
+        $forecast['lowest']['balance'] = $forecast['lowest']['amount'];
+
+        return $forecast;
     }
 }
