@@ -1,196 +1,223 @@
 # Whale Wallet Mobile API
 
-Base URL: `{APP_URL}/api/v1` (production: your Railway domain + `/api/v1`)
+Contract for the mobile app. Everything here is live on production unless marked otherwise.
 
-- JSON in, JSON out. Send `Accept: application/json`.
-- Auth: `Authorization: Bearer <token>` (Sanctum). Get the token from login or register.
-- **Money is integer centavos** (₱250.00 = `25000`).
-- Dates: `YYYY-MM-DD`. Validation errors: `422 { message, errors: { field: [..] } }`.
-- Most routes need a **verified email** (403 otherwise). Everything is scoped to the signed-in user (another user's id gives 404).
-- Accounts with 2FA on cannot log in on mobile yet.
-- Throttles: login/register/password 6/min, AI endpoints 6–20/min (429).
+**Base URL:** `https://whale-wallet-webapp-production.up.railway.app/api/v1`
 
-## Auth & account
+## Conventions
 
-| Method | Link | Body | Returns |
+- JSON in, JSON out. Always send `Accept: application/json`.
+- Auth: `Authorization: Bearer <token>` (Laravel Sanctum). The token comes from login or register.
+- **Money is integer centavos** (₱250.00 = `25000`). Dates are `YYYY-MM-DD`; timestamps are ISO 8601.
+- Everything is scoped to the signed-in user; another user's id answers 404.
+- Wrapping: resources and lists are `{data: ...}` (cards, pods, categories, recurring-items, transactions, recommendations, `/me`, `/me/*`). Paginated lists add `links` and `meta`. These are **unwrapped**: `/dashboard`, `/forecast`, `/chat`, `/receipts`, receipt objects, chat message replies, `/transactions/quick`, `/income`, `/export`.
+
+| Status | Meaning |
+|---|---|
+| 401 | Missing or invalid token. Go back to login. |
+| 403 | Email not verified (most routes need a verified email), or login on a 2FA account (see below). |
+| 404 | Not found, or not yours. |
+| 409 | Conflict (already onboarded, income proof already handled). |
+| 422 | Validation: `{message, errors: {field: [..]}}`. Also AI endpoints without consent: `{message, consent_url}`. |
+| 429 | Throttled (login/register/password 6/min, AI 6–20/min). |
+| 503 | AI provider unavailable: `{message}`. |
+
+**2FA:** an account with two-factor on cannot log in on mobile yet. Login answers `403 {message}`; the message contains "2FA".
+
+---
+
+## 1. Auth & account
+
+| Method | Path | Body | Returns |
 |---|---|---|---|
-| POST | `/auth/register` | `name, email, password, password_confirmation, device_name` | 201 `{token, token_type, user}` (sends verification email) |
-| POST | `/auth/login` | `email, password, device_name` | `{token, token_type, user}` (same device name replaces its old token) |
+| POST | `/auth/register` | `name, email, password, password_confirmation, device_name` | 201 `{token, token_type, user}`. Sends a verification email; most routes 403 until verified. |
+| POST | `/auth/login` | `email, password, device_name` | `{token, token_type, user}`. Logging in again with the same `device_name` replaces that device's token. |
 | POST | `/auth/logout` | – | 204 |
-| GET | `/me` | – | `{data: user}` = `id, name, email, email_verified, ai_consent_at, pay_dates, avatar, keep_receipts` |
-| PATCH | `/me` | `name, email` | user |
-| PATCH | `/me/avatar` | `avatar` = `data:image/jpeg;base64,...` (≤40KB) or `null` | user |
-| PATCH | `/me/payday` | `pay_dates` = `[15,30]` (1–2 days, 1–31) | user |
-| PATCH | `/me/receipts` | `keep` = bool (keep receipt images) | user |
+| GET | `/me` | – | `{data: user}` |
+| PATCH | `/me` | `name, email` | `{data: user}` (changing email un-verifies it) |
+| PATCH | `/me/avatar` | `avatar` = `data:image/jpeg;base64,...` (≤40 KB) or `null` to remove | `{data: user}` |
+| PATCH | `/me/payday` | `pay_dates` = `[15,30]` (1–2 distinct days, 1–31) | `{data: user}` |
+| PATCH | `/me/receipts` | `keep` = bool (keep receipt images) | `{data: user}` |
 | PUT | `/me/password` | `current_password, password, password_confirmation` | 204 |
 | DELETE | `/me` | `password` | 204 (deletes the account) |
 | POST | `/onboarding` | `income, pay_dates[], bills[{name,amount,day}], card{name,type,balance,color?}, pod?{name,target_amount}` | 201 (409 if already onboarded) |
-| GET | `/export` | – | all your data as JSON |
+| GET | `/export` | – | All the user's data as JSON |
 | GET | `/export/transactions.csv` | – | CSV download |
 | DELETE | `/chat` | – | 204 (wipes chat history) |
 
-## Dashboard & forecast
+**User:** `{id, name, email, email_verified, ai_consent_at, pay_dates, avatar, keep_receipts}`. `avatar` is a data URI or null.
 
-| Method | Link | Notes |
+## 2. Dashboard & forecast
+
+| Method | Path | Notes |
 |---|---|---|
-| GET | `/dashboard` | `safe_to_spend_today, forecast, net_worth{assets,debts,total}, cards, pods, upcoming_bills (14 days), recommendations` |
-| GET | `/forecast?skip=<recurring_item_id>` | Balance projection; `skip` simulates cancelling that item |
+| GET | `/dashboard` | See shape below. |
+| GET | `/forecast?skip=<recurring_item_id>` | Same `forecast` object plus `series`; `skip` projects as if that item were cancelled (`skipped` echoes it). |
 
-## Cards (wallets, banks, credit)
+**`/dashboard`:**
+```
+{
+  safe_to_spend_today, left_this_month, next_payday, days_to_payday,
+  net_worth: {assets, debts, total},
+  forecast: {payday, days, lowest: {date, amount, balance}, at_payday, safe_per_day},
+  cards: [Card], pods: [Pod],
+  upcoming_bills: [RecurringItem],   // next 14 days
+  recommendations: [Recommendation]  // up to 3
+}
+```
+`lowest.amount` and `lowest.balance` are the same number. `/forecast` adds `series: [{date, balance, ...}]` (daily points; the dashboard omits it).
 
-`GET /cards` · `POST /cards` · `GET /cards/{id}` · `PATCH /cards/{id}` · `DELETE /cards/{id}`
+## 3. Cards, pods, categories, recurring items
 
-Body: `name, type, balance, monthly_limit?, color?, account_name?, account_number?, qr?` (`qr` = `data:image/png;base64,...`).
+Each has `GET /x`, `POST /x`, `GET /x/{id}`, `PATCH /x/{id}`, `DELETE /x/{id}`. PATCH takes the same body as POST (no partial updates).
 
-## Pods (savings goals)
-
-`GET /pods` · `POST /pods` · `GET /pods/{id}` · `PATCH /pods/{id}` · `DELETE /pods/{id}`
-
-Body: `name, target_amount, saved_amount, monthly_amount, target_date?`.
-
-## Categories
-
-`GET /categories` · `POST /categories` · `GET /categories/{id}` · `PATCH /categories/{id}` · `DELETE /categories/{id}`
-
-Body: `name` (unique per user).
-
-## Bills, subscriptions, loans (recurring items)
-
-`GET /recurring-items` · `POST /recurring-items` · `GET /recurring-items/{id}` · `PATCH /recurring-items/{id}` · `DELETE /recurring-items/{id}`
-
-Body: `name, amount, cadence, next_due_on, kind` (`bill|subscription|debt|...`), `card_id?, category_id?` (loans: `installments`).
-
-| Method | Link | Body | Returns |
-|---|---|---|---|
-| POST | `/recurring-items/{id}/pay` | `card_id, amount, paid_on` | 201 transaction; records the expense and moves the item to its next due date (a loan loses one payment) |
-
-## Transactions
-
-| Method | Link | Body / query |
+| Path | Body | Resource |
 |---|---|---|
-| GET | `/transactions` | `q, from, to, card_id, category_id, per_page (≤100), page` (paginated) |
-| POST | `/transactions` | `merchant, amount, card_id, category_id?, occurred_at, note?, source` (`manual|quick`) |
+| `/cards` | `name, type, balance, monthly_limit?, color?, account_name?, account_number?, qr?` (`qr` = `data:image/png;base64,...`) | `{id, name, type, balance, monthly_limit, currency, color, spent}`: `spent` is this month's spend, for the limit bar |
+| `/pods` | `name, target_amount, saved_amount, monthly_amount, target_date?` | `{id, name, target_amount, saved_amount, monthly_amount, target_date, currency, progress}`: `progress` is 0–100 |
+| `/categories` | `name` (unique per user) | `{id, name}` |
+| `/recurring-items` | `name, amount, cadence, next_due_on, kind, card_id?, category_id?` (loans also `installments`) | `{id, name, amount, monthly_amount, currency, card_id, category_id, cadence, next_due_on, kind}` |
+
+`kind` is `bill`, `subscription` or `debt` (a loan).
+
+**Pay a bill / subscription / loan payment**
+
+`POST /recurring-items/{id}/pay` with `{card_id, amount, paid_on}` returns 201 `{data: Transaction}`. It records an expense on the card and moves the item to its next due date (a loan loses one remaining payment; a paid-off loan answers 422).
+
+## 4. Transactions & transfers
+
+| Method | Path | Body / query |
+|---|---|---|
+| GET | `/transactions` | `q, from, to, card_id, category_id, per_page (≤100), page`. Paginated `{data, links, meta{current_page, last_page, per_page, total}}` |
+| POST | `/transactions` | `merchant, amount, card_id, category_id?, occurred_at, note?, source` (`manual` or `quick`) → 201 |
 | GET | `/transactions/{id}` | – |
-| PATCH | `/transactions/{id}` | same as POST |
+| PATCH | `/transactions/{id}` | same as POST (only expenses are editable) |
 | DELETE | `/transactions/{id}` | 204 (reverses the card balance) |
-| POST | `/transactions/quick` | `text` = `"Jollibee 250 gcash"` → `{merchant, amount, card_id}` draft, nothing saved; confirm with `POST /transactions` |
-| POST | `/transfers` | `from, to, amount` where from/to = `card:ID` or `pod:ID` |
+| POST | `/transactions/quick` | `{text: "Jollibee 250 gcash"}` → `{merchant, amount, card_id}`. Nothing is saved; show it as a draft and confirm with `POST /transactions`. `card_id` may be null; 422 if it can't parse. |
+| POST | `/transfers` | `from, to, amount`; `from`/`to` are `card:ID` or `pod:ID` |
 
-## Income (salary received)
+**Transaction:** `{id, type, amount, currency, merchant, card_id, card_name, category_id, category_name, to_card_id, to_pod_id, from_pod_id, occurred_at, note, source, receipt_id, reference}`.
+`amount` is **unsigned**: use `type` (`expense`, `income`, `transfer`) for direction. `card_name` and `category_name` are null when there is none.
 
-| Method | Link | Body |
+## 5. Income (salary)
+
+A salary needs a proof screenshot. Upload it as a receipt with `purpose=income` (or send it in chat after the salary prompt), wait until it is `parsed`, then save:
+
+| Method | Path | Body |
 |---|---|---|
-| POST | `/income` | `receipt_id` (a parsed receipt with `purpose=income`), `amount, received_on, reference, name?` → 201 |
+| POST | `/income` | `receipt_id, amount, received_on, reference, name?` → 201 `{id, name, amount, month, reference, received_on}` (422 if the reference was already logged; 409 if the proof was already handled) |
 | DELETE | `/income/{id}` | 204 |
 
-## Receipts (AI scan)
+## 6. Receipts (AI scan)
 
-Needs AI consent. Upload returns 202; poll `GET /receipts/{id}` until parsed.
+Needs AI consent (section 8).
 
-| Method | Link | Body |
+| Method | Path | Body |
 |---|---|---|
-| GET | `/receipts` | pending expense receipts |
-| POST | `/receipts` | multipart: `image`, `purpose` (`expense|income`) → 202 |
-| GET | `/receipts/{id}` | status + parsed fields |
-| POST | `/receipts/{id}/confirm` | transaction fields (`merchant, amount, card_id, category_id?, occurred_at, note?, reference?`) |
+| GET | `/receipts` | Pending expense receipts (not yet confirmed), newest first, max 10 |
+| POST | `/receipts` | multipart: `image`, `purpose` (`expense` default, or `income`) → 202 receipt |
+| GET | `/receipts/{id}` | Receipt |
+| POST | `/receipts/{id}/confirm` | `merchant, amount, card_id, category_id?, occurred_at, note?, reference?` → `{status: "confirmed"}`; creates the transaction |
 | DELETE | `/receipts/{id}` | 204 |
 
-## Whale Chat (AI)
+**Receipt:** `{id, status, error, draft, claimed}`
+- `status`: `queued` → `parsing` → `parsed` | `failed`, then `confirmed`. Poll `GET /receipts/{id}` until `parsed` or `failed` (parsing usually takes a few seconds).
+- `error`: a user-safe sentence when `failed`.
+- `draft` (when `parsed`): `{merchant, amount, currency, occurred_at, reference, confidence, category_id, category, card_id, duplicate_of}`. `amount` is centavos. Prefill the confirm form from it.
+- `draft.duplicate_of`: list of existing transaction ids that look like the same expense (empty when none). Warn the user before confirming.
+- `claimed`: the amount the user typed in chat before sending a salary proof (compare with `draft.amount`).
 
-| Method | Link | Body |
+## 7. Whale Chat (AI)
+
+| Method | Path | Body |
 |---|---|---|
-| GET | `/chat` | `{consented, messages[]}` last 50 messages |
-| POST | `/chat/messages` | `text` (≤500) and/or multipart `image` → `{reply, draft?, quick_replies?, thread_id}`. Also handles "pay my Converge bill" and loan/income messages |
-| POST | `/chat/drafts/{message_id}/confirm` | confirms a draft → `{saved, transaction_id}` |
+| GET | `/chat` | `{consented, messages: [{id, role, content, draft_json, receipt_id, income}]}`: the last 50, oldest first. `role` is `user` or `assistant`. |
+| POST | `/chat/messages` | `text` (≤500) and/or multipart `image`; optional `thread_id` |
+| POST | `/chat/drafts/{message_id}/confirm` | – → `{saved: true, transaction_id}` |
 
-## Tips (AI recommendations)
+**Text reply:** `{id, reply, draft?, quick_replies?, thread_id}`. `id` is the assistant message id: use it in `/chat/drafts/{id}/confirm`. The chat also understands "pay my Converge bill", loans ("I borrowed 5000, 3 payments") and salary messages.
 
-| Method | Link | Notes |
+**Draft** (`draft` / `draft_json`): `{kind?, merchant, amount, card_id, category_id, occurred_at, note?, missing[], saved?, recurring_id?}`.
+- `missing` lists fields still needed; the draft can only be confirmed when it is empty. `quick_replies` suggests answers.
+- `kind` is absent for an expense, or `loan` / `income`. `recurring_id` is set when the draft pays a bill.
+- After confirming, `draft_json.saved` is set to the new id and `GET /chat` returns it: hide the confirm button for drafts where `saved` is set. (`income` drafts are not confirmed here; they go through section 5.)
+
+**Image send** returns `{id, reply, receipt_id, income, thread_id}` and no draft.
+- `income: false` → open `GET /receipts/{receipt_id}`; when `parsed`, confirm with `POST /receipts/{id}/confirm`.
+- `income: true` → when `parsed`, show `draft` plus `claimed`, then save with `POST /income`.
+
+Errors: 422 without consent (`consent_url`), 429 (quota or throttle), 503 (provider down), each with `{message}`.
+
+## 8. Tips & AI consent
+
+| Method | Path | Notes |
 |---|---|---|
-| POST | `/consent/ai` | grant AI consent (required before receipts, chat, tips) |
-| DELETE | `/consent/ai` | withdraw AI consent (chat, receipts, tips then answer 422 with `consent_url`) |
-| GET | `/recommendations` | list |
-| POST | `/recommendations/generate` | generate new tips (needs consent) |
-| POST | `/recommendations/{id}/dismiss` | dismiss |
+| POST | `/consent/ai` | Grants AI consent. Required before receipts, chat and tips. Returns `{ai_consent_at}` |
+| DELETE | `/consent/ai` | Withdraws it (the "AI features" toggle). Chat, receipts and tips then answer 422 with `consent_url` |
+| GET | `/recommendations` | `{data: [{id, text, created_at}]}`. The field is `text`. |
+| POST | `/recommendations/generate` | Replaces the current tips (needs consent; 6/min) |
+| POST | `/recommendations/{id}/dismiss` | – |
 
-## Push notifications
+## 9. Push notifications
 
-| Method | Link | Body |
+**Register the device:**
+
+| Method | Path | Body |
 |---|---|---|
-| POST | `/devices` | `expo_push_token` (`ExponentPushToken[...]`), `platform` (`ios|android`) |
+| POST | `/devices` | `expo_push_token` (`ExponentPushToken[...]`), `platform` (`ios` or `android`) → `{data: {id, expo_push_token, platform, last_seen_at}}`. An upsert by token: 201 the first time, 200 after. |
 | DELETE | `/devices/{id}` | 204 |
-| DELETE | `/devices` | `expo_push_token, platform` → 204 (unregister by token, for after an app restart) |
+| DELETE | `/devices` | `{expo_push_token, platform}` → 204. Use this to turn push off after an app restart (you have the token but not the id). |
 
-## Typical flows
-
-1. **First launch:** `POST /auth/register` → verify email → `POST /auth/login` → `POST /onboarding` → `GET /dashboard`.
-2. **Add expense fast:** `POST /transactions/quick` → show draft → `POST /transactions`.
-3. **Pay a bill:** `GET /dashboard` (`upcoming_bills`) → `POST /recurring-items/{id}/pay`.
-4. **Scan receipt:** `POST /receipts` → poll `GET /receipts/{id}` → `POST /receipts/{id}/confirm`.
-5. **Log salary:** chat or `POST /receipts` with `purpose=income` → `POST /income`.
-
-## Response shapes (verified against the code)
-
-- **Wrapping:** single resources and lists are `{data: ...}` (cards, pods, categories, recurring-items, me, recommendations, transactions). `/dashboard`, `/forecast`, `/chat`, `/receipts` are unwrapped.
-- **GET /dashboard:** `safe_to_spend_today, left_this_month, next_payday (date), days_to_payday, net_worth{assets,debts,total}, forecast{payday, days, lowest{date, amount, balance}, at_payday, safe_per_day}, cards[], pods[], upcoming_bills[], recommendations[]`. `lowest.amount` and `lowest.balance` are the same integer centavos.
-- **GET /forecast:** the same `forecast` object plus `series[{date, balance, ...}]` (daily points) and `skipped`.
-- **Card:** `{id, name, type, balance, monthly_limit, currency, color, spent}` — `spent` is this month's spend (centavos) for the limit bar.
-- **Pod:** `{id, name, target_amount, saved_amount, monthly_amount, target_date, currency, progress}` — `progress` is 0–100.
-- **Recommendation:** `{id, text, created_at}` (the field is `text`, not `body`).
-- **Recurring item:** `{id, name, amount, monthly_amount, currency, card_id, category_id, cadence, next_due_on, kind}`.
-- **Transaction:** `{id, type, amount, currency, merchant, card_id, category_id, to_card_id, to_pod_id, from_pod_id, occurred_at, note, source, receipt_id, reference}`. `amount` is **unsigned**; use `type` (`expense|income|transfer`) for direction. `card_name` and `category_name` are included (null if none). Pagination is the Laravel paginator: `{data, links, meta{current_page, last_page, per_page, total}}`.
-- **POST /chat/messages:** `{id, reply, draft?, quick_replies?, thread_id}` — `id` is the assistant message id to use in `/chat/drafts/{id}/confirm`. Image sends return `{id, reply, receipt_id, income, thread_id}`.
-- **GET /chat:** `{consented, messages[{id, role, content, draft_json, receipt_id, income}]}`.
-- **POST /devices:** upsert by token. 201 first time, 200 after; body `{data:{id, ...}}`.
-- **Login with 2FA on:** `403 {message}` containing "2FA".
-- **Push payloads:** see "Push notifications (server)" below.
-
-## Profile / More screen
-
-| Row | Calls |
-|---|---|
-| Name, email, avatar | `GET /me`; edit with `PATCH /me`, `PATCH /me/avatar` |
-| Ledger | `GET /transactions` |
-| Forecast | `GET /forecast` |
-| Push notifications on | `POST /devices` |
-| Push notifications off | `DELETE /devices` with `{expo_push_token, platform}` (works after a restart), or `DELETE /devices/{id}` |
-| Tips | `GET /recommendations`, `POST /recommendations/generate`, `POST /recommendations/{id}/dismiss` |
-| Pay schedule | `GET /me` (`pay_dates`); edit with `PATCH /me/payday` `{pay_dates:[15,30]}` |
-| Dark mode | device only, no API |
-| AI features on / off | `POST /consent/ai` / `DELETE /consent/ai` (state is `ai_consent_at` in `/me`) |
-| Manage on web: export | `GET /export` (JSON), `GET /export/transactions.csv` |
-| Manage on web: delete account | `DELETE /me` `{password}` |
-| Clear chat history | `DELETE /chat` |
-| Sign out | `POST /auth/logout` |
-
-## Push notifications (server)
-
-Sent through the Expo Push API to every registered token. Each push has `title`, `body` and `data.type`:
+**What the server sends** (through the Expo Push API, to every registered token). Every push has `title`, `body` and `data.type`; route the tap on `data.type`:
 
 | `data.type` | When | Example |
 |---|---|---|
-| `bill_due` | 08:00 daily, for bills due today, tomorrow or in 2 days (once per bill and due date) | `Bill due in 2 days` / `Converge: PHP 1,600.00` |
-| `payday_near` | 08:00 daily, 2 days and 1 day before payday | `Payday in 2 days` |
-| `daily_safe_to_spend` | 07:30 daily | `You can spend PHP 450.00 today` |
-| `budget_warning` | hourly check; a card at 80% of its monthly limit, and again when over (once per card and month) | `E-wallet is at 80% of its monthly limit` |
+| `bill_due` | Daily 08:00, for bills due today, tomorrow or in 2 days (once per bill and due date) | `Bill due in 2 days` / `Converge: PHP 1,600.00` |
+| `payday_near` | Daily 08:00, 2 days and 1 day before payday | `Payday in 2 days` / `Payday is 2026-10-30.` |
+| `daily_safe_to_spend` | Daily 07:30 | `You can spend PHP 450.00 today` |
+| `budget_warning` | Hourly check: a card at 80% of its monthly limit, and again when over (once per card per month) | `E-wallet is at 80% of its monthly limit` |
 
-Times are the server's timezone (set `APP_TIMEZONE` to change it). A scheduler must run for these to go out: see "Server setup" below.
+Times are the server's timezone. Suggested taps: `bill_due` and `payday_near` and `daily_safe_to_spend` → Home, `budget_warning` → Cards.
 
-## Chat, receipts and drafts
+> **Status:** the sender code is live, but the scheduler service that triggers it must be running on Railway (see "Server setup"). Until it is, no push goes out.
 
-- **Draft** (chat `draft` / `draft_json`): `{kind?, merchant, amount, card_id, category_id, occurred_at, note?, missing[], saved?}`. `missing` lists fields still needed; a draft is only confirmable when it is empty. `kind` is absent for an expense, or `loan` / `income`. A bill payment draft also has `recurring_id`.
-- **Saved drafts:** after `POST /chat/drafts/{id}/confirm`, the message's `draft_json.saved` is set to the new id, and `GET /chat` returns it, so hide drafts where `saved` is set.
-- **POST /transactions/quick** returns `{merchant, amount, card_id}` (`card_id` may be null).
-- **Receipt** (`GET /receipts/{id}`, items of `GET /receipts`): `{id, status, error, draft, claimed}`. `status`: `queued` / `parsed` / `failed` / `confirmed` (poll until `parsed` or `failed`; `error` is a user-safe sentence). `draft` is the parsed fields: `merchant, amount (centavos), occurred_at, reference, ...`. `claimed` is the amount the user said in chat (salary proofs).
-- **Chat image send** returns `{id, reply, receipt_id, income, thread_id}`. If `income` is false, open the receipt (`GET /receipts/{receipt_id}`) and confirm with `POST /receipts/{id}/confirm`; if true, once it is `parsed` show its `draft` and save with `POST /income` (`receipt_id, amount, received_on, reference`).
+## 10. Screen cheat sheet
 
-## Server setup (Railway scheduler)
+| Screen / row | Calls |
+|---|---|
+| Home | `GET /dashboard` |
+| Forecast | `GET /forecast` |
+| Cards | `GET /cards`, `POST/PATCH/DELETE /cards` |
+| Ledger | `GET /transactions` (+ filters) |
+| Add expense | `POST /transactions/quick` → `POST /transactions`; or scan: `POST /receipts` → poll → `POST /receipts/{id}/confirm` |
+| Upcoming bills / pay | `GET /dashboard` → `POST /recurring-items/{id}/pay` |
+| Chat | `GET /chat`, `POST /chat/messages`, `POST /chat/drafts/{id}/confirm` |
+| More: profile | `GET /me`, `PATCH /me`, `PATCH /me/avatar` |
+| More: pay schedule | `PATCH /me/payday` |
+| More: push toggle | `POST /devices` / `DELETE /devices` |
+| More: AI features toggle | `POST` / `DELETE /consent/ai` |
+| More: tips | `/recommendations*` |
+| More: export, delete account | `GET /export`, `DELETE /me` |
+| More: sign out | `POST /auth/logout` |
+| Dark mode | device only, no API |
 
-The pushes are Laravel scheduled commands (`push:bills`, `push:payday`, `push:daily`, `push:budgets`), so something has to call `php artisan schedule:run` regularly. The repo has `railway.cron.toml` for this:
+## 11. Typical flows
+
+1. **First launch:** `POST /auth/register` → user verifies email → `POST /auth/login` → `POST /onboarding` → `GET /dashboard`.
+2. **Quick expense:** `POST /transactions/quick` → show draft → `POST /transactions`.
+3. **Pay a bill:** `GET /dashboard` (`upcoming_bills`) → `POST /recurring-items/{id}/pay`.
+4. **Scan a receipt:** `POST /receipts` → poll `GET /receipts/{id}` → `POST /receipts/{id}/confirm` (or `DELETE` to discard).
+5. **Log salary:** chat the amount, send the proof screenshot (or `POST /receipts` with `purpose=income`) → when `parsed`, `POST /income`.
+
+---
+
+## Server setup (for the backend owner; the app does not need this)
+
+The pushes are Laravel scheduled commands (`push:bills`, `push:payday`, `push:daily`, `push:budgets`), so something must call `php artisan schedule:run` regularly. The repo has `railway.cron.toml` for it:
 
 1. Railway project → **New → GitHub Repo** → `CodeDecoder13/Whale-Wallet-WebApp` (a second service, e.g. `whale-scheduler`).
-2. Service **Settings**: Root Directory `/myapp`, **Config-as-code path** `/myapp/railway.cron.toml`.
-3. **Variables**: copy the web service's variables (use "Shared Variables" or reference variables), at least `APP_KEY`, `APP_ENV`, `DB_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, `APP_URL`. `CACHE_STORE` must be a store that survives between runs (database or redis, not `array`), since it holds the "already sent" markers.
-4. Deploy. It runs every 5 minutes (Railway's minimum) and exits; check its logs for `Sent N ... alerts.`
+2. Service **Settings**: Root Directory `/myapp`, Config-as-code path `/myapp/railway.cron.toml`.
+3. **Variables:** copy the web service's variables, at least `APP_KEY`, `APP_ENV`, `DB_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, `APP_URL`. `CACHE_STORE` must survive between runs (database or redis, not `array`): it holds the "already sent" markers.
+4. Deploy. It runs every 5 minutes (Railway's minimum) and exits; its logs show `Sent N ... alerts.`. Set `APP_TIMEZONE` to change the send times.
 
-Verify without waiting: in that service run `php artisan push:daily` (needs a registered device).
+Test without waiting: run `php artisan push:daily` in that service (needs a registered device).
