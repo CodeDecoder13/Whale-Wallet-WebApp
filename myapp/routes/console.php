@@ -53,3 +53,11 @@ Artisan::command('push:budgets', function (PushAlerts $push) {
 
 Schedule::command('push:bills')->dailyAt('08:00')->withoutOverlapping();
 Schedule::command('push:budgets')->hourly()->withoutOverlapping();
+
+Artisan::command('push:payday', fn (PushAlerts $push, \App\Services\Forecast\ForecastLoader $loader) => $this->info("Sent {$push->payday($loader)} payday alerts."))
+    ->purpose('Push "payday near" 1 and 2 days before payday (Expo)');
+Artisan::command('push:daily', fn (PushAlerts $push, \App\Services\Forecast\ForecastLoader $loader) => $this->info("Sent {$push->daily($loader)} daily alerts."))
+    ->purpose('Push the safe-to-spend amount once a day (Expo)');
+
+Schedule::command('push:payday')->dailyAt('08:00')->withoutOverlapping();
+Schedule::command('push:daily')->dailyAt('07:30')->withoutOverlapping();

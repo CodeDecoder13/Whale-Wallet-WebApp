@@ -476,4 +476,27 @@ class ApiTest extends TestCase
         $this->assertNull($user->fresh()->ai_consent_at);
         $this->as($user)->postJson('/api/v1/chat/messages', ['text' => 'hi'])->assertStatus(422)->assertJsonStructure(['consent_url']);
     }
+
+    public function test_pushes_carry_a_type_and_the_daily_and_payday_alerts_go_out()
+    {
+        $user = $this->demo();
+        $user->forceFill(['pay_dates' => [11]])->save(); // payday is tomorrow (clock is 2026-03-10)
+        $this->actingAs($user);
+        Device::create(['expo_push_token' => 'ExponentPushToken[abc]', 'platform' => 'android', 'last_seen_at' => now()]);
+        \Illuminate\Support\Facades\Http::fake(['exp.host/*' => \Illuminate\Support\Facades\Http::response(['data' => [['status' => 'ok']]])]);
+
+        $push = app(\App\Services\PushAlerts::class);
+        $loader = app(\App\Services\Forecast\ForecastLoader::class);
+        $this->assertSame(1, $push->payday($loader));
+        $this->assertSame(1, $push->daily($loader));
+        $this->assertSame(0, $push->payday($loader)); // same alert is not repeated
+
+        $types = [];
+        \Illuminate\Support\Facades\Http::assertSent(function ($r) use (&$types) {
+            $types[] = $r->data()[0]['data']['type'];
+
+            return true;
+        });
+        $this->assertSame(['payday_near', 'daily_safe_to_spend'], $types);
+    }
 }

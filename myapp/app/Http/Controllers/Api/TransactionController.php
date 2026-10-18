@@ -23,7 +23,7 @@ class TransactionController extends Controller
         $f = $request->validated();
 
         return TransactionResource::collection(
-            Transaction::filter($f)->latest('occurred_at')->latest('id')->paginate($f['per_page'] ?? 20)->withQueryString()
+            Transaction::filter($f)->with('card:id,name', 'category:id,name')->latest('occurred_at')->latest('id')->paginate($f['per_page'] ?? 20)->withQueryString()
         );
     }
 

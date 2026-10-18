@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Card;
 use App\Models\Device;
 use App\Models\RecurringItem;
+use App\Models\User;
+use App\Services\Forecast\ForecastLoader;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -34,7 +36,7 @@ class PushAlerts
                     0 => 'today', 1 => 'tomorrow', default => 'in 2 days',
                 };
 
-                $sent += (int) $this->deliver($marker, $tokens, 'Bill due '.$when, "{$item->name}: ".self::peso($item->amount));
+                $sent += (int) $this->deliver('bill_due', $marker, $tokens, 'Bill due '.$when, "{$item->name}: ".self::peso($item->amount));
             }
         }
 
@@ -60,9 +62,38 @@ class PushAlerts
                 if ($level) {
                     $body = self::peso($spent).' of '.self::peso($card->monthly_limit).' spent this month.';
                     $title = $level === 'over' ? "{$card->name} is over its monthly limit" : "{$card->name} is at 80% of its monthly limit";
-                    $sent += (int) $this->deliver('push:budget:'.$card->id.':'.now()->format('Y-m').':'.$level, $tokens, $title, $body);
+                    $sent += (int) $this->deliver('budget_warning', 'push:budget:'.$card->id.':'.now()->format('Y-m').':'.$level, $tokens, $title, $body);
                 }
             }
+        }
+
+        return $sent;
+    }
+
+    /** One push a day at 1 or 2 days before payday ("payday_near"). */
+    public function payday(ForecastLoader $loader): int
+    {
+        $sent = 0;
+
+        foreach ($this->devicesByUser() as $userId => $tokens) {
+            $f = $loader->for(User::withoutGlobalScopes()->findOrFail($userId));
+
+            if ($f["days"] <= 2) {
+                $sent += (int) $this->deliver("payday_near", "push:payday:{$userId}:{$f["payday"]}:{$f["days"]}", $tokens, "Payday in {$f["days"]} ".($f["days"] === 1 ? "day" : "days"), "Payday is {$f["payday"]}.");
+            }
+        }
+
+        return $sent;
+    }
+
+    /** Once a day: the dashboard's safe-to-spend ("daily_safe_to_spend"). */
+    public function daily(ForecastLoader $loader): int
+    {
+        $sent = 0;
+
+        foreach ($this->devicesByUser() as $userId => $tokens) {
+            $safe = $loader->for(User::withoutGlobalScopes()->findOrFail($userId))["safe_per_day"];
+            $sent += (int) $this->deliver("daily_safe_to_spend", "push:daily:{$userId}:".today()->toDateString(), $tokens, "You can spend ".self::peso($safe)." today", "Safe to spend until your next payday.");
         }
 
         return $sent;
@@ -75,14 +106,14 @@ class PushAlerts
     }
 
     /** Sends one alert to every token unless its marker is set; the marker is set only after Expo took the batch. */
-    private function deliver(string $marker, $tokens, string $title, string $body): bool
+    private function deliver(string $type, string $marker, $tokens, string $title, string $body): bool
     {
         if (Cache::has($marker)) {
             return false;
         }
 
         foreach ($tokens->chunk(100) as $batch) {
-            $response = Http::acceptJson()->post(self::URL, $batch->map(fn ($to) => compact('to', 'title', 'body') + ['sound' => 'default'])->values()->all());
+            $response = Http::acceptJson()->post(self::URL, $batch->map(fn ($to) => ['to' => $to, 'title' => $title, 'body' => $body, 'sound' => 'default', 'data' => ['type' => $type]])->values()->all());
 
             if ($response->failed()) {
                 return false; // retried on the next run

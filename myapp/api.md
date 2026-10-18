@@ -138,12 +138,12 @@ Needs AI consent. Upload returns 202; poll `GET /receipts/{id}` until parsed.
 - **Pod:** `{id, name, target_amount, saved_amount, monthly_amount, target_date, currency, progress}` — `progress` is 0–100.
 - **Recommendation:** `{id, text, created_at}` (the field is `text`, not `body`).
 - **Recurring item:** `{id, name, amount, monthly_amount, currency, card_id, category_id, cadence, next_due_on, kind}`.
-- **Transaction:** `{id, type, amount, currency, merchant, card_id, category_id, to_card_id, to_pod_id, from_pod_id, occurred_at, note, source, receipt_id, reference}`. `amount` is **unsigned**; use `type` (`expense|income|transfer`) for direction. No nested card/category: look them up from `/cards` and `/categories`. Pagination is the Laravel paginator: `{data, links, meta{current_page, last_page, per_page, total}}`.
+- **Transaction:** `{id, type, amount, currency, merchant, card_id, category_id, to_card_id, to_pod_id, from_pod_id, occurred_at, note, source, receipt_id, reference}`. `amount` is **unsigned**; use `type` (`expense|income|transfer`) for direction. `card_name` and `category_name` are included (null if none). Pagination is the Laravel paginator: `{data, links, meta{current_page, last_page, per_page, total}}`.
 - **POST /chat/messages:** `{id, reply, draft?, quick_replies?, thread_id}` — `id` is the assistant message id to use in `/chat/drafts/{id}/confirm`. Image sends return `{id, reply, receipt_id, income, thread_id}`.
 - **GET /chat:** `{consented, messages[{id, role, content, draft_json, receipt_id, income}]}`.
 - **POST /devices:** upsert by token. 201 first time, 200 after; body `{data:{id, ...}}`.
 - **Login with 2FA on:** `403 {message}` containing "2FA".
-- **Push payloads:** `title` and `body` text only (budget warnings and bills due); no `data.type` is sent yet.
+- **Push payloads:** see "Push notifications (server)" below.
 
 ## Profile / More screen
 
@@ -162,3 +162,24 @@ Needs AI consent. Upload returns 202; poll `GET /receipts/{id}` until parsed.
 | Manage on web: delete account | `DELETE /me` `{password}` |
 | Clear chat history | `DELETE /chat` |
 | Sign out | `POST /auth/logout` |
+
+## Push notifications (server)
+
+Sent through the Expo Push API to every registered token. Each push has `title`, `body` and `data.type`:
+
+| `data.type` | When | Example |
+|---|---|---|
+| `bill_due` | 08:00 daily, for bills due today, tomorrow or in 2 days (once per bill and due date) | `Bill due in 2 days` / `Converge: PHP 1,600.00` |
+| `payday_near` | 08:00 daily, 2 days and 1 day before payday | `Payday in 2 days` |
+| `daily_safe_to_spend` | 07:30 daily | `You can spend PHP 450.00 today` |
+| `budget_warning` | hourly check; a card at 80% of its monthly limit, and again when over (once per card and month) | `E-wallet is at 80% of its monthly limit` |
+
+Times are the server's timezone. The server needs `php artisan schedule:work` (or a cron running `schedule:run` every minute) for these to go out.
+
+## Chat, receipts and drafts
+
+- **Draft** (chat `draft` / `draft_json`): `{kind?, merchant, amount, card_id, category_id, occurred_at, note?, missing[], saved?}`. `missing` lists fields still needed; a draft is only confirmable when it is empty. `kind` is absent for an expense, or `loan` / `income`. A bill payment draft also has `recurring_id`.
+- **Saved drafts:** after `POST /chat/drafts/{id}/confirm`, the message's `draft_json.saved` is set to the new id, and `GET /chat` returns it, so hide drafts where `saved` is set.
+- **POST /transactions/quick** returns `{merchant, amount, card_id}` (`card_id` may be null).
+- **Receipt** (`GET /receipts/{id}`, items of `GET /receipts`): `{id, status, error, draft, claimed}`. `status`: `queued` / `parsed` / `failed` / `confirmed` (poll until `parsed` or `failed`; `error` is a user-safe sentence). `draft` is the parsed fields: `merchant, amount (centavos), occurred_at, reference, ...`. `claimed` is the amount the user said in chat (salary proofs).
+- **Chat image send** returns `{id, reply, receipt_id, income, thread_id}`. If `income` is false, open the receipt (`GET /receipts/{receipt_id}`) and confirm with `POST /receipts/{id}/confirm`; if true, once it is `parsed` show its `draft` and save with `POST /income` (`receipt_id, amount, received_on, reference`).
