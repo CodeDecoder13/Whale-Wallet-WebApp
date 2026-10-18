@@ -174,7 +174,7 @@ Sent through the Expo Push API to every registered token. Each push has `title`,
 | `daily_safe_to_spend` | 07:30 daily | `You can spend PHP 450.00 today` |
 | `budget_warning` | hourly check; a card at 80% of its monthly limit, and again when over (once per card and month) | `E-wallet is at 80% of its monthly limit` |
 
-Times are the server's timezone. The server needs `php artisan schedule:work` (or a cron running `schedule:run` every minute) for these to go out.
+Times are the server's timezone (set `APP_TIMEZONE` to change it). A scheduler must run for these to go out: see "Server setup" below.
 
 ## Chat, receipts and drafts
 
@@ -183,3 +183,14 @@ Times are the server's timezone. The server needs `php artisan schedule:work` (o
 - **POST /transactions/quick** returns `{merchant, amount, card_id}` (`card_id` may be null).
 - **Receipt** (`GET /receipts/{id}`, items of `GET /receipts`): `{id, status, error, draft, claimed}`. `status`: `queued` / `parsed` / `failed` / `confirmed` (poll until `parsed` or `failed`; `error` is a user-safe sentence). `draft` is the parsed fields: `merchant, amount (centavos), occurred_at, reference, ...`. `claimed` is the amount the user said in chat (salary proofs).
 - **Chat image send** returns `{id, reply, receipt_id, income, thread_id}`. If `income` is false, open the receipt (`GET /receipts/{receipt_id}`) and confirm with `POST /receipts/{id}/confirm`; if true, once it is `parsed` show its `draft` and save with `POST /income` (`receipt_id, amount, received_on, reference`).
+
+## Server setup (Railway scheduler)
+
+The pushes are Laravel scheduled commands (`push:bills`, `push:payday`, `push:daily`, `push:budgets`), so something has to call `php artisan schedule:run` regularly. The repo has `railway.cron.toml` for this:
+
+1. Railway project → **New → GitHub Repo** → `CodeDecoder13/Whale-Wallet-WebApp` (a second service, e.g. `whale-scheduler`).
+2. Service **Settings**: Root Directory `/myapp`, **Config-as-code path** `/myapp/railway.cron.toml`.
+3. **Variables**: copy the web service's variables (use "Shared Variables" or reference variables), at least `APP_KEY`, `APP_ENV`, `DB_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, `APP_URL`. `CACHE_STORE` must be a store that survives between runs (database or redis, not `array`), since it holds the "already sent" markers.
+4. Deploy. It runs every 5 minutes (Railway's minimum) and exits; check its logs for `Sent N ... alerts.`
+
+Verify without waiting: in that service run `php artisan push:daily` (needs a registered device).

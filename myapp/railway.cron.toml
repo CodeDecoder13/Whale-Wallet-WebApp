@@ -1,0 +1,10 @@
+# Scheduler for the push alerts. Used by a second Railway service (see api.md, "Server setup"),
+# so the web service's start command is left alone. Railway's cron minimum is 5 minutes,
+# which still lands on the 07:30 and 08:00 jobs and the hourly budget check.
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "php artisan schedule:run"
+cronSchedule = "*/5 * * * *"
+restartPolicyType = "NEVER"
