@@ -362,7 +362,7 @@ class ReceiptTest extends TestCase
         $this->parsed($user);
         $this->parsed(User::factory()->create());
 
-        $this->actingAs($user)->get(route('receipts.index'))->assertInertia(fn ($page) => $page->component('receipts/Index')
+        $this->actingAs($user)->get(route('transactions.index'))->assertInertia(fn ($page) => $page->component('transactions/Index')
             ->where('consented', true)->where('keepReceipts', false)->has('receipts', 1)->where('receipts.0.status', 'parsed'));
     }
 
@@ -373,5 +373,10 @@ class ReceiptTest extends TestCase
         config(['ai.providers.gemini.key' => null]);
         $this->app->bind(AiProvider::class, GeminiProvider::class);
         $this->artisan('receipts:eval')->expectsOutputToContain('GEMINI_API_KEY is not set')->assertFailed();
+    }
+
+    public function test_the_old_receipts_page_opens_the_scan_dialog_on_transactions()
+    {
+        $this->actingAs($this->demo())->get(route('receipts.index'))->assertRedirect(route('transactions.index', ['scan' => 1]));
     }
 }

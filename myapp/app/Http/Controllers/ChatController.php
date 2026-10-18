@@ -66,7 +66,7 @@ class ChatController extends Controller
             $claimed && $receipt->update(['claimed_amount' => $claimed]);
             $reply = $income
                 ? 'Got your proof. I am reading it now'.($claimed ? ' and will check it against ₱'.number_format($claimed / 100, 2) : '').'; confirm the reference number, date and amount from Add income on your dashboard.'
-                : 'Got your receipt. I am reading it now; confirm it on the Receipts page.';
+                : 'Got your receipt. I am reading it now; you check it before anything is saved.';
             $thread->messages()->create(['role' => 'user', 'content' => $data['text'] ?? 'Sent a receipt', 'receipt_id' => $receipt->id]);
             $message = $thread->messages()->create(['role' => 'assistant', 'content' => $reply, 'receipt_id' => $receipt->id]);
 

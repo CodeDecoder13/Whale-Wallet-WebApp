@@ -98,7 +98,7 @@ class IncomeTest extends TestCase
         $user = $this->user();
         $proof = $this->proof($user);
 
-        $this->actingAs($user)->get(route('receipts.index'))->assertInertia(fn ($page) => $page->has('receipts', 0));
+        $this->actingAs($user)->get(route('transactions.index'))->assertInertia(fn ($page) => $page->has('receipts', 0));
         $this->get(route('dashboard'))->assertRedirect(); // no card yet: onboarding comes first
         $this->postJson(route('receipts.confirm', $proof->id), ['merchant' => 'x', 'amount' => '1', 'occurred_at' => '2026-03-01'])->assertStatus(422);
     }

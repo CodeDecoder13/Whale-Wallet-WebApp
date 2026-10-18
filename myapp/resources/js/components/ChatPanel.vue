@@ -38,7 +38,6 @@ import { Spinner } from '@/components/ui/spinner';
 import { api, ApiError } from '@/lib/api';
 import { formatPeso } from '@/lib/currency';
 import { dashboard } from '@/routes';
-import { index as receipts } from '@/routes/receipts';
 import { index as transactions } from '@/routes/transactions';
 
 type Msg = {
@@ -227,11 +226,11 @@ const ready = (m: Msg) =>
                         :href="
                             m.income
                                 ? dashboard({ query: { income: 1 } })
-                                : receipts()
+                                : transactions({ query: { scan: 1 } })
                         "
                         class="mt-1 block font-medium underline underline-offset-4"
                     >
-                        {{ m.income ? 'Open Add income' : 'Open Receipts' }}
+                        {{ m.income ? 'Open Add income' : 'Check receipt' }}
                     </Link>
                 </div>
 

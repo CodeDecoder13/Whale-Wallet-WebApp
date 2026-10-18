@@ -16,7 +16,7 @@ class RequireAiConsent
             return $next($request);
         }
 
-        $message = 'Accept the AI notice first. It is on the Receipts, Whale Chat and Tips pages.';
+        $message = 'Accept the AI notice first. It is in Scan receipt (Transactions), Whale Chat and Tips.';
 
         if ($request->expectsJson()) {
             return response()->json(['message' => $message, 'consent_url' => $request->is('api/*') ? url('/api/v1/consent/ai') : route('tips.index')], 422);

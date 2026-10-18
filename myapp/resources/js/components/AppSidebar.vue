@@ -7,7 +7,6 @@ import {
     PiggyBank,
     Receipt,
     Repeat,
-    ScanLine,
     Sparkles,
     TrendingUp,
     Wallet,
@@ -29,7 +28,6 @@ import { dashboard, forecast } from '@/routes';
 import { index as cards } from '@/routes/cards';
 import { index as chat } from '@/routes/chat';
 import { index as pods } from '@/routes/pods';
-import { index as receipts } from '@/routes/receipts';
 import { index as subscriptions } from '@/routes/subscriptions';
 import { index as tips } from '@/routes/tips';
 import { index as transactions } from '@/routes/transactions';
@@ -40,7 +38,6 @@ const mainNavItems: NavItem[] = [
     { title: 'Cards', href: cards(), icon: Wallet },
     { title: 'Pods', href: pods(), icon: PiggyBank },
     { title: 'Transactions', href: transactions(), icon: Receipt },
-    { title: 'Receipts', href: receipts(), icon: ScanLine },
     { title: 'Forecast', href: forecast(), icon: TrendingUp },
     { title: 'Bills & Subs', href: subscriptions(), icon: Repeat },
     { title: 'Tips', href: tips(), icon: Sparkles },

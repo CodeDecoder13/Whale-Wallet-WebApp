@@ -15,6 +15,7 @@ use App\Http\Requests\TransferRequest;
 use App\Models\Card;
 use App\Models\Category;
 use App\Models\Pod;
+use App\Models\Receipt;
 use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -39,6 +40,10 @@ class TransactionController extends Controller
             'pods' => Pod::orderBy('name')->get(['id', 'name', 'saved_amount']),
             'categories' => Category::orderBy('name')->get(['id', 'name']),
             'draft' => session('draft'),
+            // receipts are scanned from a dialog on this page; the ones still to confirm show as a banner
+            'consented' => (bool) $request->user()->ai_consent_at,
+            'keepReceipts' => $request->user()->keep_receipts,
+            'receipts' => Receipt::where('purpose', 'expense')->where('status', '!=', 'confirmed')->latest('id')->limit(10)->get()->map->toClient()->values(),
         ]);
     }
 

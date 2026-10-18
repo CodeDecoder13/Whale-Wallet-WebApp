@@ -6,28 +6,19 @@ use App\Actions\CreateTransaction;
 use App\Actions\StoreReceipt;
 use App\Enums\TransactionSource;
 use App\Http\Requests\ReceiptConfirmRequest;
-use App\Models\Card;
-use App\Models\Category;
 use App\Models\Receipt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class ReceiptController extends Controller
 {
-    public function index(Request $request): Response
+    /** Receipts are scanned and reviewed in a dialog on the Transactions page; old links land there with it open. */
+    public function index(): RedirectResponse
     {
-        return Inertia::render('receipts/Index', [
-            'consented' => (bool) $request->user()->ai_consent_at,
-            'keepReceipts' => $request->user()->keep_receipts,
-            'receipts' => Receipt::where('purpose', 'expense')->where('status', '!=', 'confirmed')->latest('id')->limit(10)->get()->map->toClient()->values(),
-            'cards' => Card::orderBy('name')->get(['id', 'name']),
-            'categories' => Category::orderBy('name')->get(['id', 'name']),
-        ]);
+        return to_route('transactions.index', ['scan' => 1]);
     }
 
     /** Returns 202; the client polls show() until the queue worker has parsed it. */

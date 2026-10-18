@@ -1,13 +1,39 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from '@lucide/vue';
-import { reactive, ref, watch } from 'vue';
+import {
+    ArrowLeftRight,
+    ChevronLeft,
+    ChevronRight,
+    Ellipsis,
+    Pencil,
+    Plus,
+    ScanLine,
+    Search,
+    Trash2,
+    Zap,
+} from '@lucide/vue';
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import ReceiptsDialog from '@/components/ReceiptsDialog.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPeso, toPesos } from '@/lib/currency';
@@ -48,6 +74,9 @@ const props = defineProps<{
     pods: Option[];
     categories: Option[];
     draft?: { merchant: string; amount: number; card_id: number | null };
+    consented: boolean;
+    keepReceipts: boolean;
+    receipts: InstanceType<typeof ReceiptsDialog>['$props']['receipts'];
 }>();
 
 defineOptions({
@@ -80,6 +109,12 @@ function clearFilters() {
     applyFilters();
 }
 
+// Everything that adds or changes money opens in a dialog; the ledger stays in view behind it.
+const expenseOpen = ref(false);
+const transferOpen = ref(false);
+const quickOpen = ref(false);
+const scanOpen = ref(false);
+
 const quick = useForm({ text: '' });
 const expense = useForm({
     merchant: '',
@@ -91,8 +126,9 @@ const expense = useForm({
     source: 'manual',
 });
 const transfer = useForm({ from: '', to: '', amount: '' });
+const editing = ref<number | null>(null);
 
-// A parsed quick entry arrives as a draft; the user confirms or edits it in the expense form.
+// A parsed quick entry arrives as a draft; the expense dialog opens filled in for the user to confirm.
 watch(
     () => props.draft,
     (d) => {
@@ -104,16 +140,64 @@ watch(
         expense.amount = toPesos(d.amount);
         expense.card_id = d.card_id ? String(d.card_id) : expense.card_id;
         expense.source = 'quick';
+        quickOpen.value = false;
+        expenseOpen.value = true;
     },
     { immediate: true },
 );
 
+watch(expenseOpen, (isOpen) => {
+    if (!isOpen) {
+        editing.value = null;
+        expense.reset();
+        expense.clearErrors();
+    }
+});
+watch(transferOpen, (isOpen) => {
+    if (!isOpen) {
+        transfer.reset();
+        transfer.clearErrors();
+    }
+});
+watch(quickOpen, (isOpen) => {
+    if (!isOpen) {
+        quick.reset();
+        quick.clearErrors();
+    }
+});
+
+// links from elsewhere open the matching dialog: ?scan=1 (old Receipts page), #add-expense (header button), #transfer (Cards)
+function openFromUrl() {
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.has('scan')) {
+        scanOpen.value = true;
+        url.searchParams.delete('scan');
+    } else if (url.hash === '#add-expense') {
+        openExpense();
+    } else if (url.hash === '#transfer') {
+        transferOpen.value = true;
+    } else {
+        return;
+    }
+
+    url.hash = '';
+    window.history.replaceState(window.history.state, '', url);
+}
+
+onMounted(() => {
+    openFromUrl();
+    window.addEventListener('hashchange', openFromUrl);
+});
+onBeforeUnmount(() => window.removeEventListener('hashchange', openFromUrl));
+
+const openExpense = () => {
+    editing.value = null;
+    expenseOpen.value = true;
+};
+
 const parseQuick = () =>
-    quick.post(TransactionController.quick.url(), {
-        preserveScroll: true,
-        onSuccess: () => quick.reset(),
-    });
-const editing = ref<number | null>(null);
+    quick.post(TransactionController.quick.url(), { preserveScroll: true });
 
 function edit(t: Txn) {
     editing.value = t.id;
@@ -126,12 +210,7 @@ function edit(t: Txn) {
         note: t.note ?? '',
         source: t.source,
     });
-    document.getElementById('add-expense')?.scrollIntoView();
-}
-
-function cancelEdit() {
-    editing.value = null;
-    expense.reset();
+    expenseOpen.value = true;
 }
 
 function remove(t: Txn) {
@@ -146,8 +225,7 @@ function saveExpense() {
     const options = {
         preserveScroll: true,
         onSuccess: () => {
-            editing.value = null;
-            expense.reset('merchant', 'amount', 'note', 'source');
+            expenseOpen.value = false;
         },
     };
     if (editing.value) {
@@ -159,7 +237,9 @@ function saveExpense() {
 const saveTransfer = () =>
     transfer.post(TransactionController.transfer.url(), {
         preserveScroll: true,
-        onSuccess: () => transfer.reset(),
+        onSuccess: () => {
+            transferOpen.value = false;
+        },
     });
 
 const sign = { expense: '-', income: '+', transfer: '' };
@@ -169,24 +249,60 @@ const sign = { expense: '-', income: '+', transfer: '' };
     <Head title="Transactions" />
 
     <div class="flex flex-col gap-6 p-4 md:p-8">
-        <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex items-start justify-between gap-3">
             <Heading
                 class="mb-0!"
                 title="Transactions"
                 description="Every expense is charged to a card. Transfers are not spending."
             />
-            <div class="flex flex-wrap gap-2">
-                <Button as-child variant="outline">
-                    <Link :href="categoriesIndex().url">Categories</Link>
-                </Button>
-                <Button as-child variant="outline">
-                    <a :href="exportMethod.url()" download>Export CSV</a>
-                </Button>
-                <Button as-child variant="outline">
-                    <a :href="exportMd.url()" download>Export Markdown</a>
-                </Button>
-            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <Button variant="ghost" size="icon" aria-label="More">
+                        <Ellipsis class="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem as-child>
+                        <Link :href="categoriesIndex().url">Categories</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem as-child>
+                        <a :href="exportMethod.url()" download>Export CSV</a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem as-child>
+                        <a :href="exportMd.url()" download>Export Markdown</a>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
+
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <Button @click="openExpense">
+                <Plus class="size-4" />
+                Add expense
+            </Button>
+            <Button variant="outline" @click="transferOpen = true">
+                <ArrowLeftRight class="size-4" />
+                Transfer
+            </Button>
+            <Button variant="outline" @click="quickOpen = true">
+                <Zap class="size-4" />
+                Quick entry
+            </Button>
+            <Button variant="outline" @click="scanOpen = true">
+                <ScanLine class="size-4" />
+                Scan receipt
+            </Button>
+        </div>
+
+        <ReceiptsDialog
+            v-model:open="scanOpen"
+            :consented="consented"
+            :keep-receipts="keepReceipts"
+            :receipts="receipts"
+            :cards="cards"
+            :categories="categories"
+            @manual="openExpense"
+        />
 
         <div class="rounded-xl border bg-card p-5">
             <form
@@ -398,185 +514,243 @@ const sign = { expense: '-', income: '+', transfer: '' };
             </div>
         </div>
 
-        <form class="flex max-w-xl flex-col gap-2" @submit.prevent="parseQuick">
-            <Label for="quick">Quick entry</Label>
-            <div class="flex gap-2">
-                <Input
-                    id="quick"
-                    v-model="quick.text"
-                    placeholder="Jollibee 250"
-                />
-                <Button :disabled="quick.processing">Fill form</Button>
-            </div>
-            <InputError :message="quick.errors.text" />
-        </form>
+        <Dialog v-model:open="expenseOpen">
+            <DialogContent class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>
+                        {{
+                            editing
+                                ? 'Edit expense'
+                                : expense.source === 'quick'
+                                  ? 'Confirm quick entry'
+                                  : 'Add expense'
+                        }}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {{
+                            editing
+                                ? 'Changing the amount or card updates both balances.'
+                                : 'Charged to the card you pick below.'
+                        }}
+                    </DialogDescription>
+                </DialogHeader>
+                <form
+                    class="grid gap-4 sm:grid-cols-2"
+                    @submit.prevent="saveExpense"
+                >
+                    <div class="grid gap-2">
+                        <Label for="merchant">Merchant</Label>
+                        <Input
+                            id="merchant"
+                            v-model="expense.merchant"
+                            required
+                        />
+                        <InputError :message="expense.errors.merchant" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="amount">Amount (PHP)</Label>
+                        <Input
+                            id="amount"
+                            v-model="expense.amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            required
+                        />
+                        <InputError :message="expense.errors.amount" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="card_id">Card</Label>
+                        <SelectNative
+                            id="card_id"
+                            v-model="expense.card_id"
+                            required
+                        >
+                            <option
+                                v-for="c in cards"
+                                :key="c.id"
+                                :value="String(c.id)"
+                            >
+                                {{ c.name }}
+                            </option>
+                        </SelectNative>
+                        <InputError :message="expense.errors.card_id" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="category_id">Category</Label>
+                        <SelectNative
+                            id="category_id"
+                            v-model="expense.category_id"
+                        >
+                            <option value="">Uncategorized</option>
+                            <option
+                                v-for="c in categories"
+                                :key="c.id"
+                                :value="String(c.id)"
+                            >
+                                {{ c.name }}
+                            </option>
+                        </SelectNative>
+                        <InputError :message="expense.errors.category_id" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="occurred_at">Date</Label>
+                        <Input
+                            id="occurred_at"
+                            v-model="expense.occurred_at"
+                            type="date"
+                            required
+                        />
+                        <InputError :message="expense.errors.occurred_at" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="note">Note</Label>
+                        <Input id="note" v-model="expense.note" />
+                        <InputError :message="expense.errors.note" />
+                    </div>
+                    <DialogFooter class="sm:col-span-2">
+                        <p
+                            v-if="!cards.length"
+                            class="self-center text-sm text-muted-foreground sm:mr-auto"
+                        >
+                            Add a card first.
+                        </p>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            @click="expenseOpen = false"
+                        >
+                            Cancel
+                        </Button>
+                        <Button :disabled="expense.processing || !cards.length">
+                            {{ editing ? 'Save changes' : 'Save expense' }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
 
-        <div class="grid gap-4 xl:grid-cols-2">
-            <form
-                id="add-expense"
-                class="grid scroll-mt-24 gap-4 rounded-xl border bg-card p-6 sm:grid-cols-2"
-                @submit.prevent="saveExpense"
-            >
-                <h3 class="font-medium sm:col-span-2">
-                    {{
-                        editing
-                            ? 'Edit expense'
-                            : expense.source === 'quick'
-                              ? 'Confirm quick entry'
-                              : 'Add expense'
-                    }}
-                </h3>
-                <div class="grid gap-2">
-                    <Label for="merchant">Merchant</Label>
-                    <Input id="merchant" v-model="expense.merchant" required />
-                    <InputError :message="expense.errors.merchant" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="amount">Amount (PHP)</Label>
-                    <Input
-                        id="amount"
-                        v-model="expense.amount"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        required
-                    />
-                    <InputError :message="expense.errors.amount" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="card_id">Card</Label>
-                    <SelectNative
-                        id="card_id"
-                        v-model="expense.card_id"
-                        required
-                    >
-                        <option
-                            v-for="c in cards"
-                            :key="c.id"
-                            :value="String(c.id)"
+        <Dialog v-model:open="transferOpen">
+            <DialogContent class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Transfer</DialogTitle>
+                    <DialogDescription>
+                        Move money between your cards and pods. It is not
+                        counted as spending.
+                    </DialogDescription>
+                </DialogHeader>
+                <form
+                    class="grid gap-4 sm:grid-cols-2"
+                    @submit.prevent="saveTransfer"
+                >
+                    <div class="grid gap-2">
+                        <Label for="from">From</Label>
+                        <SelectNative
+                            id="from"
+                            v-model="transfer.from"
+                            required
                         >
-                            {{ c.name }}
-                        </option>
-                    </SelectNative>
-                    <InputError :message="expense.errors.card_id" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="category_id">Category</Label>
-                    <SelectNative
-                        id="category_id"
-                        v-model="expense.category_id"
-                    >
-                        <option value="">Uncategorized</option>
-                        <option
-                            v-for="c in categories"
-                            :key="c.id"
-                            :value="String(c.id)"
+                            <option value="" disabled>Choose</option>
+                            <option
+                                v-for="c in cards"
+                                :key="`c${c.id}`"
+                                :value="`card:${c.id}`"
+                            >
+                                Card: {{ c.name }}
+                            </option>
+                            <option
+                                v-for="p in pods"
+                                :key="`p${p.id}`"
+                                :value="`pod:${p.id}`"
+                            >
+                                Pod: {{ p.name }}
+                            </option>
+                        </SelectNative>
+                        <InputError :message="transfer.errors.from" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="to">To</Label>
+                        <SelectNative id="to" v-model="transfer.to" required>
+                            <option value="" disabled>Choose</option>
+                            <option
+                                v-for="c in cards"
+                                :key="`c${c.id}`"
+                                :value="`card:${c.id}`"
+                            >
+                                Card: {{ c.name }}
+                            </option>
+                            <option
+                                v-for="p in pods"
+                                :key="`p${p.id}`"
+                                :value="`pod:${p.id}`"
+                            >
+                                Pod: {{ p.name }}
+                            </option>
+                        </SelectNative>
+                        <InputError :message="transfer.errors.to" />
+                    </div>
+                    <div class="grid gap-2 sm:col-span-2">
+                        <Label for="transfer_amount">Amount (PHP)</Label>
+                        <Input
+                            id="transfer_amount"
+                            v-model="transfer.amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            required
+                        />
+                        <InputError :message="transfer.errors.amount" />
+                    </div>
+                    <DialogFooter class="sm:col-span-2">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            @click="transferOpen = false"
                         >
-                            {{ c.name }}
-                        </option>
-                    </SelectNative>
-                    <InputError :message="expense.errors.category_id" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="occurred_at">Date</Label>
-                    <Input
-                        id="occurred_at"
-                        v-model="expense.occurred_at"
-                        type="date"
-                        required
-                    />
-                    <InputError :message="expense.errors.occurred_at" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="note">Note</Label>
-                    <Input id="note" v-model="expense.note" />
-                    <InputError :message="expense.errors.note" />
-                </div>
-                <div class="flex flex-wrap items-center gap-2 sm:col-span-2">
-                    <Button :disabled="expense.processing || !cards.length">
-                        Save expense
-                    </Button>
-                    <Button
-                        v-if="editing"
-                        type="button"
-                        variant="ghost"
-                        @click="cancelEdit"
-                    >
-                        Cancel
-                    </Button>
-                    <p
-                        v-if="!cards.length"
-                        class="mt-2 text-sm text-muted-foreground"
-                    >
-                        Add a card first.
-                    </p>
-                </div>
-            </form>
+                            Cancel
+                        </Button>
+                        <Button :disabled="transfer.processing">
+                            Transfer
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
 
-            <form
-                id="transfer"
-                class="grid scroll-mt-24 content-start gap-4 rounded-xl border bg-card p-6 sm:grid-cols-2"
-                @submit.prevent="saveTransfer"
-            >
-                <h3 class="font-medium sm:col-span-2">Transfer</h3>
-                <div class="grid gap-2">
-                    <Label for="from">From</Label>
-                    <SelectNative id="from" v-model="transfer.from" required>
-                        <option value="" disabled>Choose</option>
-                        <option
-                            v-for="c in cards"
-                            :key="`c${c.id}`"
-                            :value="`card:${c.id}`"
+        <Dialog v-model:open="quickOpen">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Quick entry</DialogTitle>
+                    <DialogDescription>
+                        Type what you spent and where, like "Jollibee 250". Add
+                        a card name at the end to pick it. You check it before
+                        anything is saved.
+                    </DialogDescription>
+                </DialogHeader>
+                <form class="grid gap-4" @submit.prevent="parseQuick">
+                    <div class="grid gap-2">
+                        <Label for="quick">What did you spend?</Label>
+                        <Input
+                            id="quick"
+                            v-model="quick.text"
+                            placeholder="Jollibee 250 gcash"
+                            autofocus
+                            required
+                        />
+                        <InputError :message="quick.errors.text" />
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            @click="quickOpen = false"
                         >
-                            Card: {{ c.name }}
-                        </option>
-                        <option
-                            v-for="p in pods"
-                            :key="`p${p.id}`"
-                            :value="`pod:${p.id}`"
-                        >
-                            Pod: {{ p.name }}
-                        </option>
-                    </SelectNative>
-                    <InputError :message="transfer.errors.from" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="to">To</Label>
-                    <SelectNative id="to" v-model="transfer.to" required>
-                        <option value="" disabled>Choose</option>
-                        <option
-                            v-for="c in cards"
-                            :key="`c${c.id}`"
-                            :value="`card:${c.id}`"
-                        >
-                            Card: {{ c.name }}
-                        </option>
-                        <option
-                            v-for="p in pods"
-                            :key="`p${p.id}`"
-                            :value="`pod:${p.id}`"
-                        >
-                            Pod: {{ p.name }}
-                        </option>
-                    </SelectNative>
-                    <InputError :message="transfer.errors.to" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="transfer_amount">Amount (PHP)</Label>
-                    <Input
-                        id="transfer_amount"
-                        v-model="transfer.amount"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        required
-                    />
-                    <InputError :message="transfer.errors.amount" />
-                </div>
-                <div class="self-end">
-                    <Button :disabled="transfer.processing">Transfer</Button>
-                </div>
-            </form>
-        </div>
+                            Cancel
+                        </Button>
+                        <Button :disabled="quick.processing">Continue</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

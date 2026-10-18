@@ -104,7 +104,7 @@ class HardeningTest extends TestCase
         $user = $this->demo();
         config(['services.gemini.key' => 'sk-test-leak-canary']);
 
-        foreach (['/dashboard', '/receipts', '/chat', '/settings/data/export'] as $url) {
+        foreach (['/dashboard', '/transactions', '/chat', '/settings/data/export'] as $url) {
             $this->actingAs($user)->get($url)->assertDontSee('sk-test-leak-canary', false);
         }
         $this->actingAs($user)->getJson('/api/v1/me')->assertDontSee('sk-test-leak-canary', false);
