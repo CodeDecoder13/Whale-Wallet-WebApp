@@ -173,7 +173,12 @@ class ChatTest extends TestCase
         {
             public function chat(string $text, array $context): array
             {
-                return $text === 'hi' ? ['intent' => 'chat', 'reply' => 'Hello! Save ₱5,000 today.', 'draft' => null, 'question' => null] : parent::chat($text, $context);
+                return $text === 'hi' ? ['intent' => 'chat', 'reply' => '', 'draft' => null, 'question' => null] : parent::chat($text, $context);
+            }
+
+            public function advise(string $text, array $facts, array $history): string
+            {
+                return 'Hello! Save ₱7,654,321 today.'; // a figure that is not in the user's data
             }
 
             public function phrase(string $question, array $facts): string
@@ -183,7 +188,7 @@ class ChatTest extends TestCase
         });
         $this->actingAs($user);
 
-        $this->say('hi')->assertJsonPath('reply', fn ($r) => ! str_contains($r, '5,000'));
+        $this->say('hi')->assertJsonPath('reply', fn ($r) => ! str_contains($r, 'Save') && str_contains($r, 'net worth'));
         $this->say('how much did I spend this month?')->assertJsonPath('reply', 'You spent ₱0.00 this month.'); // quota while wording still answers
     }
 
@@ -198,7 +203,7 @@ class ChatTest extends TestCase
         });
 
         $this->actingAs($this->demo())->say('how much on yachts this week?')
-            ->assertJsonPath('reply', fn ($r) => str_contains($r, 'could not work out'));
+            ->assertJsonPath('reply', fn ($r) => str_contains($r, 'net worth')); // not a fixed question: Whale answers from the snapshot
     }
 
     public function test_provider_errors_never_reach_the_client()
@@ -271,5 +276,33 @@ class ChatTest extends TestCase
         Queue::assertPushed(ParseReceipt::class, fn ($job) => $job->receiptId === $r->json('receipt_id'));
         $this->assertSame(0, Transaction::count());
         $this->get(route('chat.index'))->assertInertia(fn ($page) => $page->component('chat/Index')->where('consented', true)->has('messages', 2));
+    }
+
+    public function test_advice_sees_the_whole_snapshot_and_only_quotes_known_figures()
+    {
+        $user = $this->demo();
+        $seen = null;
+        $this->app->instance(AiProvider::class, new class($seen) extends FakeAiProvider
+        {
+            public function __construct(public &$seen) {}
+
+            public function chat(string $text, array $context): array
+            {
+                return ['intent' => 'chat', 'reply' => '', 'draft' => null, 'question' => null];
+            }
+
+            public function advise(string $text, array $facts, array $history): string
+            {
+                $this->seen = $facts;
+
+                return "Your net worth is ₱{$facts['net_worth']['total']}. Keep going.";
+            }
+        });
+
+        $r = $this->actingAs($user)->say('what is my net worth?')->json('reply');
+
+        $this->assertStringContainsString('net worth', $r);
+        $this->assertEqualsCanonicalizing(['net_worth', 'monthly_income', 'monthly_bills_and_subscriptions', 'left_after_bills', 'spent_this_month', 'spent_last_month', 'left_this_month', 'safe_to_spend_per_day', 'days_to_payday', 'balance_at_payday', 'lowest_balance_before_payday', 'cards', 'savings_pods', 'spending_by_category_this_month', 'bills_and_subscriptions', 'loans'], array_keys($seen));
+        $this->assertNotEmpty($seen['cards']);
     }
 }

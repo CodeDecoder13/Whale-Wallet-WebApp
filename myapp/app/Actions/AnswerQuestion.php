@@ -15,15 +15,15 @@ use Throwable;
  */
 class AnswerQuestion
 {
-    public function __construct(private AiProvider $ai, private ForecastLoader $forecast) {}
+    public function __construct(private AiProvider $ai, private ForecastLoader $forecast, private FinancialSnapshot $snapshot) {}
 
     /** @param  array{key?: string, category?: ?string, from?: ?string, to?: ?string, period?: ?string}  $q */
-    public function handle(User $user, string $text, array $q): string
+    public function handle(User $user, string $text, array $q, array $history = []): string
     {
         $facts = $this->facts($user, $q);
 
         if (! $facts) {
-            return 'I could not work out which numbers you meant. Try "how much did I spend on Food this week?".';
+            return $this->advise($user, $text, $history);
         }
 
         try {
@@ -99,5 +99,29 @@ class AnswerQuestion
             'safe_to_spend' => "You can spend about {$peso($f['safe_per_day'])} a day for the next {$f['days_to_payday']} days.",
             default => "Your subscriptions cost {$peso($f['monthly'])} a month.",
         };
+    }
+
+    /**
+     * Everything that is not one of the fixed questions: net worth, advice, "can I afford it".
+     * The model sees the whole snapshot and may quote any figure in it, but a reply with a number
+     * that is not in the snapshot is replaced by a plain server sentence.
+     *
+     * @param  list<array{role: string, content: string}>  $history
+     */
+    public function advise(User $user, string $text, array $history = []): string
+    {
+        $facts = $this->snapshot->for($user);
+        $peso = fn (float $n) => '₱'.number_format($n, 2);
+        $plain = "Your net worth is {$peso($facts['net_worth']['total'])}, and you can spend about {$peso($facts['safe_to_spend_per_day'])} a day until payday. Ask me about your bills, cards, savings or spending.";
+
+        try {
+            $reply = trim($this->ai->advise($text, $facts, $history));
+        } catch (Throwable $e) {
+            report($e); // quota or outage: the plain sentence is still true
+
+            return $plain;
+        }
+
+        return $reply !== '' && GenerateRecommendations::citesOnlyKnownNumbers($reply, $facts) ? $reply : $plain;
     }
 }

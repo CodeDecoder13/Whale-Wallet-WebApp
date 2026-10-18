@@ -75,11 +75,9 @@ class HandleChatMessage
                 $d = $r['draft'] ?? [];
                 $loan = $this->loanDraft(['merchant' => $d['merchant'] ?? null, 'amount' => self::centavos($d['amount'] ?? null), 'payments' => self::payments((string) ($d['payments'] ?? '')), 'occurred_at' => $d['occurred_at'] ?? null]);
             } elseif ($r['intent'] === 'question') {
-                $reply = $this->answer->handle($user, $text, $r['question'] ?? []);
+                $reply = $this->answer->handle($user, $text, $r['question'] ?? [], $this->history($thread));
             } else {
-                $reply = trim($r['reply']);
-                // chat replies may not contain figures: nothing here is computed from the user's data
-                $reply = $reply !== '' && GenerateRecommendations::citesOnlyKnownNumbers($reply, []) ? $reply : 'I can log an expense (try "Jollibee 250") or answer questions about your spending.';
+                $reply = $this->answer->advise($user, $text, $this->history($thread));
             }
         }
 
@@ -99,6 +97,12 @@ class HandleChatMessage
         $message = $thread->messages()->create(['role' => 'assistant', 'content' => $reply, 'draft_json' => $draft]);
 
         return ['id' => $message->id, 'reply' => $reply] + ($draft ? ['draft' => $draft] : []) + ($quickReplies ? ['quick_replies' => $quickReplies] : []);
+    }
+
+    /** The last few turns, oldest first, so a follow-up like "and next month?" makes sense. */
+    private function history(ChatThread $thread): array
+    {
+        return $thread->messages()->latest('id')->limit(6)->get(['role', 'content'])->reverse()->values()->toArray();
     }
 
     private function context(User $user, ?array $pending): array

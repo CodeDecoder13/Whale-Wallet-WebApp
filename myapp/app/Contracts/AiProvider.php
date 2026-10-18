@@ -32,4 +32,12 @@ interface AiProvider
 
     /** Word an answer using only the numbers in $facts. The caller validates the result. */
     public function phrase(string $question, array $facts): string;
+
+    /**
+     * Free-form coaching: net worth, advice, "can I afford it". Uses ONLY the numbers in $facts
+     * (see FinancialSnapshot); the caller validates the result. $history is the last few turns.
+     *
+     * @param  list<array{role: string, content: string}>  $history
+     */
+    public function advise(string $text, array $facts, array $history): string;
 }

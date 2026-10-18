@@ -115,4 +115,11 @@ class FakeAiProvider implements AiProvider
 
         return ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'period' => $period];
     }
+
+    public function advise(string $text, array $facts, array $history): string
+    {
+        $peso = fn (float|int $n) => '₱'.number_format($n, 2);
+
+        return "Your net worth is {$peso($facts['net_worth']['total'])}, and you can spend about {$peso($facts['safe_to_spend_per_day'])} a day until payday.";
+    }
 }

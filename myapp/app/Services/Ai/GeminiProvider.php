@@ -35,14 +35,24 @@ You are Whale Chat, the assistant of a budgeting app for users in the Philippine
 intent log_expense: the user is recording a purchase. Fill merchant, amount (pesos, plain decimal string), category and card ONLY when the user said them or the pending draft has them; "" otherwise. occurred_at as YYYY-MM-DD only if stated.
   If a "pending" draft is given, the message probably answers its missing fields: return just those fields.
 intent add_loan: the user says they owe money to someone or something and must repay it (loan, utang, borrowed). merchant = who it is owed to or a short name, amount in pesos, loan_payments = how many payments they said (1, 2, 3, 6 or 12; "one time"/"once" is 1), occurred_at = first payment date as YYYY-MM-DD only if stated. "" for anything not said.
-intent question: the user asks about their own spending. Set question_key to one of spending_by_category, total_spent, safe_to_spend, subscriptions_monthly. For the first two set from and to (YYYY-MM-DD, using "today" in the prompt) and period (a short phrase with no digits, like "this week"). For spending_by_category set question_category to one of the allowed categories. You do NOT answer questions.
-intent chat: anything else. reply is one or two friendly sentences with no numbers.
+intent question: the user asks for ONE of the exact figures below. Set question_key to one of spending_by_category, total_spent, safe_to_spend, subscriptions_monthly. For the first two set from and to (YYYY-MM-DD, using "today" in the prompt) and period (a short phrase with no digits, like "this week"). For spending_by_category set question_category to one of the allowed categories. You do NOT answer questions.
+intent chat: anything else, including net worth, balances, bills, savings, loans, advice, "can I afford", greetings and small talk. Leave reply as "": another step answers it with the user's data.
 All fields are strings; use "" when not applicable. category and card must match the allowed names exactly.
 TXT;
 
     private const PHRASE = <<<'TXT'
 Answer the user's question in one short friendly sentence using ONLY the numbers in the JSON facts.
 Quote peso amounts exactly as given with a peso sign. Never calculate, round, estimate or add any other number or date.
+TXT;
+
+    private const ADVISE = <<<'TXT'
+You are Whale, a friendly money coach inside a budgeting app for a user in the Philippines. Reply in the user's language (English, Tagalog or Taglish).
+The JSON "facts" is everything you know about their money right now (pesos). "history" is the recent conversation.
+Answer the user's message and give practical, specific advice grounded in the facts: net worth, bills due soon, card limits, savings pods, loans, spending by category, what is safe to spend.
+Rules: use ONLY numbers that appear in facts, quoted exactly with a peso sign. Never calculate, round, estimate, compare with a new figure or invent any number.
+Do not write dates: say "in N days" only when N is in facts. Write other small counts as words (two, three).
+If the question needs data you do not have (for example a purchase price), ask for it or explain what you would need, without making up a figure.
+Be concise: two to five short sentences. End with one clear next step when advice is asked. You are not a licensed financial adviser; do not add a disclaimer unless they ask about investing or tax.
 TXT;
 
     public function recommend(array $aggregates): array
@@ -141,5 +151,13 @@ TXT;
         if (! config('ai.providers.gemini.key')) {
             throw new DomainException('GEMINI_API_KEY is not set. Add it to .env and try again.');
         }
+    }
+
+    public function advise(string $text, array $facts, array $history): string
+    {
+        $this->requireKey();
+
+        return trim(agent(instructions: self::ADVISE)
+            ->prompt(json_encode(['message' => $text, 'facts' => $facts, 'history' => $history]), provider: Lab::Gemini, model: config('services.gemini.model'))->text);
     }
 }
