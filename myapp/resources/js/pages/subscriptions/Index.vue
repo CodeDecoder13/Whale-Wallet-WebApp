@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { LayoutGrid, Plus, Table2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import SubscriptionController from '@/actions/App/Http/Controllers/SubscriptionController';
+import BillCard from '@/components/BillCard.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -58,7 +59,7 @@ const shown = computed(() =>
     props.items.filter((i) => tab.value === 'all' || i.kind === tab.value),
 );
 const sort = ref<'due' | 'high' | 'low' | 'name'>('due');
-const view = ref<'table' | 'cards'>('table');
+const view = ref<'table' | 'cards'>('cards');
 const sorted = computed(() =>
     [...shown.value].sort((a, b) =>
         sort.value === 'high'
@@ -348,48 +349,28 @@ const dueDate = (d: string | null) =>
             </table>
         </div>
         <ul v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <li
+            <BillCard
                 v-for="s in sorted"
                 :key="s.id"
-                class="flex flex-col gap-3 rounded-xl border bg-card p-4 text-sm"
+                :name="s.name"
+                :logo="s.logo"
+                :meta="`${label(s.kind)} · ${detail(s)} · ${dueDate(s.next_due_on)}`"
+                :amount="s.amount"
+                :due="s.next_due_on"
+                :done="s.installments !== null && !s.left"
             >
-                <div class="flex items-center gap-3">
-                    <BrandLogo :name="s.name" :logo="s.logo" />
-                    <div class="min-w-0 flex-1">
-                        <div class="truncate font-medium">{{ s.name }}</div>
-                        <div class="text-xs text-muted-foreground capitalize">
-                            {{ label(s.kind) }} · {{ detail(s) }}
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-baseline justify-between">
-                    <span class="text-2xl font-semibold">
-                        {{ formatPeso(s.amount) }}
-                    </span>
-                    <span class="text-xs text-muted-foreground">
-                        Due {{ dueDate(s.next_due_on) }}
-                    </span>
-                </div>
-                <div
-                    class="mt-auto flex gap-3 text-xs font-medium text-brand-deep dark:text-brand-light"
-                >
-                    <button v-if="payable(s)" type="button" class="font-semibold" @click="pay(s)">
-                        Pay
-                    </button>
-                    <button type="button" @click="edit(s)">Edit</button>
-                    <button
-                        v-if="s.kind !== 'debt'"
-                        type="button"
-                        @click="flip(s)"
-                    >
-                        Make {{ other(s.kind) }}
-                    </button>
-                    <button v-if="s.kind !== 'debt'" type="button" @click="makeLoan(s)">
-                        Make loan
-                    </button>
-                    <button type="button" @click="remove(s)">Delete</button>
-                </div>
-            </li>
+                <button v-if="payable(s)" type="button" class="font-semibold" @click="pay(s)">
+                    Pay
+                </button>
+                <button type="button" @click="edit(s)">Edit</button>
+                <button v-if="s.kind !== 'debt'" type="button" @click="flip(s)">
+                    Make {{ other(s.kind) }}
+                </button>
+                <button v-if="s.kind !== 'debt'" type="button" @click="makeLoan(s)">
+                    Make loan
+                </button>
+                <button type="button" @click="remove(s)">Delete</button>
+            </BillCard>
         </ul>
 
         <Dialog :open="!!paying" @update:open="(v) => !v && (paying = null)">
