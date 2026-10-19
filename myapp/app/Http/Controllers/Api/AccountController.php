@@ -82,6 +82,18 @@ class AccountController extends Controller
         return new UserResource($request->user());
     }
 
+    /** The daily Whale tips email: opt in or out, and the Philippine-time hour (HH:MM, 09:00 by default). */
+    public function digest(Request $request): UserResource
+    {
+        $data = $request->validate([
+            'digest_enabled' => ['required', 'boolean'],
+            'digest_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+        ]);
+        $request->user()->forceFill([...$data, 'digest_sent_on' => null])->save();
+
+        return new UserResource($request->user());
+    }
+
     public function password(PasswordUpdateRequest $request): JsonResponse
     {
         $request->user()->update(['password' => $request->password]);

@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toDataUrl } from '@/lib/image';
@@ -29,7 +30,11 @@ defineOptions({
 const page = usePage();
 const user = computed(() => page.props.auth.user);
 
-const props = defineProps<{ pay_dates: number[] }>();
+const props = defineProps<{
+    pay_dates: number[];
+    digest: { digest_enabled: boolean; digest_time: string };
+    consented: boolean;
+}>();
 
 // square-crop would be nicer, but a 128px JPEG keeps auth.user small on every page
 const { getInitials } = useInitials();
@@ -52,6 +57,16 @@ const payday = useForm({
     first: String(props.pay_dates[0] ?? ''),
     second: String(props.pay_dates[1] ?? ''),
 });
+
+// Whale tips refresh every day at this Philippine-time hour; the email only goes out when the box is ticked
+const digest = useForm({
+    digest_enabled: props.digest.digest_enabled,
+    digest_time: props.digest.digest_time,
+});
+
+function saveDigest() {
+    digest.patch(ProfileController.digest.url(), { preserveScroll: true });
+}
 
 function savePayday() {
     payday
@@ -195,6 +210,35 @@ function savePayday() {
             />
         </div>
         <Button :disabled="payday.processing">Save payday</Button>
+    </form>
+
+    <form id="digest" class="mt-10 space-y-6" @submit.prevent="saveDigest">
+        <Heading
+            variant="small"
+            title="Daily digest"
+            description="Whale writes your tips every day at the time you pick, and can email them to you. The same tips show on your dashboard."
+        />
+        <div class="grid max-w-sm gap-4">
+            <label class="flex items-center gap-3 text-sm">
+                <Checkbox
+                    :model-value="digest.digest_enabled"
+                    @update:model-value="digest.digest_enabled = $event === true"
+                />
+                Email me the daily digest
+            </label>
+            <div class="grid gap-2">
+                <Label for="digest-time">Send at (Philippine time)</Label>
+                <Input id="digest-time" v-model="digest.digest_time" type="time" required />
+                <p class="text-xs text-muted-foreground">
+                    9:00 AM by default. Tips refresh within a few minutes of this time.
+                </p>
+                <InputError :message="digest.errors.digest_time" />
+            </div>
+            <p v-if="!consented" class="text-xs text-muted-foreground">
+                Tips need the AI notice accepted. Open Whale Chat or Tips once and tap I agree.
+            </p>
+        </div>
+        <Button :disabled="digest.processing">Save digest</Button>
     </form>
 
     <DeleteUser />

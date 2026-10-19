@@ -48,6 +48,41 @@ class PayBillTest extends TestCase
         $this->get(route('subscriptions.index'))->assertInertia(fn ($page) => $page->where('items', fn ($items) => collect($items)->firstWhere('id', $bill->id)['last_paid'] === '2026-03-10'));
     }
 
+    public function test_paying_with_a_scanned_receipt_keeps_its_reference_and_closes_the_receipt()
+    {
+        $bill = $this->item([]);
+        $receipt = $this->user->receipts()->create(['purpose' => 'expense', 'status' => 'parsed', 'parsed_json' => []]);
+
+        $this->post(route('subscriptions.pay', $bill->id), ['card_id' => Card::first()->id, 'amount' => '1600', 'paid_on' => '2026-03-10', 'reference' => 'GC-123', 'receipt_id' => $receipt->id])->assertRedirect();
+
+        $tx = Transaction::where('recurring_item_id', $bill->id)->sole();
+        $this->assertSame(['GC-123', $receipt->id, 'confirmed'], [$tx->reference, $tx->receipt_id, $receipt->fresh()->status]);
+
+        // the same receipt cannot pay twice
+        $this->post(route('subscriptions.pay', $bill->id), ['card_id' => Card::first()->id, 'amount' => '1600', 'paid_on' => '2026-03-10', 'receipt_id' => $receipt->id])->assertStatus(422);
+    }
+
+    public function test_a_cancelled_subscription_stays_on_file_stops_counting_and_can_be_renewed()
+    {
+        $sub = $this->item(['kind' => RecurringKind::Subscription]);
+        $this->post(route('subscriptions.cancel', $sub->id), [])->assertSessionHasErrors('reason');
+        $this->post(route('subscriptions.cancel', $sub->id), ['reason' => 'Too expensive'])->assertRedirect();
+
+        $this->assertSame('Too expensive', $sub->fresh()->cancel_reason);
+        $this->assertSame(0, RecurringItem::active()->whereKey($sub->id)->count());
+        $this->post(route('subscriptions.pay', $sub->id), ['card_id' => Card::first()->id, 'amount' => '1600', 'paid_on' => '2026-03-10'])->assertStatus(422);
+
+        $this->post(route('subscriptions.renew', $sub->id))->assertRedirect();
+        $this->assertNull($sub->fresh()->cancelled_at);
+
+        // a bill cannot be cancelled, and deleting keeps past payments
+        $bill = $this->item([]);
+        $this->post(route('subscriptions.cancel', $bill->id), ['reason' => 'x'])->assertStatus(422);
+        $this->post(route('subscriptions.pay', $bill->id), ['card_id' => Card::first()->id, 'amount' => '1600', 'paid_on' => '2026-03-10']);
+        $this->delete(route('subscriptions.destroy', $bill->id));
+        $this->assertSame(1, Transaction::where('merchant', 'Converge')->whereNull('recurring_item_id')->count());
+    }
+
     public function test_cannot_pay_from_someone_elses_card_or_in_the_future()
     {
         $bill = $this->item([]);

@@ -62,6 +62,10 @@ class FakeAiProvider implements AiProvider
             }
         }
 
+        if (preg_match('/\b(cancel|renew|resubscribe|delete|remove|change|edit|update|rename)\b|\band (?:pay|paid|log|spent|cancel)\b|\badd\b.*\b(?:bill|subscription)\b/i', $text) && ! str_contains($t, '?')) {
+            return ['intent' => 'manage', 'reply' => '', 'draft' => null, 'question' => null];
+        }
+
         if (preg_match('/\b(loan|utang|borrowed)\b/i', $text) && ! str_contains($t, '?')) {
             preg_match('/\bto (?:my )?(\w+)/i', $text, $who);
             preg_match('/(\d[\d,]*(?:\.\d+)?)\s*(k)?\b/i', $text, $amt);
@@ -95,6 +99,34 @@ class FakeAiProvider implements AiProvider
         }
 
         return ['intent' => 'chat', 'reply' => 'I can log an expense (try "Jollibee 250") or answer questions like "how much food this week?".', 'draft' => null, 'question' => null];
+    }
+
+    /** Keyword rules standing in for the model: one action per clause, split on "and" / "tapos" / "then". */
+    public function actions(string $text, array $context): array
+    {
+        $blank = ['target_id' => 0, 'name' => '', 'kind' => '', 'amount' => '', 'cadence' => '', 'next_due_on' => '', 'reason' => '', 'merchant' => '', 'card' => '', 'category' => '', 'occurred_at' => '', 'payments' => ''];
+        $actions = [];
+
+        foreach (array_slice(preg_split('/\s+(?:and|tapos|then)\s+/i', $text), 0, 4) as $clause) {
+            $t = mb_strtolower($clause);
+            $item = collect($context['items'])->first(fn ($i) => str_contains($t, mb_strtolower($i['name'])));
+            $tx = collect($context['transactions'])->first(fn ($x) => str_contains($t, mb_strtolower($x['merchant'])));
+            preg_match('/(\d[\d,]*(?:\.\d+)?)/', $clause, $n);
+            preg_match('/\b(\d{4}-\d{2}-\d{2})\b/', $clause, $d);
+            $a = ['amount' => $n[1] ?? '', 'next_due_on' => $d[1] ?? ''] + $blank;
+
+            $actions[] = match (true) {
+                (bool) preg_match('/\bcancel/', $t) => ['type' => 'cancel_subscription', 'target_id' => $item['id'] ?? 0, 'reason' => preg_match('/because (.+)$/', $t, $r) ? $r[1] : '', 'amount' => ''] + $a,
+                (bool) preg_match('/\b(renew|resubscribe)/', $t) => ['type' => 'renew_subscription', 'target_id' => $item['id'] ?? 0] + $a,
+                (bool) preg_match('/\b(delete|remove)/', $t) => $item ? ['type' => 'delete_recurring', 'target_id' => $item['id']] + $a : ['type' => 'delete_transaction', 'target_id' => $tx['id'] ?? 0] + $a,
+                (bool) preg_match('/\b(change|edit|update|set)\b/', $t) => $item ? ['type' => 'edit_recurring', 'target_id' => $item['id']] + $a : ['type' => 'edit_transaction', 'target_id' => $tx['id'] ?? 0] + $a,
+                (bool) preg_match('/\badd\b/', $t) => ['type' => 'add_recurring', 'name' => preg_match('/add (.+?) (?:bill|subscription)/', $t, $m) ? ucfirst($m[1]) : '', 'kind' => str_contains($t, 'subscription') ? 'subscription' : 'bill', 'cadence' => str_contains($t, 'yearly') ? 'yearly' : 'monthly'] + $a,
+                (bool) preg_match('/\b(paid|pay)\b/', $t) && $item => ['type' => 'pay_bill', 'target_id' => $item['id']] + $a,
+                default => ['type' => 'log_expense', 'merchant' => preg_match('/(?:log|spent)\s+(?:on\s+)?([a-z ]+?)\s*\d/i', $clause, $m) ? trim($m[1]) : ''] + $a,
+            };
+        }
+
+        return $actions;
     }
 
     public function phrase(string $question, array $facts): string

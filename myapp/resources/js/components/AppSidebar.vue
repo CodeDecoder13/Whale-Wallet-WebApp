@@ -7,7 +7,6 @@ import {
     PiggyBank,
     Receipt,
     Repeat,
-    Sparkles,
     TrendingUp,
     Wallet,
 } from '@lucide/vue';
@@ -29,7 +28,6 @@ import { index as cards } from '@/routes/cards';
 import { index as chat } from '@/routes/chat';
 import { index as pods } from '@/routes/pods';
 import { index as subscriptions } from '@/routes/subscriptions';
-import { index as tips } from '@/routes/tips';
 import { index as transactions } from '@/routes/transactions';
 import type { NavItem } from '@/types';
 
@@ -40,7 +38,6 @@ const mainNavItems: NavItem[] = [
     { title: 'Transactions', href: transactions(), icon: Receipt },
     { title: 'Forecast', href: forecast(), icon: TrendingUp },
     { title: 'Bills & Subs', href: subscriptions(), icon: Repeat },
-    { title: 'Tips', href: tips(), icon: Sparkles },
     { title: 'Whale Chat', href: chat(), icon: MessageCircle },
 ];
 

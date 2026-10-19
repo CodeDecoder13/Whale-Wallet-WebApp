@@ -65,7 +65,8 @@ class DashboardController extends Controller
             'categories' => $month()->with('category:id,name')
                 ->selectRaw('category_id, sum(amount) as total')->groupBy('category_id')->orderByDesc('total')->get()
                 ->map(fn ($r) => ['name' => $r->category?->name ?? 'Uncategorized', 'total' => (int) $r->total]),
-            'upcoming' => RecurringItem::whereBetween('next_due_on', [today(), today()->addDays(14)->endOfDay()])
+            'upcoming' => RecurringItem::active()->where('next_due_on', '<=', today()->addDays(14)->endOfDay())
+                ->where(fn ($q) => $q->whereNull('installments')->orWhere('installments', '>', 0)) // paid-off loans keep an old date
                 ->orderBy('next_due_on')->get(['id', 'name', 'amount', 'next_due_on', 'logo']),
         ]);
     }

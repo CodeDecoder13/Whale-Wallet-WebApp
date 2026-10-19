@@ -1,26 +1,25 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { LayoutGrid, Plus, Table2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Ban, ImagePlus, LayoutGrid, Pencil, PencilLine, Plus, ScanLine, Table2, Trash2, TriangleAlert } from '@lucide/vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import SubscriptionController from '@/actions/App/Http/Controllers/SubscriptionController';
+import AiConsent from '@/components/AiConsent.vue';
 import BillCard from '@/components/BillCard.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import { api, type ApiError } from '@/lib/api';
+import { destroy as receiptDestroy, show as receiptShow, store as receiptStore } from '@/routes/receipts';
 import { findBrand } from '@/lib/brandLogos';
 import { toDataUrl } from '@/lib/image';
 import { formatPeso, toPesos } from '@/lib/currency';
+import { dueTone } from '@/lib/dueTone';
 import { index } from '@/routes/subscriptions';
 
 type Kind = 'bill' | 'subscription' | 'debt';
@@ -34,6 +33,9 @@ type Item = {
     installments: number | null;
     card_id: number | null;
     last_paid: string | null;
+    cancelled: boolean;
+    cancel_reason: string | null;
+    payments: { id: number; amount: number; card: string; paid_on: string }[];
     logo: string | null;
     left: number | null;
     monthly: number;
@@ -46,6 +48,7 @@ defineOptions({
 const props = defineProps<{
     items: Item[];
     cards: { id: number; name: string; balance: number }[];
+    consented: boolean;
 }>();
 
 const tabs = [
@@ -53,10 +56,17 @@ const tabs = [
     { key: 'bill', label: 'Bills' },
     { key: 'subscription', label: 'Subscriptions' },
     { key: 'debt', label: 'Loans' },
+    { key: 'archived', label: 'Archived' },
 ] as const;
 const tab = ref<(typeof tabs)[number]['key']>('all');
+// A loan that is fully paid is completed: it leaves the active tabs and stays under Archived with its history.
+const completed = (i: Item) => i.installments !== null && !i.left;
 const shown = computed(() =>
-    props.items.filter((i) => tab.value === 'all' || i.kind === tab.value),
+    props.items.filter((i) =>
+        tab.value === 'archived'
+            ? completed(i)
+            : !completed(i) && (tab.value === 'all' || i.kind === tab.value),
+    ),
 );
 const sort = ref<'due' | 'high' | 'low' | 'name'>('due');
 const view = ref<'table' | 'cards'>('cards');
@@ -80,7 +90,7 @@ const detail = (s: Item) =>
           ? 'monthly'
           : s.left
             ? `${s.left} of ${s.installments} payments left`
-            : 'paid off';
+            : 'completed';
 // No built-in logo for this name: offer an upload. The browser shrinks it to 128px so it stays tiny.
 const needsLogo = computed(() => form.name.trim() && !findBrand(form.name));
 
@@ -91,6 +101,38 @@ async function pickLogo(e: Event) {
         form.logo = await toDataUrl(file, 128).catch(() => null);
     }
 }
+
+// One side panel slides in from the right: details first, then the pay or edit form in the same place.
+const panel = ref<'info' | 'pay' | 'edit' | 'cancel' | 'delete' | null>(null);
+const selectedId = ref<number | null>(null);
+const selected = computed(() => props.items.find((i) => i.id === selectedId.value) ?? null);
+const tone = (s: Item) =>
+    s.cancelled
+        ? { days: null, c: '#94a3b8', text: 'Cancelled' }
+        : dueTone(s.next_due_on, s.installments !== null && !s.left);
+
+// Delete and cancel ask first inside the panel; cancel keeps the subscription so it can be renewed.
+const cancelReasons = ['Too expensive', 'Not using it', 'Switched provider', 'Pausing for now'];
+const cancelForm = useForm({ reason: '' });
+
+function openItem(s: Item) {
+    selectedId.value = s.id;
+    cancelForm.reset();
+    panel.value = 'info';
+}
+
+function submitCancel() {
+    cancelForm.post(SubscriptionController.cancel.url(selectedId.value!), {
+        preserveScroll: true,
+        onSuccess: () => {
+            panel.value = 'info';
+            cancelForm.reset();
+        },
+    });
+}
+
+const renew = (s: Item) =>
+    router.post(SubscriptionController.renew.url(s.id), {}, { preserveScroll: true });
 
 const total = computed(() => shown.value.reduce((n, i) => n + i.monthly, 0));
 const other = (k: Kind): Kind => (k === 'bill' ? 'subscription' : 'bill');
@@ -114,11 +156,11 @@ const blank = {
     installments: '',
     logo: null as string | null,
 };
-const open = ref(false);
 const editing = ref<number | null>(null);
 const form = useForm({ ...blank });
 
 function edit(s: Item) {
+    selectedId.value = s.id;
     editing.value = s.id;
     form.defaults({
         name: s.name,
@@ -130,7 +172,7 @@ function edit(s: Item) {
         logo: s.logo,
     });
     form.reset();
-    open.value = true;
+    panel.value = 'edit';
 }
 
 // A loan needs a payment count, so open the form with Loan chosen instead of flipping blindly.
@@ -139,40 +181,145 @@ function makeLoan(s: Item) {
     form.kind = 'debt';
 }
 
+// Paying: upload a receipt (read for you) or enter it by hand. The user always picks the mode of payment.
+type Scan = {
+    id: number;
+    status: 'queued' | 'parsing' | 'parsed' | 'failed' | 'confirmed';
+    error: string | null;
+    draft: {
+        amount: number;
+        occurred_at: string;
+        reference: string | null;
+        card_id: number | null;
+        duplicate_of: number[];
+    } | null;
+};
+const payMode = ref<'upload' | 'manual' | null>(null);
+const scan = ref<Scan | null>(null);
+const scanning = ref(false);
+const scanError = ref<string | null>(null);
+let scanTimer: ReturnType<typeof setInterval> | undefined;
+
+function stopPolling() {
+    clearInterval(scanTimer);
+    scanTimer = undefined;
+}
+
+// A scan that never became a payment is thrown away with its image.
+async function dropScan() {
+    stopPolling();
+    const old = scan.value;
+    scan.value = null;
+    scanError.value = null;
+    payForm.receipt_id = null;
+
+    if (old && old.status !== 'confirmed') {
+        await api(receiptDestroy.url(old.id), undefined, 'DELETE').catch(() => {});
+    }
+}
+
+async function switchMode(mode: 'upload' | 'manual' | null) {
+    await dropScan();
+    payMode.value = mode;
+}
+
+function applyScan(s: Scan) {
+    scan.value = s;
+
+    if (s.status === 'parsed' && s.draft) {
+        stopPolling();
+        payForm.amount = toPesos(s.draft.amount);
+        payForm.paid_on = s.draft.occurred_at;
+        payForm.reference = s.draft.reference ?? '';
+        payForm.card_id = s.draft.card_id ?? payForm.card_id;
+        payForm.receipt_id = s.id;
+    } else if (s.status === 'failed') {
+        stopPolling();
+    }
+}
+
+async function pickReceipt(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+
+    if (!file) {
+        return;
+    }
+
+    scanError.value = null;
+
+    if (file.size > 8 * 1024 * 1024) {
+        scanError.value = 'That image is over 8 MB.';
+
+        return;
+    }
+
+    const body = new FormData();
+    body.append('image', file);
+    scanning.value = true;
+
+    try {
+        applyScan(await api<Scan>(receiptStore.url(), body));
+        scanTimer = setInterval(async () => {
+            try {
+                applyScan(await api<Scan>(receiptShow.url(scan.value!.id)));
+            } catch {
+                // keep waiting; the next tick tries again
+            }
+        }, 1500);
+    } catch (err) {
+        const e = err as ApiError;
+        scanError.value = e.data?.errors?.image?.[0] ?? e.message;
+    } finally {
+        scanning.value = false;
+    }
+}
+
+onBeforeUnmount(stopPolling);
+
 // Paying logs an expense on the chosen card and moves the item to its next due date.
-const paying = ref<Item | null>(null);
-const payForm = useForm({ card_id: 0, amount: '', paid_on: '' });
-const payable = (s: Item) => !(s.installments !== null && !s.left);
+const payForm = useForm({ card_id: 0, amount: '', paid_on: '', reference: '', receipt_id: null as number | null });
+const payable = (s: Item) => !s.cancelled && !(s.installments !== null && !s.left);
 
 function pay(s: Item) {
-    paying.value = s;
+    void switchMode(null);
+    selectedId.value = s.id;
     payForm.defaults({
         card_id: s.card_id ?? props.cards[0]?.id ?? 0,
         amount: toPesos(s.amount),
         paid_on: new Date().toISOString().slice(0, 10),
+        reference: '',
+        receipt_id: null,
     });
     payForm.reset();
+    panel.value = 'pay';
 }
 
 function submitPay() {
-    payForm.post(SubscriptionController.pay.url(paying.value!.id), {
+    payForm.post(SubscriptionController.pay.url(selectedId.value!), {
         preserveScroll: true,
-        onSuccess: () => (paying.value = null),
+        onSuccess: () => {
+            scan.value = null;
+            panel.value = 'info';
+        },
     });
 }
 
 function add() {
+    selectedId.value = null;
     editing.value = null;
     form.defaults({
         ...blank,
-        kind: tab.value === 'all' ? 'bill' : tab.value,
+        kind: tab.value === 'all' || tab.value === 'archived' ? 'bill' : tab.value,
     });
     form.reset();
-    open.value = true;
+    panel.value = 'edit';
 }
 
+// Leaving a form goes back to the details when an item is open, otherwise the panel closes.
 function cancel() {
-    open.value = false;
+    panel.value = editing.value ? 'info' : null;
     editing.value = null;
     form.defaults({ ...blank });
     form.reset();
@@ -204,11 +351,8 @@ function flip(s: Item) {
 }
 
 function remove(s: Item) {
-    if (confirm(`Delete ${s.name}?`)) {
-        router.delete(SubscriptionController.destroy.url(s.id), {
-            preserveScroll: true,
-        });
-    }
+    panel.value = null;
+    router.delete(SubscriptionController.destroy.url(s.id), { preserveScroll: true });
 }
 
 const dueDate = (d: string | null) =>
@@ -339,7 +483,7 @@ const dueDate = (d: string | null) =>
                                 <button v-if="s.kind !== 'debt'" type="button" @click="makeLoan(s)">
                                     Make loan
                                 </button>
-                                <button type="button" @click="remove(s)">
+                                <button type="button" @click="(openItem(s), (panel = 'delete'))">
                                     Delete
                                 </button>
                             </div>
@@ -358,170 +502,401 @@ const dueDate = (d: string | null) =>
                 :amount="s.amount"
                 :due="s.next_due_on"
                 :done="s.installments !== null && !s.left"
-            >
-                <button v-if="payable(s)" type="button" class="font-semibold" @click="pay(s)">
-                    Pay
-                </button>
-                <button type="button" @click="edit(s)">Edit</button>
-                <button v-if="s.kind !== 'debt'" type="button" @click="flip(s)">
-                    Make {{ other(s.kind) }}
-                </button>
-                <button v-if="s.kind !== 'debt'" type="button" @click="makeLoan(s)">
-                    Make loan
-                </button>
-                <button type="button" @click="remove(s)">Delete</button>
-            </BillCard>
+                :cancelled="s.cancelled"
+                @select="openItem(s)"
+            />
         </ul>
 
-        <Dialog :open="!!paying" @update:open="(v) => !v && (paying = null)">
-            <DialogContent v-if="paying" class="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Pay {{ paying.name }}</DialogTitle>
-                    <DialogDescription>
-                        This logs an expense on the card you pick and moves the
-                        next due date forward.
-                    </DialogDescription>
-                </DialogHeader>
-                <form class="grid gap-4" @submit.prevent="submitPay">
-                    <div class="grid gap-2">
-                        <Label for="pay-card">Paid from</Label>
-                        <SelectNative id="pay-card" v-model="payForm.card_id" required>
-                            <option v-for="c in cards" :key="c.id" :value="c.id">
-                                {{ c.name }} ({{ formatPeso(c.balance) }})
-                            </option>
-                        </SelectNative>
-                        <InputError :message="payForm.errors.card_id" />
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="grid gap-2">
-                            <Label for="pay-amount">Amount (PHP)</Label>
-                            <Input
-                                id="pay-amount"
-                                v-model="payForm.amount"
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                required
-                            />
-                            <InputError :message="payForm.errors.amount" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="pay-date">Paid on</Label>
-                            <Input id="pay-date" v-model="payForm.paid_on" type="date" required />
-                            <InputError :message="payForm.errors.paid_on" />
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <Button :disabled="payForm.processing">Mark as paid</Button>
-                        <Button type="button" variant="ghost" @click="paying = null">
-                            Cancel
-                        </Button>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
+        <Dialog :open="panel !== null" @update:open="(v) => !v && (panel === 'edit' ? cancel() : (panel = null))">
+            <DialogContent
+                class="max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 transition-[max-width] duration-300 md:flex"
+                :class="selected && panel !== 'info' ? 'sm:max-w-3xl' : 'sm:max-w-md'"
+            >
+                <div v-if="selected" class="relative min-w-0 md:shrink-0" :class="panel === 'info' ? 'md:w-full' : 'md:w-[26rem]'">
+                    <div class="grid gap-5 p-6">
+                        <DialogHeader class="flex-row items-center gap-3 p-0 pr-8 text-left">
+                            <BrandLogo :name="selected.name" :logo="selected.logo" />
+                            <div class="min-w-0 flex-1">
+                                <DialogTitle class="truncate">{{ selected.name }}</DialogTitle>
+                                <DialogDescription class="capitalize">
+                                    {{ label(selected.kind) }} · {{ detail(selected) }}
+                                </DialogDescription>
+                            </div>
+                            <div class="-mt-4 flex shrink-0 gap-0.5 self-start">
+                                <Button
+                                    v-if="selected.kind === 'subscription' && !selected.cancelled"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8"
+                                    aria-label="Cancel subscription"
+                                    title="Cancel subscription"
+                                    @click="panel = 'cancel'"
+                                >
+                                    <Ban class="size-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" class="size-8" aria-label="Edit" title="Edit" @click="edit(selected)">
+                                    <Pencil class="size-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="size-8 text-destructive"
+                                    aria-label="Delete"
+                                    title="Delete"
+                                    @click="panel = 'delete'"
+                                >
+                                    <Trash2 class="size-4" />
+                                </Button>
+                            </div>
+                        </DialogHeader>
 
-        <Dialog :open="open" @update:open="(v) => !v && cancel()">
-            <DialogContent class="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>
-                        {{ editing ? 'Edit item' : 'Add item' }}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Bills and subscriptions repeat on the schedule you set. Loans are paid monthly and stop after the last payment.
-                    </DialogDescription>
-                </DialogHeader>
-                <form
-                    class="grid gap-4 sm:grid-cols-2"
-                    @submit.prevent="submit"
-                >
-                    <div class="grid gap-2">
-                        <Label for="kind">Type</Label>
-                        <SelectNative id="kind" v-model="form.kind">
-                            <option value="bill">Bill</option>
-                            <option value="subscription">Subscription</option>
-                            <option value="debt">Loan</option>
-                        </SelectNative>
-                        <InputError :message="form.errors.kind" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="name">Name</Label>
-                        <Input id="name" v-model="form.name" required />
-                        <InputError :message="form.errors.name" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="amount">Amount per charge (PHP)</Label>
-                        <Input
-                            id="amount"
-                            v-model="form.amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            required
-                        />
-                        <InputError :message="form.errors.amount" />
-                    </div>
-                    <div v-if="form.kind === 'debt'" class="grid gap-2">
-                        <Label for="installments">Pay it off in</Label>
-                        <SelectNative
-                            id="installments"
-                            v-model="form.installments"
-                            required
-                        >
-                            <option value="" disabled>Choose</option>
-                            <option
-                                v-for="t in terms"
-                                :key="t.value"
-                                :value="t.value"
+                        <div class="flex items-end justify-between gap-3">
+                            <div class="text-4xl font-semibold tracking-tight">{{ formatPeso(selected.amount) }}</div>
+                            <span
+                                class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                                :style="{
+                                    color: tone(selected).c,
+                                    background: `color-mix(in srgb, ${tone(selected).c} 15%, transparent)`,
+                                }"
                             >
-                                {{ t.label }}
-                            </option>
-                        </SelectNative>
-                        <InputError :message="form.errors.installments" />
-                    </div>
-                    <div v-else class="grid gap-2">
-                        <Label for="cadence">Repeats</Label>
-                        <SelectNative id="cadence" v-model="form.cadence">
-                            <option v-for="c in cadences" :key="c" :value="c">
-                                {{ c }}
-                            </option>
-                        </SelectNative>
-                        <InputError :message="form.errors.cadence" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="next_due_on">
-                            {{ form.kind === 'debt' ? 'First payment' : 'Next charge' }}
-                        </Label>
-                        <Input
-                            id="next_due_on"
-                            v-model="form.next_due_on"
-                            type="date"
-                            required
-                        />
-                        <InputError :message="form.errors.next_due_on" />
-                    </div>
-                    <div v-if="form.name.trim()" class="flex items-center gap-3 sm:col-span-2">
-                        <BrandLogo :name="form.name" :logo="form.logo" />
-                        <template v-if="form.logo">
-                            <button type="button" class="text-xs font-medium underline" @click="form.logo = null">
-                                Remove logo
-                            </button>
+                                {{ tone(selected).text }}
+                            </span>
+                        </div>
+
+                        <div v-if="selected.installments !== null" class="grid gap-1.5">
+                            <div class="h-2 overflow-hidden rounded-full bg-muted">
+                                <div
+                                    class="h-full rounded-full"
+                                    :style="{
+                                        width: `${((selected.installments - (selected.left ?? 0)) / selected.installments) * 100}%`,
+                                        background: tone(selected).c,
+                                    }"
+                                />
+                            </div>
+                            <div class="text-xs text-muted-foreground">
+                                {{ selected.left ?? 0 }} of {{ selected.installments }} payments left
+                            </div>
+                        </div>
+
+                        <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                            <div>
+                                <dt class="text-xs text-muted-foreground">Next due</dt>
+                                <dd class="font-medium">{{ dueDate(selected.next_due_on) }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">Costs per month</dt>
+                                <dd class="font-medium">{{ formatPeso(selected.monthly) }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">Pays from</dt>
+                                <dd class="font-medium">
+                                    {{ cards.find((c) => c.id === selected!.card_id)?.name ?? 'Picked when you pay' }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">Last paid</dt>
+                                <dd class="font-medium">{{ selected.last_paid ? dueDate(selected.last_paid) : 'Not yet' }}</dd>
+                            </div>
+                        </dl>
+
+                        <template v-if="selected.cancelled">
+                            <div class="grid gap-1 rounded-xl border p-4 text-sm">
+                                <div class="text-xs text-muted-foreground">Cancelled because</div>
+                                <div class="font-medium">{{ selected.cancel_reason }}</div>
+                            </div>
+                            <Button class="w-full" @click="renew(selected)">Renew subscription</Button>
                         </template>
-                        <label v-else-if="needsLogo" class="grid gap-1 text-xs text-muted-foreground">
-                            No logo found for this name. Upload one (optional)
-                            <input type="file" accept="image/png,image/jpeg,image/webp" @change="pickLogo" />
-                        </label>
-                        <span v-else class="text-xs text-muted-foreground">Logo found automatically</span>
+                        <Button v-else-if="payable(selected)" class="w-full" @click="pay(selected)">Pay now</Button>
+
+                        <div class="grid gap-2">
+                            <h3 class="text-sm font-medium">Transactions</h3>
+                            <p v-if="!selected.payments.length" class="text-sm text-muted-foreground">
+                                No payments yet. Pay now to log the first one.
+                            </p>
+                            <table v-else class="w-full text-left text-sm">
+                                <thead class="border-b text-xs text-muted-foreground uppercase">
+                                    <tr>
+                                        <th class="py-2 font-medium">Date</th>
+                                        <th class="py-2 font-medium">Card</th>
+                                        <th class="py-2 text-right font-medium">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    <tr v-for="p in selected.payments" :key="p.id">
+                                        <td class="py-2 whitespace-nowrap">{{ dueDate(p.paid_on) }}</td>
+                                        <td class="py-2">{{ p.card }}</td>
+                                        <td class="py-2 text-right font-medium">{{ formatPeso(p.amount) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <InputError class="sm:col-span-2" :message="form.errors.logo" />
-                    <div class="flex gap-2 sm:col-span-2">
-                        <Button :disabled="form.processing">Save</Button>
-                        <Button type="button" variant="ghost" @click="cancel">
-                            Cancel
+                </div>
+
+                <Transition name="slide">
+                <div v-if="panel === 'cancel' && selected" class="grid min-w-0 flex-1 content-start gap-5 border-t p-6 md:border-t-0 md:border-l">
+                    <DialogHeader class="p-0 pr-8 text-left">
+                        <DialogTitle>Cancel {{ selected.name }}</DialogTitle>
+                        <DialogDescription>
+                            It stays on file with its payments, so you can renew it any time.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form class="grid gap-4" @submit.prevent="submitCancel">
+                        <div class="grid gap-2">
+                            <Label for="cancel-reason">Why are you cancelling?</Label>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button
+                                    v-for="r in cancelReasons"
+                                    :key="r"
+                                    type="button"
+                                    class="rounded-full border px-2.5 py-1 text-xs transition hover:bg-accent"
+                                    :class="cancelForm.reason === r && 'border-brand bg-accent'"
+                                    @click="cancelForm.reason = r"
+                                >
+                                    {{ r }}
+                                </button>
+                            </div>
+                            <Input id="cancel-reason" v-model="cancelForm.reason" maxlength="255" placeholder="Or write your own" required />
+                            <InputError :message="cancelForm.errors.reason" />
+                        </div>
+                        <div class="flex gap-2">
+                            <Button :disabled="cancelForm.processing">Cancel subscription</Button>
+                            <Button type="button" variant="ghost" @click="panel = 'info'">Back</Button>
+                        </div>
+                    </form>
+                </div>
+                </Transition>
+
+                <Transition name="slide">
+                <div v-if="panel === 'delete' && selected" class="grid min-w-0 flex-1 content-start gap-5 border-t p-6 md:border-t-0 md:border-l">
+                    <DialogHeader class="p-0 pr-8 text-left">
+                        <DialogTitle>Delete {{ selected.name }}?</DialogTitle>
+                        <DialogDescription>
+                            Payments you already logged stay in your transactions. Only this {{ label(selected.kind) }} and its schedule are removed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <p v-if="selected.kind === 'subscription' && !selected.cancelled" class="rounded-lg bg-accent/50 p-3 text-sm">
+                        To keep it for later, cancel it instead. You can renew it any time.
+                    </p>
+                    <div class="flex gap-2">
+                        <Button variant="destructive" @click="remove(selected)">Delete</Button>
+                        <Button variant="ghost" @click="panel = 'info'">Keep it</Button>
+                    </div>
+                </div>
+                </Transition>
+
+                <Transition name="slide">
+                <div v-if="panel === 'pay' && selected" class="grid min-w-0 flex-1 content-start gap-5 border-t p-6 md:border-t-0 md:border-l">
+                    <DialogHeader class="p-0 pr-8 text-left">
+                        <DialogTitle>Pay {{ selected.name }}</DialogTitle>
+                        <DialogDescription>
+                            Add proof of payment. It logs an expense and moves the next due date forward.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div v-if="!payMode" class="grid gap-3">
+                        <button
+                            type="button"
+                            class="flex items-center gap-3 rounded-xl border p-4 text-left transition hover:border-brand hover:bg-accent/40"
+                            @click="payMode = 'upload'"
+                        >
+                            <ScanLine class="size-5 shrink-0 text-brand-deep dark:text-brand-light" />
+                            <span>
+                                <span class="block font-medium">Upload receipt</span>
+                                <span class="block text-xs text-muted-foreground">
+                                    We read the reference number, date and amount for you.
+                                </span>
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            class="flex items-center gap-3 rounded-xl border p-4 text-left transition hover:border-brand hover:bg-accent/40"
+                            @click="payMode = 'manual'"
+                        >
+                            <PencilLine class="size-5 shrink-0 text-brand-deep dark:text-brand-light" />
+                            <span>
+                                <span class="block font-medium">Enter manually</span>
+                                <span class="block text-xs text-muted-foreground">
+                                    Fill in every detail yourself.
+                                </span>
+                            </span>
+                        </button>
+                        <Button type="button" variant="ghost" class="justify-self-start" @click="panel = 'info'">
+                            Back
                         </Button>
                     </div>
-                </form>
+
+                    <form v-else class="grid gap-4" @submit.prevent="submitPay">
+                        <template v-if="payMode === 'upload'">
+                            <AiConsent v-if="!consented" />
+                            <template v-else-if="!scan">
+                                <label
+                                    class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground transition hover:border-brand hover:bg-accent/40"
+                                >
+                                    <ImagePlus class="size-6" />
+                                    <span v-if="scanning" class="flex items-center gap-2">
+                                        <Spinner /> Uploading…
+                                    </span>
+                                    <span v-else>Choose a receipt image (PNG, JPG or WebP)</span>
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        class="sr-only"
+                                        :disabled="scanning"
+                                        @change="pickReceipt"
+                                    />
+                                </label>
+                                <InputError :message="scanError ?? undefined" />
+                            </template>
+                            <div
+                                v-else-if="scan.status === 'queued' || scan.status === 'parsing'"
+                                class="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground"
+                            >
+                                <Spinner /> Reading your receipt…
+                            </div>
+                            <div v-else-if="scan.status === 'failed'" class="grid gap-3 rounded-xl border border-destructive/40 p-4 text-sm">
+                                <p class="text-destructive">{{ scan.error }}</p>
+                                <div class="flex gap-2">
+                                    <Button type="button" size="sm" variant="outline" @click="dropScan">Try another image</Button>
+                                    <Button type="button" size="sm" variant="ghost" @click="switchMode('manual')">
+                                        Enter manually
+                                    </Button>
+                                </div>
+                            </div>
+                            <p
+                                v-if="scan?.status === 'parsed' && scan.draft?.duplicate_of.length"
+                                class="flex items-start gap-2 rounded-lg bg-yellow-500/10 p-3 text-xs"
+                            >
+                                <TriangleAlert class="mt-0.5 size-4 shrink-0 text-yellow-600" />
+                                This looks like a payment you already logged.
+                            </p>
+                        </template>
+
+                        <template v-if="payMode === 'manual' || scan?.status === 'parsed'">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="grid gap-2">
+                                    <Label for="pay-ref">Reference number</Label>
+                                    <Input id="pay-ref" v-model="payForm.reference" placeholder="Optional" />
+                                    <InputError :message="payForm.errors.reference" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="pay-date">Paid on</Label>
+                                    <Input id="pay-date" v-model="payForm.paid_on" type="date" required />
+                                    <InputError :message="payForm.errors.paid_on" />
+                                </div>
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="pay-amount">Amount (PHP)</Label>
+                                <Input id="pay-amount" v-model="payForm.amount" type="number" step="0.01" min="0.01" required />
+                                <InputError :message="payForm.errors.amount" />
+                            </div>
+                            <div class="grid gap-2">
+                                <Label for="pay-card">Mode of payment</Label>
+                                <SelectNative id="pay-card" v-model="payForm.card_id" required>
+                                    <option v-for="c in cards" :key="c.id" :value="c.id">
+                                        {{ c.name }} ({{ formatPeso(c.balance) }})
+                                    </option>
+                                </SelectNative>
+                                <InputError :message="payForm.errors.card_id" />
+                                <InputError :message="payForm.errors.receipt_id" />
+                            </div>
+                            <Button :disabled="payForm.processing">Mark as paid</Button>
+                        </template>
+                        <Button type="button" variant="ghost" class="justify-self-start" @click="switchMode(null)">
+                            Back
+                        </Button>
+                    </form>
+                </div>
+                </Transition>
+
+                <Transition name="slide">
+                <div v-if="panel === 'edit'" class="grid min-w-0 flex-1 content-start gap-5 p-6" :class="selected && 'border-t md:border-t-0 md:border-l'">
+                    <DialogHeader class="p-0 pr-8 text-left">
+                        <DialogTitle>{{ editing ? 'Edit item' : 'Add item' }}</DialogTitle>
+                        <DialogDescription>
+                            Bills and subscriptions repeat on the schedule you set. Loans are paid monthly and stop after the last payment.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form class="grid gap-4" @submit.prevent="submit">
+                        <div class="grid gap-2">
+                            <Label for="kind">Type</Label>
+                            <SelectNative id="kind" v-model="form.kind">
+                                <option value="bill">Bill</option>
+                                <option value="subscription">Subscription</option>
+                                <option value="debt">Loan</option>
+                            </SelectNative>
+                            <InputError :message="form.errors.kind" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="name">Name</Label>
+                            <Input id="name" v-model="form.name" required />
+                            <InputError :message="form.errors.name" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="amount">Amount per charge (PHP)</Label>
+                            <Input id="amount" v-model="form.amount" type="number" step="0.01" min="0.01" required />
+                            <InputError :message="form.errors.amount" />
+                        </div>
+                        <div v-if="form.kind === 'debt'" class="grid gap-2">
+                            <Label for="installments">Pay it off in</Label>
+                            <SelectNative id="installments" v-model="form.installments" required>
+                                <option value="" disabled>Choose</option>
+                                <option v-for="t in terms" :key="t.value" :value="t.value">{{ t.label }}</option>
+                            </SelectNative>
+                            <InputError :message="form.errors.installments" />
+                        </div>
+                        <div v-else class="grid gap-2">
+                            <Label for="cadence">Repeats</Label>
+                            <SelectNative id="cadence" v-model="form.cadence">
+                                <option v-for="c in cadences" :key="c" :value="c">{{ c }}</option>
+                            </SelectNative>
+                            <InputError :message="form.errors.cadence" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="next_due_on">{{ form.kind === 'debt' ? 'First payment' : 'Next charge' }}</Label>
+                            <Input id="next_due_on" v-model="form.next_due_on" type="date" required />
+                            <InputError :message="form.errors.next_due_on" />
+                        </div>
+                        <div v-if="form.name.trim()" class="flex items-center gap-3">
+                            <BrandLogo :name="form.name" :logo="form.logo" />
+                            <template v-if="form.logo">
+                                <button type="button" class="text-xs font-medium underline" @click="form.logo = null">
+                                    Remove logo
+                                </button>
+                            </template>
+                            <label v-else-if="needsLogo" class="grid gap-1 text-xs text-muted-foreground">
+                                No logo found for this name. Upload one (optional)
+                                <input type="file" accept="image/png,image/jpeg,image/webp" @change="pickLogo" />
+                            </label>
+                            <span v-else class="text-xs text-muted-foreground">Logo found automatically</span>
+                        </div>
+                        <InputError :message="form.errors.logo" />
+                        <div class="flex gap-2">
+                            <Button :disabled="form.processing">Save</Button>
+                            <Button type="button" variant="ghost" @click="cancel">Cancel</Button>
+                        </div>
+                    </form>
+                </div>
+                </Transition>
             </DialogContent>
         </Dialog>
     </div>
 </template>
+
+<style scoped>
+.slide-enter-active {
+    transition:
+        transform 0.3s ease,
+        opacity 0.3s ease;
+}
+
+.slide-enter-from {
+    transform: translateX(1.5rem);
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .slide-enter-active {
+        transition: none;
+    }
+}
+</style>

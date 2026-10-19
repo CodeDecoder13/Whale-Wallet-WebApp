@@ -30,6 +30,15 @@ interface AiProvider
      */
     public function chat(string $text, array $context): array;
 
+    /**
+     * Turn a message that changes data (or holds several requests) into up to four independent actions.
+     * Targets are ids taken from $context['items'] and $context['transactions']; nothing here is trusted yet.
+     *
+     * @param  array{today: string, cards: list<string>, categories: list<string>, items: list<array>, transactions: list<array>}  $context
+     * @return list<array<string, mixed>> each has type, target_id and the string fields the type needs
+     */
+    public function actions(string $text, array $context): array;
+
     /** Word an answer using only the numbers in $facts. The caller validates the result. */
     public function phrase(string $question, array $facts): string;
 

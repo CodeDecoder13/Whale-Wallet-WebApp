@@ -19,7 +19,7 @@ class ForecastController extends Controller
         return Inertia::render('forecast/Index', [
             'forecast' => $loader->for($request->user(), $skip),
             'skipped' => $skip,
-            'subscriptions' => RecurringItem::where('kind', RecurringKind::Subscription)->orderBy('name')->get(['id', 'name', 'amount']),
+            'subscriptions' => RecurringItem::active()->where('kind', RecurringKind::Subscription)->orderBy('name')->get(['id', 'name', 'amount']),
         ]);
     }
 }

@@ -50,7 +50,7 @@ class AnswerQuestion
         }
 
         if ($key === 'subscriptions_monthly') {
-            $total = $user->recurringItems()->where('kind', 'subscription')->get()->sum(fn ($i) => $i->monthlyAmount());
+            $total = $user->recurringItems()->active()->where('kind', 'subscription')->get()->sum(fn ($i) => $i->monthlyAmount());
 
             return ['question' => $key, 'monthly' => $pesos($total)];
         }

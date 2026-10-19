@@ -32,7 +32,7 @@ class ForecastLoader
             'balance' => (int) $cards->sum('balance'),
             'today' => $today,
             'pay_dates' => $user->pay_dates ?? [],
-            'outflows' => $user->recurringItems()->get()
+            'outflows' => $user->recurringItems()->active()->get()
                 ->reject(fn ($item) => $item->id === $skipId)
                 ->flatMap(fn ($item) => array_map(
                     fn ($d) => ['date' => $d->toDateString(), 'amount' => $item->amount],

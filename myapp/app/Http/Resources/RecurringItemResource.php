@@ -21,6 +21,8 @@ class RecurringItemResource extends JsonResource
             'cadence' => $this->cadence,
             'next_due_on' => $this->next_due_on?->toDateString(),
             'kind' => $this->kind,
+            'cancelled_at' => $this->cancelled_at?->toIso8601String(),
+            'cancel_reason' => $this->cancel_reason,
         ];
     }
 }

@@ -36,7 +36,7 @@ class DashboardController extends Controller
             'cards' => CardResource::collection(Card::withSpent()->orderBy('name')->get())->resolve(),
             'pods' => PodResource::collection(Pod::orderBy('name')->get())->resolve(),
             'upcoming_bills' => RecurringItemResource::collection(
-                RecurringItem::whereBetween('next_due_on', [today(), today()->addDays(14)->endOfDay()])->orderBy('next_due_on')->get()
+                RecurringItem::active()->whereBetween('next_due_on', [today(), today()->addDays(14)->endOfDay()])->orderBy('next_due_on')->get()
             )->resolve(),
             'recommendations' => RecommendationResource::collection(Recommendation::whereNull('dismissed_at')->latest('id')->limit(3)->get())->resolve(),
         ]);

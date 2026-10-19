@@ -17,7 +17,14 @@ use Throwable;
  */
 class HandleChatMessage
 {
-    public function __construct(private AiProvider $ai, private ParseQuickEntry $quick, private AnswerQuestion $answer) {}
+    public function __construct(private AiProvider $ai, private ParseQuickEntry $quick, private AnswerQuestion $answer, private ManageByChat $manager) {}
+
+    /** A message that changes bills or transactions, or holds several requests: the quick rules must not swallow it. */
+    private static function isManage(string $text): bool
+    {
+        return preg_match('/\b(cancel|renew|resubscribe|delete|remove|edit|change|update|rename)\b|\band\s+(?:pay|paid|log|spent|cancel)\b|\badd\b.*\b(?:bill|subscription)\b|;/i', $text) === 1
+            || (preg_match_all('/\d[\d,.]*k?\b/i', $text) >= 2 && preg_match('/\b(and|tapos|then)\b/i', $text) === 1);
+    }
 
     public static function isSalary(string $text): bool
     {
@@ -45,8 +52,10 @@ class HandleChatMessage
         $salary = self::isSalary($text);
         $amountAnswer = $incomeDraft && in_array('amount', $incomeDraft['missing'], true) ? self::amountFrom($text) : null;
         $income = null;
-        $bill = ! $salary && ! $pendingLoan && ! $incomeDraft ? $this->billPayment($user, $text) : null;
-        $quick = ! $salary && ! str_contains($text, '?') && str_word_count($text) <= 5 && ! preg_match('/\b(loan|utang|borrowed)\b/i', $text) ? $this->quick->handle($text) : null;
+        $manage = self::isManage($text);
+        $turns = null;
+        $bill = ! $salary && ! $pendingLoan && ! $incomeDraft && ! $manage ? $this->billPayment($user, $text) : null;
+        $quick = ! $salary && ! $manage && ! str_contains($text, '?') && str_word_count($text) <= 5 && ! preg_match('/\b(loan|utang|borrowed)\b/i', $text) ? $this->quick->handle($text) : null;
 
         if ($salary || $amountAnswer) {
             $income = self::incomeDraft($amountAnswer ?? self::amountFrom($text));
@@ -55,6 +64,10 @@ class HandleChatMessage
                 : 'Nice! How much did you receive?';
         } elseif ($pendingLoan && ($update = self::loanUpdate($pendingLoan, $text))) {
             $loan = $this->loanDraft($update);
+        } elseif (! $pendingLoan && ! $incomeDraft && self::isDueQuestion($text)) {
+            // answered from the database, no AI: due today, else the next 3 days, else the next 7
+            [$reply, $dues] = $this->dues();
+            $turns = [['reply' => $reply, 'draft' => $dues, 'quick' => []]];
         } elseif ($bill) {
             $fields = $bill;
         } elseif ($quick) {
@@ -62,7 +75,9 @@ class HandleChatMessage
         } else {
             $r = $this->ai->chat($text, $this->context($user, $pending));
 
-            if ($r['intent'] === 'log_expense') {
+            if ($r['intent'] === 'manage') {
+                $turns = $this->manageTurns($user, $text);
+            } elseif ($r['intent'] === 'log_expense') {
                 $d = $r['draft'] ?? [];
                 $fields = array_filter([
                     'merchant' => $d['merchant'] ?? null,
@@ -81,22 +96,117 @@ class HandleChatMessage
             }
         }
 
-        $draft = $income ?? $loan ?? ($fields !== null ? $this->draft($user, $fields) : null);
+        if ($turns === null) {
+            $draft = $income ?? $loan ?? ($fields !== null ? $this->draft($user, $fields) : null);
 
-        if ($draft && ! empty($fields['recurring_id'])) {
-            $draft['recurring_id'] = (int) $fields['recurring_id'];
-        }
-        $quickReplies = [];
+            if ($draft && ! empty($fields['recurring_id'])) {
+                $draft['recurring_id'] = (int) $fields['recurring_id'];
+            }
+            $quickReplies = [];
 
-        if ($draft && ! $income) {
-            [$reply, $quickReplies] = $this->wording($user, $draft);
+            if ($draft && ! $income) {
+                [$reply, $quickReplies] = $this->wording($user, $draft);
+            }
+
+            $turns = [['reply' => $reply, 'draft' => $draft, 'quick' => $quickReplies]];
         }
 
         // saved only after the turn worked, so a failed AI call can be retried without a duplicate
         $thread->messages()->create(['role' => 'user', 'content' => $text]);
-        $message = $thread->messages()->create(['role' => 'assistant', 'content' => $reply, 'draft_json' => $draft]);
+        $thread->forceFill(['title' => $thread->title ?: mb_substr($text, 0, 50)])->touch(); // the first message names the chat; touch moves it to the top of history
+        $out = [];
 
-        return ['id' => $message->id, 'reply' => $reply] + ($draft ? ['draft' => $draft] : []) + ($quickReplies ? ['quick_replies' => $quickReplies] : []);
+        foreach ($turns as $t) {
+            $message = $thread->messages()->create(['role' => 'assistant', 'content' => $t['reply'], 'draft_json' => $t['draft']]);
+            $out[] = ['id' => $message->id, 'reply' => $t['reply']] + ($t['draft'] ? ['draft' => $t['draft']] : []) + ($t['quick'] ? ['quick_replies' => $t['quick']] : []);
+        }
+
+        // one message can hold several requests: the first answers as usual, the rest follow in "extra", each with its own confirm
+        return $out[0] + (count($out) > 1 ? ['extra' => array_slice($out, 1)] : []);
+    }
+
+    /**
+     * Up to four independent actions from one message, each its own turn with its own draft to confirm.
+     *
+     * @return list<array{reply: string, draft: ?array, quick: list<string>}>
+     */
+    private function manageTurns(User $user, string $text): array
+    {
+        $context = [...$this->context($user, null), ...$this->manager->context($user)];
+        $turns = [];
+
+        foreach (array_slice($this->ai->actions($text, $context), 0, 4) as $a) {
+            $type = (string) ($a['type'] ?? '');
+            $draft = null;
+
+            if ($type === 'log_expense') {
+                $draft = $this->draft($user, array_filter(['merchant' => $a['merchant'] ?? null, 'amount' => self::centavos($a['amount'] ?? null), 'card' => $a['card'] ?? null, 'category' => $a['category'] ?? null, 'occurred_at' => $a['occurred_at'] ?? null], fn ($v) => $v !== null && $v !== ''));
+            } elseif ($type === 'add_loan') {
+                $draft = $this->loanDraft(['merchant' => ($a['merchant'] ?? '') ?: ($a['name'] ?? null), 'amount' => self::centavos($a['amount'] ?? null), 'payments' => self::payments((string) ($a['payments'] ?? '')), 'occurred_at' => ($a['next_due_on'] ?? '') ?: ($a['occurred_at'] ?? null)]);
+            } elseif ($type === 'pay_bill') {
+                $item = RecurringItem::find((int) ($a['target_id'] ?? 0));
+
+                if (! $item || $item->installments === 0 || $item->cancelled_at) {
+                    $turns[] = ['reply' => $item ? "{$item->name} cannot be paid right now: it is paid off or cancelled." : 'I could not find that bill to pay.', 'draft' => null, 'quick' => []];
+
+                    continue;
+                }
+
+                $draft = $this->draft($user, array_filter(['merchant' => $item->name, 'amount' => self::centavos($a['amount'] ?? null) ?? $item->amount, 'card' => ($a['card'] ?? '') ?: $user->cards()->find($item->card_id)?->name, 'category' => 'Bills'], fn ($v) => $v !== null && $v !== ''));
+                $draft['recurring_id'] = $item->id;
+            }
+
+            if ($draft) {
+                [$reply, $quick] = $this->wording($user, $draft);
+                $turns[] = ['reply' => $reply, 'draft' => $draft, 'quick' => $quick];
+
+                continue;
+            }
+
+            $r = $this->manager->draft($a);
+            $turns[] = ['reply' => isset($r['draft']) ? $r['draft']['title'].' Check the details and confirm.' : $r['reply'], 'draft' => $r['draft'] ?? null, 'quick' => []];
+        }
+
+        return $turns ?: [['reply' => 'I could not tell what to change. Try “cancel Netflix”, “change Rent to ₱8,500” or “delete my Jollibee expense”.', 'draft' => null, 'quick' => []]];
+    }
+
+    /** "what's my due today?", "ano ang bayarin ko", "upcoming bills": asking what is due, not paying or changing anything. */
+    private static function isDueQuestion(string $text): bool
+    {
+        return ! self::isManage($text) && ! self::isSalary($text)
+            && preg_match('/\b(due|dues|bayarin|babayaran|upcoming bills?)\b/i', $text) === 1
+            && preg_match('/\b(what|what\'?s|whats|ano|show|list|any|my|check|upcoming|meron)\b/i', $text) === 1
+            && preg_match('/\b(paid|pay|binayaran|bayad na|how much (?:did|have) i)\b/i', $text) === 0;
+    }
+
+    /**
+     * Bills, subscriptions and loans due today (overdue ones too); when none, the next 3 days; when none, the next 7.
+     *
+     * @return array{0: string, 1: ?array}
+     */
+    private function dues(): array
+    {
+        $items = RecurringItem::active()->whereNotNull('next_due_on')->where(fn ($q) => $q->whereNull('installments')->orWhere('installments', '>', 0))->orderBy('next_due_on')->get();
+
+        foreach ([[0, 'today'], [3, 'in the next 3 days'], [7, 'in the next 7 days']] as [$days, $label]) {
+            $due = $items->filter(fn ($i) => $i->next_due_on->lte(today()->addDays($days)))->values();
+
+            if ($due->isNotEmpty()) {
+                $lead = $days === 0 ? '' : 'Nothing is due today. ';
+                $n = $due->count();
+
+                return [
+                    $lead.($n === 1 ? 'You have 1 payment' : "You have {$n} payments").' due '.$label.'.',
+                    ['kind' => 'dues', 'window' => $label, 'missing' => [], 'merchant' => null, 'amount' => null, 'card' => null, 'category' => null, 'occurred_at' => today()->toDateString(),
+                        'items' => $due->map(fn ($i) => [
+                            'id' => $i->id, 'name' => $i->name, 'kind' => $i->kind->value, 'amount' => $i->amount, 'logo' => $i->logo,
+                            'due_on' => $i->next_due_on->toDateString(), 'days' => (int) today()->diffInDays($i->next_due_on, false),
+                        ])->all()],
+                ];
+            }
+        }
+
+        return ['Nothing is due today, in the next 3 days or in the next 7 days. You are clear.', null];
     }
 
     /** The last few turns, oldest first, so a follow-up like "and next month?" makes sense. */

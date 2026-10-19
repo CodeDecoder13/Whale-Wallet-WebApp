@@ -9,6 +9,7 @@ import Mascot from '@/components/Mascot.vue';
 import WelcomeBackDialog from '@/components/WelcomeBackDialog.vue';
 import type { Point } from '@/components/ForecastChart.vue';
 import { formatPeso } from '@/lib/currency';
+import { dueTone } from '@/lib/dueTone';
 import { dashboard, forecast as forecastPage } from '@/routes';
 import { edit as profileEdit } from '@/routes/profile';
 import { index as tipsPage } from '@/routes/tips';
@@ -371,7 +372,9 @@ const dueDate = (d: string) =>
 
         <section class="rounded-xl border bg-card p-6">
             <h2 class="font-medium">Upcoming bills</h2>
-            <p class="mb-3 text-xs text-muted-foreground">Next 14 days</p>
+            <p class="mb-3 text-xs text-muted-foreground">
+                Overdue and due in the next 14 days
+            </p>
             <p v-if="!upcoming.length" class="text-sm text-muted-foreground">
                 Nothing due soon.
             </p>
@@ -388,7 +391,16 @@ const dueDate = (d: string) =>
                             {{ dueDate(b.next_due_on) }}
                         </div>
                     </div>
-                    <span class="font-semibold">{{
+                    <span
+                        class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        :style="{
+                            color: dueTone(b.next_due_on).c,
+                            background: `color-mix(in srgb, ${dueTone(b.next_due_on).c} 15%, transparent)`,
+                        }"
+                    >
+                        {{ dueTone(b.next_due_on).text }}
+                    </span>
+                    <span class="w-28 text-right font-semibold">{{
                         formatPeso(b.amount)
                     }}</span>
                 </li>

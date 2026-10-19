@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreateTransaction;
 use App\Actions\HandleChatMessage;
+use App\Actions\ManageByChat;
 use App\Actions\PayRecurring;
 use App\Actions\StoreReceipt;
 use App\Enums\RecurringKind;
@@ -35,15 +36,39 @@ class ChatController extends Controller
 
     private function history(Request $request): array
     {
-        $thread = ChatThread::latest('id')->first();
+        $thread = $request->integer('thread') ? ChatThread::findOrFail($request->integer('thread')) : ChatThread::latest('id')->first();
         $incomeReceipts = Receipt::where('purpose', 'income')->pluck('id');
 
         return [
             'consented' => (bool) $request->user()->ai_consent_at,
+            'thread_id' => $thread?->id,
+            // history for the side panel: newest activity first; a deleted chat is soft-deleted and no longer listed
+            'threads' => ChatThread::latest('updated_at')->latest('id')->limit(50)->get(['id', 'title', 'updated_at']),
             'messages' => $thread?->messages()->latest('id')->limit(50)->get(['id', 'role', 'content', 'draft_json', 'receipt_id'])
                 ->each(fn ($m) => $m->income = $m->receipt_id && $incomeReceipts->contains($m->receipt_id))
                 ->reverse()->values() ?? [],
         ];
+    }
+
+    /** A fresh, empty chat. */
+    public function newThread(Request $request): JsonResponse
+    {
+        return response()->json($request->user()->chatThreads()->create()->only(['id', 'title']), 201);
+    }
+
+    public function renameThread(Request $request, ChatThread $thread): JsonResponse
+    {
+        $thread->update($request->validate(['title' => ['required', 'string', 'max:80']]));
+
+        return response()->json($thread->only(['id', 'title']));
+    }
+
+    /** Soft delete: the chat leaves the history list; its rows stay until the user wipes everything in Settings. */
+    public function deleteThread(ChatThread $thread): JsonResponse
+    {
+        $thread->delete();
+
+        return response()->json(null, 204);
     }
 
     /** Returns { reply, draft?, quick_replies? }. An attached image goes through the receipt pipeline. */
@@ -87,10 +112,19 @@ class ChatController extends Controller
     /** The only place a chat draft becomes a transaction. */
     public function confirm(ChatMessage $message, CreateTransaction $create): JsonResponse
     {
-        $id = DB::transaction(function () use ($message, $create) {
+        $done = null;
+        $id = DB::transaction(function () use ($message, $create, &$done) {
             $message = ChatMessage::lockForUpdate()->findOrFail($message->id);
             $d = $message->draft_json;
-            abort_unless($d && ! $d['missing'] && empty($d['saved']) && ($d['kind'] ?? null) !== 'income', 422, 'There is no complete draft to save here.');
+            abort_unless($d && ! $d['missing'] && empty($d['saved']) && ! in_array($d['kind'] ?? null, ['income', 'dues'], true), 422, 'There is no complete draft to save here.');
+
+            // add, edit, cancel, renew or delete from chat; the target is checked again inside apply()
+            if (($d['kind'] ?? null) === 'manage') {
+                $done = app(ManageByChat::class)->apply($d);
+                $message->update(['draft_json' => $d + ['saved' => $d['target_id'] ?: 1, 'done' => $done]]);
+
+                return $d['target_id'] ?: 1;
+            }
 
             if (($d['kind'] ?? null) === 'loan') {
                 $loan = RecurringItem::create([
@@ -120,6 +154,6 @@ class ChatController extends Controller
             return $transaction->id;
         });
 
-        return response()->json(['saved' => true, 'transaction_id' => $id]);
+        return response()->json(['saved' => true, 'transaction_id' => $id] + ($done ? ['message' => $done] : []));
     }
 }

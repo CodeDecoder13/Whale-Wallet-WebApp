@@ -14,6 +14,26 @@ class RecurringItem extends Model
 
     protected $guarded = ['user_id'];
 
+    /** Everything except cancelled subscriptions (those stay on file but stop counting). */
+    public function scopeActive($query)
+    {
+        return $query->whereNull('cancelled_at');
+    }
+
+    /** A cancelled subscription stays on file with its reason, so it can be renewed. */
+    public function cancel(string $reason): void
+    {
+        abort_unless($this->kind === RecurringKind::Subscription, 422, 'Only subscriptions can be cancelled.');
+        $this->update(['cancelled_at' => now(), 'cancel_reason' => $reason]);
+    }
+
+    /** Back in play; a past charge date rolls forward to today or later. */
+    public function renew(): void
+    {
+        $this->update(['cancelled_at' => null, 'cancel_reason' => null]);
+        $this->advance();
+    }
+
     /** Next date (today included) that falls on this day of the month, clamped for short months. */
     public static function nextDue(int $day): CarbonInterface
     {
@@ -98,6 +118,6 @@ class RecurringItem extends Model
 
     protected function casts(): array
     {
-        return ['kind' => RecurringKind::class, 'next_due_on' => 'date'];
+        return ['kind' => RecurringKind::class, 'next_due_on' => 'date', 'cancelled_at' => 'datetime'];
     }
 }

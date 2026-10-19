@@ -302,7 +302,7 @@ class ChatTest extends TestCase
         $r = $this->actingAs($user)->say('what is my net worth?')->json('reply');
 
         $this->assertStringContainsString('net worth', $r);
-        $this->assertEqualsCanonicalizing(['net_worth', 'monthly_income', 'monthly_bills_and_subscriptions', 'left_after_bills', 'spent_this_month', 'spent_last_month', 'left_this_month', 'safe_to_spend_per_day', 'days_to_payday', 'balance_at_payday', 'lowest_balance_before_payday', 'cards', 'savings_pods', 'spending_by_category_this_month', 'bills_and_subscriptions', 'loans'], array_keys($seen));
+        $this->assertEqualsCanonicalizing(['net_worth', 'monthly_income', 'monthly_bills_and_subscriptions', 'left_after_bills', 'spent_this_month', 'spent_last_month', 'left_this_month', 'safe_to_spend_per_day', 'days_to_payday', 'balance_at_payday', 'lowest_balance_before_payday', 'cards', 'savings_pods', 'spending_by_category_this_month', 'bills_and_subscriptions', 'completed_loans', 'loans'], array_keys($seen));
         $this->assertNotEmpty($seen['cards']);
     }
 }

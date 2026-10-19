@@ -28,6 +28,7 @@ Route::name('api.')->prefix('v1')->group(function () {
         Route::patch('me/avatar', [AccountController::class, 'avatar']);
         Route::patch('me/payday', [AccountController::class, 'payday']);
         Route::patch('me/receipts', [AccountController::class, 'keepReceipts']);
+        Route::patch('me/digest', [AccountController::class, 'digest']);
         Route::put('me/password', [AccountController::class, 'password'])->middleware('throttle:6,1');
         Route::delete('me', [AuthController::class, 'destroy'])->middleware('throttle:6,1');
         Route::get('export', [DataController::class, 'export']);
@@ -63,6 +64,9 @@ Route::name('api.')->prefix('v1')->group(function () {
             Route::get('receipts/{receipt}', [ReceiptController::class, 'show']);
             Route::post('receipts/{receipt}/confirm', [ReceiptController::class, 'confirm']);
 
+            Route::post('chat/threads', [ChatController::class, 'newThread']);
+            Route::patch('chat/threads/{thread}', [ChatController::class, 'renameThread']);
+            Route::delete('chat/threads/{thread}', [ChatController::class, 'deleteThread']);
             Route::post('chat/messages', [ChatController::class, 'messages'])->middleware(['ai.consent', 'throttle:20,1']);
             Route::post('chat/drafts/{message}/confirm', [ChatController::class, 'confirm']);
 

@@ -16,7 +16,7 @@ class BudgetSummary
     {
         $received = $user->incomeSources()->where('month', now()->format('Y-m'));
         $income = (int) ($received->exists() ? $received : $user->incomeSources()->whereNull('month'))->sum('amount');
-        $fixed = $user->recurringItems()->get()->sum(fn ($item) => $item->monthlyAmount());
+        $fixed = $user->recurringItems()->active()->get()->sum(fn ($item) => $item->monthlyAmount());
 
         return ['income' => $income, 'fixed' => $fixed, 'remaining' => $income - $fixed];
     }

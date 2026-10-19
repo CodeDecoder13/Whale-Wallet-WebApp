@@ -38,6 +38,7 @@ Contract for the mobile app. Everything here is live on production unless marked
 | PATCH | `/me/avatar` | `avatar` = `data:image/jpeg;base64,...` (≤40 KB) or `null` to remove | `{data: user}` |
 | PATCH | `/me/payday` | `pay_dates` = `[15,30]` (1–2 distinct days, 1–31) | `{data: user}` |
 | PATCH | `/me/receipts` | `keep` = bool (keep receipt images) | `{data: user}` |
+| PATCH | `/me/digest` | `digest_enabled` = bool, `digest_time` = `HH:MM` in Philippine time (default `09:00`) | `{data: user}` |
 | PUT | `/me/password` | `current_password, password, password_confirmation` | 204 |
 | DELETE | `/me` | `password` | 204 (deletes the account) |
 | POST | `/onboarding` | `income, pay_dates[], bills[{name,amount,day}], card{name,type,balance,color?}, pod?{name,target_amount}` | 201 (409 if already onboarded) |
@@ -45,7 +46,7 @@ Contract for the mobile app. Everything here is live on production unless marked
 | GET | `/export/transactions.csv` | – | CSV download |
 | DELETE | `/chat` | – | 204 (wipes chat history) |
 
-**User:** `{id, name, email, email_verified, ai_consent_at, pay_dates, avatar, keep_receipts}`. `avatar` is a data URI or null.
+**User:** `{id, name, email, email_verified, ai_consent_at, pay_dates, avatar, keep_receipts, digest_enabled, digest_time}`. `avatar` is a data URI or null. Once a day at `digest_time` (Philippine time) the server refreshes the user's Whale tips (`GET /recommendations`) and, if `digest_enabled` and the email is verified, emails them. It needs `ai_consent_at`.
 
 ## 2. Dashboard & forecast
 
@@ -133,13 +134,15 @@ Needs AI consent (section 8).
 |---|---|---|
 | GET | `/chat` | `{consented, messages: [{id, role, content, draft_json, receipt_id, income}]}`: the last 50, oldest first. `role` is `user` or `assistant`. |
 | POST | `/chat/messages` | `text` (≤500) and/or multipart `image`; optional `thread_id` |
-| POST | `/chat/drafts/{message_id}/confirm` | – → `{saved: true, transaction_id}` |
+| POST | `/chat/drafts/{message_id}/confirm` | – → `{saved: true, transaction_id, message?}` (`message` is a ready sentence for `manage` drafts: show it as the toast) |
 
-**Text reply:** `{id, reply, draft?, quick_replies?, thread_id}`. `id` is the assistant message id: use it in `/chat/drafts/{id}/confirm`. The chat also understands "pay my Converge bill", loans ("I borrowed 5000, 3 payments") and salary messages.
+**Text reply:** `{id, reply, draft?, quick_replies?, extra?, thread_id}`. One message can hold several requests ("cancel Netflix and delete Rent"): the first answers at the top level and each further one comes in `extra` as `[{id, reply, draft?, quick_replies?}]`, each with its own confirm. Show them as separate assistant bubbles. `id` is the assistant message id: use it in `/chat/drafts/{id}/confirm`. The chat also understands "pay my Converge bill", loans ("I borrowed 5000, 3 payments") and salary messages.
 
 **Draft** (`draft` / `draft_json`): `{kind?, merchant, amount, card_id, category_id, occurred_at, note?, missing[], saved?, recurring_id?}`.
 - `missing` lists fields still needed; the draft can only be confirmed when it is empty. `quick_replies` suggests answers.
-- `kind` is absent for an expense, or `loan` / `income`. `recurring_id` is set when the draft pays a bill.
+- `kind` is absent for an expense, or `loan` / `income` / `manage`.
+- `dues` drafts answer "what's due?" and are never confirmed: `window` (`today`, `in the next 3 days` or `in the next 7 days`; overdue items count as today) and `items[]` `{id, name, kind, amount, logo, due_on, days}` (`days` is negative when overdue). Render them as a list of cards; `kind` is `bill`, `subscription` or `debt`. No draft means nothing is due in 7 days.
+- `manage` drafts change bills, subscriptions and expenses and have `action` (`add_recurring`, `edit_recurring`, `cancel_subscription`, `renew_subscription`, `delete_recurring`, `edit_transaction`, `delete_transaction`), `title`, `lines[]` (what changes, ready to show), `label` (button text) and `destructive` (style the button as a warning). Nothing changes until `/confirm`. After confirming, `draft_json.done` holds the result sentence. `recurring_id` is set when the draft pays a bill.
 - After confirming, `draft_json.saved` is set to the new id and `GET /chat` returns it: hide the confirm button for drafts where `saved` is set. (`income` drafts are not confirmed here; they go through section 5.)
 
 **Image send** returns `{id, reply, receipt_id, income, thread_id}` and no draft.

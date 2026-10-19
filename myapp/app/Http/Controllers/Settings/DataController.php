@@ -36,7 +36,8 @@ class DataController extends Controller
     public function clearChat(Request $request)
     {
         ChatMessage::query()->delete();
-        ChatThread::query()->delete();
+        // the full wipe also removes chats already deleted from history; per model, because the bulk forceDelete macro skips the user scope
+        ChatThread::withTrashed()->get()->each->forceDelete();
 
         return $request->expectsJson() ? response()->noContent() : back();
     }

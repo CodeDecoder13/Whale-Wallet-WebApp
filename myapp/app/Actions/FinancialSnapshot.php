@@ -33,7 +33,7 @@ class FinancialSnapshot
             ->selectRaw('category_id, sum(amount) as total')->groupBy('category_id')->orderByDesc('total')->limit(6)->get()
             ->map(fn ($c) => ['name' => $c->category?->name ?? 'Uncategorized', 'amount' => $p((int) $c->total), 'percent_of_spending' => $spent ? (int) round($c->total / $spent * 100) : 0]);
 
-        $items = $user->recurringItems()->orderBy('next_due_on')->get();
+        $items = $user->recurringItems()->active()->orderBy('next_due_on')->get();
 
         return [
             'net_worth' => ['assets' => $p($worth['assets']), 'debts' => $p($worth['debts']), 'total' => $p($worth['total'])],
@@ -61,7 +61,9 @@ class FinancialSnapshot
             'bills_and_subscriptions' => $items->where('kind', '!=', 'debt')->take(12)->map(fn ($i) => [
                 'name' => $i->name, 'amount' => $p($i->amount), 'kind' => $i->kind->value, 'due_in_days' => max(0, (int) today()->diffInDays($i->next_due_on, false)),
             ])->values()->all(),
-            'loans' => $items->where('kind', 'debt')->map(fn ($i) => [
+            // fully paid loans are archived: named here so the chat can say they are done, never counted as owed
+            'completed_loans' => $items->where('kind', 'debt')->filter(fn ($i) => $i->installments !== null && ! $i->paymentsLeft())->pluck('name')->values()->all(),
+            'loans' => $items->where('kind', 'debt')->filter(fn ($i) => $i->installments === null || $i->paymentsLeft())->map(fn ($i) => [
                 'name' => $i->name, 'payment' => $p($i->amount), 'payments_left' => $i->installments === null ? null : $i->paymentsLeft(),
                 'still_owed' => $i->installments === null ? null : $p($i->amount * $i->paymentsLeft()),
             ])->values()->all(),

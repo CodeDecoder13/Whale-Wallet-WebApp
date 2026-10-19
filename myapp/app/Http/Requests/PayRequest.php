@@ -14,6 +14,8 @@ class PayRequest extends PesoRequest
             'card_id' => ['required', 'integer', Rule::exists('cards', 'id')->where('user_id', $this->user()->id)],
             'amount' => ['required', 'integer', 'min:1'],
             'paid_on' => ['required', 'date', 'before_or_equal:today'],
+            'reference' => ['nullable', 'string', 'max:100'],
+            'receipt_id' => ['nullable', 'integer', Rule::exists('receipts', 'id')->where('user_id', $this->user()->id)],
         ];
     }
 }

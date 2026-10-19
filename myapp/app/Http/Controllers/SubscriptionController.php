@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use Illuminate\Support\Facades\Date;
 use App\Models\RecurringItem;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,16 +26,25 @@ class SubscriptionController extends Controller
         $paid = Transaction::whereIn('recurring_item_id', $items->modelKeys())
             ->selectRaw('recurring_item_id, max(occurred_at) as last')->groupBy('recurring_item_id')->pluck('last', 'recurring_item_id');
 
+        // payment history for the detail panel: the latest 10 per item
+        $payments = Transaction::with('card:id,name')->whereIn('recurring_item_id', $items->modelKeys())
+            ->latest('occurred_at')->latest('id')->limit(500)->get()->groupBy('recurring_item_id');
+
         return Inertia::render('subscriptions/Index', [
             'items' => $items->map(fn ($i) => [
-                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo', 'card_id']),
+                'payments' => ($payments[$i->id] ?? collect())->take(10)->map(fn ($t) => [
+                    'id' => $t->id, 'amount' => $t->amount, 'card' => $t->card->name, 'paid_on' => $t->occurred_at->toDateString(),
+                ])->values(),
+                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo', 'card_id', 'cancel_reason']),
+                'cancelled' => $i->cancelled_at !== null,
                 'kind' => $i->kind->value,
                 'next_due_on' => $i->next_due_on?->toDateString(),
                 'left' => $i->installments !== null ? $i->paymentsLeft() : null,
-                'monthly' => $i->installments !== null && ! $i->paymentsLeft() ? 0 : $i->monthlyAmount(),
+                'monthly' => $i->cancelled_at || ($i->installments !== null && ! $i->paymentsLeft()) ? 0 : $i->monthlyAmount(),
                 'last_paid' => ($p = $paid[$i->id] ?? null) ? Date::parse($p)->toDateString() : null,
             ]),
             'cards' => Card::orderBy('name')->get(['id', 'name', 'balance']),
+            'consented' => (bool) request()->user()->ai_consent_at,
         ]);
     }
 
@@ -56,9 +66,24 @@ class SubscriptionController extends Controller
     public function pay(PayRequest $request, int $subscription, PayRecurring $pay): RedirectResponse
     {
         $d = $request->validated();
-        $pay->handle($this->find($subscription), $d['card_id'], $d['amount'], $d['paid_on']);
+        $pay->handle($this->find($subscription), $d['card_id'], $d['amount'], $d['paid_on'], reference: $d['reference'] ?? null, receiptId: $d['receipt_id'] ?? null);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Payment recorded.']);
+
+        return back();
+    }
+
+    /** A cancelled subscription stays on file with its reason and payment history, so it can be renewed later. */
+    public function cancel(Request $request, int $subscription): RedirectResponse
+    {
+        $this->find($subscription)->cancel($request->validate(['reason' => ['required', 'string', 'max:255']])['reason']);
+
+        return back();
+    }
+
+    public function renew(int $subscription): RedirectResponse
+    {
+        $this->find($subscription)->renew();
 
         return back();
     }

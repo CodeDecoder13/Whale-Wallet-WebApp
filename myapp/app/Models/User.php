@@ -109,6 +109,8 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'ai_consent_at' => 'datetime',
             'keep_receipts' => 'boolean',
+            'digest_enabled' => 'boolean',
+            'digest_sent_on' => 'date',
             'pay_dates' => 'array',
         ];
     }

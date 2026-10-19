@@ -77,7 +77,7 @@ class GenerateRecommendations
             'safe_to_spend_per_day' => $pesos($forecast['safe_per_day']),
             'days_to_payday' => $forecast['days'],
             'lowest_point' => $pesos($forecast['lowest']['amount']),
-            'subscriptions_monthly' => $pesos($user->recurringItems()->where('kind', 'subscription')->get()->sum(fn ($i) => $i->monthlyAmount())),
+            'subscriptions_monthly' => $pesos($user->recurringItems()->active()->where('kind', 'subscription')->get()->sum(fn ($i) => $i->monthlyAmount())),
         ];
     }
 

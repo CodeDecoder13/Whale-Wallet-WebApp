@@ -40,6 +40,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('forecast', ForecastController::class)->name('forecast');
     Route::resource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::post('subscriptions/{subscription}/pay', [SubscriptionController::class, 'pay'])->name('subscriptions.pay');
+    Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::post('subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
 
     Route::get('tips', [RecommendationController::class, 'index'])->name('tips.index');
     Route::post('tips', [RecommendationController::class, 'store'])->middleware('throttle:6,1')->name('tips.store');
@@ -55,6 +57,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
     Route::get('chat/recent', [ChatController::class, 'recent'])->name('chat.recent');
+    Route::post('chat/threads', [ChatController::class, 'newThread'])->name('chat.threads.store');
+    Route::patch('chat/threads/{thread}', [ChatController::class, 'renameThread'])->name('chat.threads.update');
+    Route::delete('chat/threads/{thread}', [ChatController::class, 'deleteThread'])->name('chat.threads.destroy');
     Route::post('chat/messages', [ChatController::class, 'messages'])->middleware(['ai.consent', 'throttle:20,1'])->name('chat.messages');
     Route::post('chat/drafts/{message}/confirm', [ChatController::class, 'confirm'])->name('chat.confirm');
 

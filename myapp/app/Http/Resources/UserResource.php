@@ -19,6 +19,8 @@ class UserResource extends JsonResource
             'pay_dates' => $this->pay_dates ?? [],
             'avatar' => $this->avatar,
             'keep_receipts' => (bool) $this->keep_receipts,
+            'digest_enabled' => (bool) $this->digest_enabled,
+            'digest_time' => $this->digest_time ?? '09:00',
         ];
     }
 }

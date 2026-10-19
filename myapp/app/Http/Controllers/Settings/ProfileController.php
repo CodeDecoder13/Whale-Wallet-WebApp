@@ -23,6 +23,8 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
             'pay_dates' => $request->user()->pay_dates ?? [],
+            'digest' => $request->user()->only(['digest_enabled', 'digest_time']),
+            'consented' => (bool) $request->user()->ai_consent_at,
         ]);
     }
 
@@ -54,6 +56,22 @@ class ProfileController extends Controller
         $request->user()->forceFill(['avatar' => $data['avatar']])->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile picture updated.')]);
+
+        return to_route('profile.edit');
+    }
+
+    /** The daily Whale tips email: on or off, and the Philippine-time hour it goes out (09:00 by default). */
+    public function digest(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'digest_enabled' => ['required', 'boolean'],
+            'digest_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+        ]);
+
+        // a changed time that is still ahead today should still fire today, so the "sent today" mark is cleared
+        $request->user()->forceFill([...$data, 'digest_sent_on' => null])->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Daily digest updated.')]);
 
         return to_route('profile.edit');
     }

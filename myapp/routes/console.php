@@ -14,7 +14,7 @@ Artisan::command('inspire', function () {
 
 Artisan::command('recurring:advance', function () {
     // no signed-in user here, so the BelongsToUser scope does not apply
-    $items = RecurringItem::whereDate('next_due_on', '<', today())->get();
+    $items = RecurringItem::active()->whereDate('next_due_on', '<', today())->get();
     $items->each->advance();
     $this->info("Advanced {$items->count()} recurring items.");
 })->purpose('Roll overdue recurring items forward to their next due date');
@@ -51,7 +51,7 @@ Artisan::command('push:budgets', function (PushAlerts $push) {
     $this->info("Sent {$push->budgets()} budget alerts.");
 })->purpose('Push a warning for cards at 80% of, or over, their monthly limit (Expo)');
 
-Schedule::command('push:bills')->dailyAt('08:00')->withoutOverlapping();
+Schedule::command('push:bills')->dailyAt('08:00')->timezone('Asia/Manila')->withoutOverlapping();
 Schedule::command('push:budgets')->hourly()->withoutOverlapping();
 
 Artisan::command('push:payday', fn (PushAlerts $push, \App\Services\Forecast\ForecastLoader $loader) => $this->info("Sent {$push->payday($loader)} payday alerts."))
@@ -59,5 +59,12 @@ Artisan::command('push:payday', fn (PushAlerts $push, \App\Services\Forecast\For
 Artisan::command('push:daily', fn (PushAlerts $push, \App\Services\Forecast\ForecastLoader $loader) => $this->info("Sent {$push->daily($loader)} daily alerts."))
     ->purpose('Push the safe-to-spend amount once a day (Expo)');
 
-Schedule::command('push:payday')->dailyAt('08:00')->withoutOverlapping();
-Schedule::command('push:daily')->dailyAt('07:30')->withoutOverlapping();
+Schedule::command('push:payday')->dailyAt('08:00')->timezone('Asia/Manila')->withoutOverlapping();
+Schedule::command('push:daily')->dailyAt('07:30')->timezone('Asia/Manila')->withoutOverlapping();
+
+// Whale tips for the dashboard and the opt-in email digest, at each user's own time (09:00 Philippine time by default)
+Artisan::command('digest:send', function (\App\Services\DailyDigest $digest) {
+    $r = $digest->run();
+    $this->info("Refreshed tips for {$r['refreshed']} users, emailed {$r['emailed']}.");
+})->purpose('Refresh Whale tips and send the daily digest to users whose time has come');
+Schedule::command('digest:send')->everyFiveMinutes()->withoutOverlapping();

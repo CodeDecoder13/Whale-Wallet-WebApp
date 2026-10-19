@@ -27,7 +27,7 @@ class PushAlerts
         $sent = 0;
 
         foreach ($this->devicesByUser() as $userId => $tokens) {
-            $items = RecurringItem::withoutGlobalScopes()->where('user_id', $userId)
+            $items = RecurringItem::withoutGlobalScopes()->active()->where('user_id', $userId)
                 ->whereBetween('next_due_on', [today(), today()->addDays(2)->endOfDay()])->orderBy('next_due_on')->get();
 
             foreach ($items as $item) {

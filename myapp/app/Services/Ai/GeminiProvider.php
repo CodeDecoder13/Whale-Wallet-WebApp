@@ -36,8 +36,20 @@ intent log_expense: the user is recording a purchase. Fill merchant, amount (pes
   If a "pending" draft is given, the message probably answers its missing fields: return just those fields.
 intent add_loan: the user says they owe money to someone or something and must repay it (loan, utang, borrowed). merchant = who it is owed to or a short name, amount in pesos, loan_payments = how many payments they said (1, 2, 3, 6 or 12; "one time"/"once" is 1), occurred_at = first payment date as YYYY-MM-DD only if stated. "" for anything not said.
 intent question: the user asks for ONE of the exact figures below. Set question_key to one of spending_by_category, total_spent, safe_to_spend, subscriptions_monthly. For the first two set from and to (YYYY-MM-DD, using "today" in the prompt) and period (a short phrase with no digits, like "this week"). For spending_by_category set question_category to one of the allowed categories. You do NOT answer questions.
+intent manage: the user wants to add, change, cancel, renew or delete a bill, subscription or loan, edit or delete an expense they already logged, or sends more than one request in one message ("log lunch 200 and pay Netflix"). Leave reply as "".
 intent chat: anything else, including net worth, balances, bills, savings, loans, advice, "can I afford", greetings and small talk. Leave reply as "": another step answers it with the user's data.
 All fields are strings; use "" when not applicable. category and card must match the allowed names exactly.
+TXT;
+
+    private const ACTIONS = <<<'TXT'
+You turn the user's message into 1 to 4 independent actions for a budgeting app (Philippines, pesos). Never calculate or invent numbers.
+Allowed types: add_recurring, edit_recurring, cancel_subscription, renew_subscription, delete_recurring, edit_transaction, delete_transaction, log_expense, add_loan, pay_bill.
+Pick targets ONLY by id from the "items" (bills, subscriptions, loans) and "transactions" lists in the prompt; target_id 0 when none matches or the type needs none.
+add_recurring: name, kind ("bill" or "subscription"), amount, cadence (weekly, biweekly, monthly, quarterly or yearly), next_due_on (YYYY-MM-DD, using "today" in the prompt for relative dates).
+edit_recurring / edit_transaction: fill ONLY the fields the user wants changed ("" for the rest). amount is pesos as a plain decimal string.
+cancel_subscription: reason = the reason they gave, "" if none. renew_subscription, delete_recurring, delete_transaction: just the target.
+log_expense: merchant, amount, category and card (exact allowed names) only when said, occurred_at only when stated. add_loan: merchant, amount, payments (1, 2, 3, 6 or 12), next_due_on = first payment date. pay_bill: target_id of the item, amount only if they said it, card only if said.
+Actions are independent: do not rely on one action's result in another. Use "" for any field not said.
 TXT;
 
     private const PHRASE = <<<'TXT'
@@ -111,7 +123,7 @@ TXT;
         $r = agent(
             instructions: self::CHAT,
             schema: fn (JsonSchema $s) => [
-                'intent' => $s->string()->enum(['log_expense', 'add_loan', 'question', 'chat'])->required(),
+                'intent' => $s->string()->enum(['log_expense', 'add_loan', 'question', 'manage', 'chat'])->required(),
                 'reply' => $s->string()->required(),
                 'merchant' => $s->string()->required(),
                 'amount' => $s->string()->required(),
@@ -135,6 +147,25 @@ TXT;
             'draft' => ['merchant' => $v('merchant'), 'amount' => $v('amount'), 'category' => $v('category'), 'card' => $v('card'), 'occurred_at' => $v('occurred_at'), 'payments' => $v('loan_payments')],
             'question' => ['key' => (string) $v('question_key'), 'category' => $v('question_category'), 'from' => $v('from'), 'to' => $v('to'), 'period' => $v('period')],
         ];
+    }
+
+    public function actions(string $text, array $context): array
+    {
+        $this->requireKey();
+
+        $fields = ['name', 'kind', 'amount', 'cadence', 'next_due_on', 'reason', 'merchant', 'card', 'category', 'occurred_at', 'payments'];
+        $r = agent(
+            instructions: self::ACTIONS,
+            schema: fn (JsonSchema $s) => [
+                'actions' => $s->array()->items($s->object([
+                    'type' => $s->string()->required(),
+                    'target_id' => $s->integer()->required(),
+                    ...array_map(fn () => $s->string()->required(), array_flip($fields)),
+                ])->withoutAdditionalProperties())->required(),
+            ],
+        )->prompt(json_encode(['message' => $text, ...$context]), provider: Lab::Gemini, model: config('services.gemini.model'));
+
+        return array_values(array_filter(array_map(fn ($a) => is_array($a) ? $a : null, $r['actions'] ?? []))); // max four; the caller trims
     }
 
     public function phrase(string $question, array $facts): string
