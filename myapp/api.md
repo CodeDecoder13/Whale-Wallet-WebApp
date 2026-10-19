@@ -75,7 +75,7 @@ Each has `GET /x`, `POST /x`, `GET /x/{id}`, `PATCH /x/{id}`, `DELETE /x/{id}`. 
 | Path | Body | Resource |
 |---|---|---|
 | `/cards` | `name, type, balance, monthly_limit?, color?, account_name?, account_number?, qr?` (`qr` = `data:image/png;base64,...`) | `{id, name, type, balance, monthly_limit, currency, color, spent}`: `spent` is this month's spend, for the limit bar |
-| `/pods` | `name, target_amount, saved_amount, monthly_amount, target_date?` | `{id, name, target_amount, saved_amount, monthly_amount, target_date, currency, progress}`: `progress` is 0–100 |
+| `/pods` | `name, target_amount, saved_amount, monthly_amount, target_date?, card_id?` (the card the pod is funded from) | `{id, name, target_amount, saved_amount, monthly_amount, target_date, card_id, currency, progress}`: `progress` is 0–100 |
 | `/categories` | `name` (unique per user) | `{id, name}` |
 | `/recurring-items` | `name, amount, cadence, next_due_on, kind, card_id?, category_id?` (loans also `installments`) | `{id, name, amount, monthly_amount, currency, card_id, category_id, cadence, next_due_on, kind}` |
 
@@ -84,6 +84,10 @@ Each has `GET /x`, `POST /x`, `GET /x/{id}`, `PATCH /x/{id}`, `DELETE /x/{id}`. 
 **Pay a bill / subscription / loan payment**
 
 `POST /recurring-items/{id}/pay` with `{card_id, amount, paid_on}` returns 201 `{data: Transaction}`. It records an expense on the card and moves the item to its next due date (a loan loses one remaining payment; a paid-off loan answers 422).
+
+**Add money to a pod**
+
+`POST /pods/{id}/fund` adds money to a pod from a card: `{card_id, amount, paid_on, reference?, receipt_id?}` (`amount` in centavos, `paid_on` not in the future) returns 201 `{data: Transaction}` (a transfer with `to_pod_id` set and `reference`/`receipt_id` if given). The card needs enough balance (else 422 on `amount`). For proof of transfer, upload the image as a receipt first (`POST /receipts`), wait until it is `parsed`, then pass its `draft.reference`, `draft.occurred_at` (as `paid_on`) and `draft.amount`, plus the receipt `id` as `receipt_id`; the user always picks `card_id`. A receipt can be used once. A pod also has an optional `card_id`, the card it is normally funded from: default the "Transfer from" choice to it.
 
 ## 4. Transactions & transfers
 

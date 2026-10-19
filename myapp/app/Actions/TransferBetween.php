@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\TransactionSource;
 use App\Enums\TransactionType;
 use App\Models\Card;
 use App\Models\Pod;
@@ -12,9 +13,9 @@ use Illuminate\Validation\ValidationException;
 class TransferBetween
 {
     /** $from and $to are "card:ID" or "pod:ID". Recorded as one transfer row, which never counts as spending. */
-    public function handle(string $from, string $to, int $amount): Transaction
+    public function handle(string $from, string $to, int $amount, ?string $reference = null, ?int $receiptId = null, ?string $on = null): Transaction
     {
-        return DB::transaction(function () use ($from, $to, $amount) {
+        return DB::transaction(function () use ($from, $to, $amount, $reference, $receiptId, $on) {
             $src = $this->find($from);
             $dst = $this->find($to);
 
@@ -34,7 +35,10 @@ class TransferBetween
                 'amount' => $amount,
                 'merchant' => 'Transfer',
                 'note' => "{$src->name} to {$dst->name}",
-                'occurred_at' => now(),
+                'occurred_at' => $on ?? now(),
+                'reference' => $reference,
+                'receipt_id' => $receiptId,
+                'source' => $receiptId ? TransactionSource::Receipt : TransactionSource::Manual,
             ]);
         });
     }

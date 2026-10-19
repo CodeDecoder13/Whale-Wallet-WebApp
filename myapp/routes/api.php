@@ -40,6 +40,7 @@ Route::name('api.')->prefix('v1')->group(function () {
 
             Route::apiResource('cards', CardController::class);
             Route::apiResource('pods', PodController::class);
+            Route::post('pods/{pod}/fund', [PodController::class, 'fund']);
             Route::apiResource('categories', CategoryController::class);
             Route::post('onboarding', [AccountController::class, 'onboard']);
             Route::apiResource('recurring-items', RecurringItemController::class);

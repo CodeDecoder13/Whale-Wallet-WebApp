@@ -20,7 +20,7 @@ export const banks: BankPreset[] = [
     { name: 'Chinabank Savings', type: 'bank', color: '#E03C31' },
     { name: 'CIMB', type: 'bank', color: '#7E1416' },
     { name: 'GoTyme', type: 'bank', color: '#00C2A8' },
-    { name: 'Maribank', type: 'bank', color: '#7B3FF2' },
+    { name: 'Maribank', type: 'bank', color: '#F26B21' },
     { name: 'Cash', type: 'cash', color: '#475569' },
 ];
 

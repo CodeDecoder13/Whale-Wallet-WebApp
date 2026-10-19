@@ -4,15 +4,13 @@ namespace App\Actions;
 
 use App\Enums\TransactionSource;
 use App\Models\Category;
-use App\Models\Receipt;
 use App\Models\RecurringItem;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class PayRecurring
 {
-    public function __construct(private CreateTransaction $create) {}
+    public function __construct(private CreateTransaction $create, private SettleReceipt $receipts) {}
 
     /** Records a payment as an expense on the card, then moves the item to its next due date (a loan loses one payment). */
     public function handle(RecurringItem $item, int $cardId, int $amount, string $paidOn, TransactionSource $source = TransactionSource::Manual, ?string $reference = null, ?int $receiptId = null): Transaction
@@ -23,8 +21,7 @@ class PayRecurring
             abort_if($item->cancelled_at, 422, 'This subscription is cancelled. Renew it first.');
 
             // proof of payment: a scanned receipt the user checked becomes this payment's receipt
-            $receipt = $receiptId ? Receipt::lockForUpdate()->findOrFail($receiptId) : null;
-            abort_if($receipt && ($receipt->status !== 'parsed' || $receipt->purpose !== 'expense'), 422, 'This receipt was already handled.');
+            $receipt = $this->receipts->claim($receiptId);
 
             $transaction = $this->create->handle([
                 'merchant' => $item->name, 'amount' => $amount, 'card_id' => $cardId, 'occurred_at' => $paidOn,
@@ -33,15 +30,7 @@ class PayRecurring
                 'reference' => $reference, 'receipt_id' => $receipt?->id,
             ]);
             $item->advanceAfterPayment();
-
-            if ($receipt) {
-                $receipt->update(['status' => 'confirmed']);
-
-                if (! auth()->user()->keep_receipts && $receipt->path) {
-                    Storage::disk()->delete($receipt->path);
-                    $receipt->update(['path' => null]);
-                }
-            }
+            $this->receipts->finish($receipt);
 
             return $transaction;
         });

@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Ban, ImagePlus, LayoutGrid, Pencil, PencilLine, Plus, ScanLine, Table2, Trash2, TriangleAlert } from '@lucide/vue';
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { Ban, LayoutGrid, Pencil, Plus, Table2, Trash2 } from '@lucide/vue';
+import { computed, ref } from 'vue';
 import SubscriptionController from '@/actions/App/Http/Controllers/SubscriptionController';
-import AiConsent from '@/components/AiConsent.vue';
 import BillCard from '@/components/BillCard.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import ProofForm from '@/components/ProofForm.vue';
 import SelectNative from '@/components/SelectNative.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { api, type ApiError } from '@/lib/api';
-import { destroy as receiptDestroy, show as receiptShow, store as receiptStore } from '@/routes/receipts';
 import { findBrand } from '@/lib/brandLogos';
 import { toDataUrl } from '@/lib/image';
 import { formatPeso, toPesos } from '@/lib/currency';
@@ -181,109 +178,12 @@ function makeLoan(s: Item) {
     form.kind = 'debt';
 }
 
-// Paying: upload a receipt (read for you) or enter it by hand. The user always picks the mode of payment.
-type Scan = {
-    id: number;
-    status: 'queued' | 'parsing' | 'parsed' | 'failed' | 'confirmed';
-    error: string | null;
-    draft: {
-        amount: number;
-        occurred_at: string;
-        reference: string | null;
-        card_id: number | null;
-        duplicate_of: number[];
-    } | null;
-};
-const payMode = ref<'upload' | 'manual' | null>(null);
-const scan = ref<Scan | null>(null);
-const scanning = ref(false);
-const scanError = ref<string | null>(null);
-let scanTimer: ReturnType<typeof setInterval> | undefined;
-
-function stopPolling() {
-    clearInterval(scanTimer);
-    scanTimer = undefined;
-}
-
-// A scan that never became a payment is thrown away with its image.
-async function dropScan() {
-    stopPolling();
-    const old = scan.value;
-    scan.value = null;
-    scanError.value = null;
-    payForm.receipt_id = null;
-
-    if (old && old.status !== 'confirmed') {
-        await api(receiptDestroy.url(old.id), undefined, 'DELETE').catch(() => {});
-    }
-}
-
-async function switchMode(mode: 'upload' | 'manual' | null) {
-    await dropScan();
-    payMode.value = mode;
-}
-
-function applyScan(s: Scan) {
-    scan.value = s;
-
-    if (s.status === 'parsed' && s.draft) {
-        stopPolling();
-        payForm.amount = toPesos(s.draft.amount);
-        payForm.paid_on = s.draft.occurred_at;
-        payForm.reference = s.draft.reference ?? '';
-        payForm.card_id = s.draft.card_id ?? payForm.card_id;
-        payForm.receipt_id = s.id;
-    } else if (s.status === 'failed') {
-        stopPolling();
-    }
-}
-
-async function pickReceipt(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-
-    if (!file) {
-        return;
-    }
-
-    scanError.value = null;
-
-    if (file.size > 8 * 1024 * 1024) {
-        scanError.value = 'That image is over 8 MB.';
-
-        return;
-    }
-
-    const body = new FormData();
-    body.append('image', file);
-    scanning.value = true;
-
-    try {
-        applyScan(await api<Scan>(receiptStore.url(), body));
-        scanTimer = setInterval(async () => {
-            try {
-                applyScan(await api<Scan>(receiptShow.url(scan.value!.id)));
-            } catch {
-                // keep waiting; the next tick tries again
-            }
-        }, 1500);
-    } catch (err) {
-        const e = err as ApiError;
-        scanError.value = e.data?.errors?.image?.[0] ?? e.message;
-    } finally {
-        scanning.value = false;
-    }
-}
-
-onBeforeUnmount(stopPolling);
 
 // Paying logs an expense on the chosen card and moves the item to its next due date.
 const payForm = useForm({ card_id: 0, amount: '', paid_on: '', reference: '', receipt_id: null as number | null });
 const payable = (s: Item) => !s.cancelled && !(s.installments !== null && !s.left);
 
 function pay(s: Item) {
-    void switchMode(null);
     selectedId.value = s.id;
     payForm.defaults({
         card_id: s.card_id ?? props.cards[0]?.id ?? 0,
@@ -299,10 +199,7 @@ function pay(s: Item) {
 function submitPay() {
     payForm.post(SubscriptionController.pay.url(selectedId.value!), {
         preserveScroll: true,
-        onSuccess: () => {
-            scan.value = null;
-            panel.value = 'info';
-        },
+        onSuccess: () => (panel.value = 'info'),
     });
 }
 
@@ -693,118 +590,15 @@ const dueDate = (d: string | null) =>
                             Add proof of payment. It logs an expense and moves the next due date forward.
                         </DialogDescription>
                     </DialogHeader>
-                    <div v-if="!payMode" class="grid gap-3">
-                        <button
-                            type="button"
-                            class="flex items-center gap-3 rounded-xl border p-4 text-left transition hover:border-brand hover:bg-accent/40"
-                            @click="payMode = 'upload'"
-                        >
-                            <ScanLine class="size-5 shrink-0 text-brand-deep dark:text-brand-light" />
-                            <span>
-                                <span class="block font-medium">Upload receipt</span>
-                                <span class="block text-xs text-muted-foreground">
-                                    We read the reference number, date and amount for you.
-                                </span>
-                            </span>
-                        </button>
-                        <button
-                            type="button"
-                            class="flex items-center gap-3 rounded-xl border p-4 text-left transition hover:border-brand hover:bg-accent/40"
-                            @click="payMode = 'manual'"
-                        >
-                            <PencilLine class="size-5 shrink-0 text-brand-deep dark:text-brand-light" />
-                            <span>
-                                <span class="block font-medium">Enter manually</span>
-                                <span class="block text-xs text-muted-foreground">
-                                    Fill in every detail yourself.
-                                </span>
-                            </span>
-                        </button>
-                        <Button type="button" variant="ghost" class="justify-self-start" @click="panel = 'info'">
-                            Back
-                        </Button>
-                    </div>
-
-                    <form v-else class="grid gap-4" @submit.prevent="submitPay">
-                        <template v-if="payMode === 'upload'">
-                            <AiConsent v-if="!consented" />
-                            <template v-else-if="!scan">
-                                <label
-                                    class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground transition hover:border-brand hover:bg-accent/40"
-                                >
-                                    <ImagePlus class="size-6" />
-                                    <span v-if="scanning" class="flex items-center gap-2">
-                                        <Spinner /> Uploading…
-                                    </span>
-                                    <span v-else>Choose a receipt image (PNG, JPG or WebP)</span>
-                                    <input
-                                        type="file"
-                                        accept="image/png,image/jpeg,image/webp"
-                                        class="sr-only"
-                                        :disabled="scanning"
-                                        @change="pickReceipt"
-                                    />
-                                </label>
-                                <InputError :message="scanError ?? undefined" />
-                            </template>
-                            <div
-                                v-else-if="scan.status === 'queued' || scan.status === 'parsing'"
-                                class="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground"
-                            >
-                                <Spinner /> Reading your receipt…
-                            </div>
-                            <div v-else-if="scan.status === 'failed'" class="grid gap-3 rounded-xl border border-destructive/40 p-4 text-sm">
-                                <p class="text-destructive">{{ scan.error }}</p>
-                                <div class="flex gap-2">
-                                    <Button type="button" size="sm" variant="outline" @click="dropScan">Try another image</Button>
-                                    <Button type="button" size="sm" variant="ghost" @click="switchMode('manual')">
-                                        Enter manually
-                                    </Button>
-                                </div>
-                            </div>
-                            <p
-                                v-if="scan?.status === 'parsed' && scan.draft?.duplicate_of.length"
-                                class="flex items-start gap-2 rounded-lg bg-yellow-500/10 p-3 text-xs"
-                            >
-                                <TriangleAlert class="mt-0.5 size-4 shrink-0 text-yellow-600" />
-                                This looks like a payment you already logged.
-                            </p>
-                        </template>
-
-                        <template v-if="payMode === 'manual' || scan?.status === 'parsed'">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="grid gap-2">
-                                    <Label for="pay-ref">Reference number</Label>
-                                    <Input id="pay-ref" v-model="payForm.reference" placeholder="Optional" />
-                                    <InputError :message="payForm.errors.reference" />
-                                </div>
-                                <div class="grid gap-2">
-                                    <Label for="pay-date">Paid on</Label>
-                                    <Input id="pay-date" v-model="payForm.paid_on" type="date" required />
-                                    <InputError :message="payForm.errors.paid_on" />
-                                </div>
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="pay-amount">Amount (PHP)</Label>
-                                <Input id="pay-amount" v-model="payForm.amount" type="number" step="0.01" min="0.01" required />
-                                <InputError :message="payForm.errors.amount" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="pay-card">Mode of payment</Label>
-                                <SelectNative id="pay-card" v-model="payForm.card_id" required>
-                                    <option v-for="c in cards" :key="c.id" :value="c.id">
-                                        {{ c.name }} ({{ formatPeso(c.balance) }})
-                                    </option>
-                                </SelectNative>
-                                <InputError :message="payForm.errors.card_id" />
-                                <InputError :message="payForm.errors.receipt_id" />
-                            </div>
-                            <Button :disabled="payForm.processing">Mark as paid</Button>
-                        </template>
-                        <Button type="button" variant="ghost" class="justify-self-start" @click="switchMode(null)">
-                            Back
-                        </Button>
-                    </form>
+                    <ProofForm
+                        :form="payForm"
+                        :cards="cards"
+                        :consented="consented"
+                        card-label="Mode of payment"
+                        submit-label="Mark as paid"
+                        @submit="submitPay"
+                        @back="panel = 'info'"
+                    />
                 </div>
                 </Transition>
 

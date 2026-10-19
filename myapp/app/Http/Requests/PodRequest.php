@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Validation\Rule;
+
 class PodRequest extends PesoRequest
 {
     protected array $pesos = ['target_amount', 'saved_amount', 'monthly_amount'];
@@ -14,6 +16,7 @@ class PodRequest extends PesoRequest
             'saved_amount' => ['required', 'integer', 'min:0'],
             'monthly_amount' => ['required', 'integer', 'min:0'],
             'target_date' => ['nullable', 'date'],
+            'card_id' => ['nullable', 'integer', Rule::exists('cards', 'id')->where('user_id', $this->user()->id)],
         ];
     }
 }

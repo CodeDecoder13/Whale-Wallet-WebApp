@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { bankColor, cardGradient } from '@/lib/banks';
+import { findBrand } from '@/lib/brandLogos';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { toDataUrl } from '@/lib/image';
 import { index } from '@/routes/cards';
@@ -121,6 +122,11 @@ const gradients = [
 ];
 // colour comes from the card, else from the bank in its name, else a rotating brand gradient
 const hue = (c: WalletCard) => c.color ?? bankColor(c.name);
+const hasLogo = (c: WalletCard) => {
+    const b = findBrand(c.name);
+
+    return !!(b?.image || b?.icon || b?.home);
+};
 const kind = (t: string) =>
     t === 'credit' ? 'Credit' : t === 'cash' ? 'Cash' : 'Debit';
 const typeLabel: Record<string, string> = {
@@ -160,7 +166,7 @@ const tile = (c: WalletCard, i: number) =>
             <li
                 v-for="(c, i) in cards"
                 :key="c.id"
-                class="flex min-h-44 flex-col gap-1 rounded-xl bg-linear-to-br p-5 text-white"
+                class="card-tile relative isolate flex min-h-44 flex-col gap-1 overflow-hidden rounded-xl bg-linear-to-br p-5 text-white"
                 :class="hue(c) && usage(c) < 1 ? '' : tile(c, i)"
                 :style="
                     hue(c) && usage(c) < 1
@@ -168,11 +174,19 @@ const tile = (c: WalletCard, i: number) =>
                         : undefined
                 "
             >
+                <!-- drifting translucent circles behind the content -->
+                <span class="card-orb card-orb-a" aria-hidden="true" />
+                <span class="card-orb card-orb-b" aria-hidden="true" />
                 <div class="flex items-center gap-3 text-sm">
                     <BrandLogo :name="c.name" />
-                    <span class="min-w-0 flex-1 truncate font-medium">
+                    <!-- a recognised bank or wallet shows its logo alone; the name stays for screen readers -->
+                    <span
+                        class="min-w-0 flex-1 truncate font-medium"
+                        :class="hasLogo(c) && 'sr-only'"
+                    >
                         {{ c.name }}
                     </span>
+                    <span v-if="hasLogo(c)" class="flex-1" />
                     <span
                         class="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium"
                     >
@@ -373,3 +387,53 @@ const tile = (c: WalletCard, i: number) =>
         </Dialog>
     </div>
 </template>
+
+<style scoped>
+.card-orb {
+    position: absolute;
+    z-index: -10;
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.12);
+    pointer-events: none;
+}
+
+.card-orb-a {
+    top: -3rem;
+    right: -2rem;
+    width: 9rem;
+    height: 9rem;
+    animation: orb-drift 9s ease-in-out infinite alternate;
+}
+
+.card-orb-b {
+    bottom: -3.5rem;
+    left: 30%;
+    width: 7rem;
+    height: 7rem;
+    background: rgb(255 255 255 / 0.08);
+    animation: orb-drift 12s ease-in-out infinite alternate-reverse;
+}
+
+.card-tile {
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.card-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px -14px rgb(0 0 0 / 0.5);
+}
+
+@keyframes orb-drift {
+    to {
+        transform: translate(-1.5rem, 1.25rem) scale(1.2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-orb {
+        animation: none;
+    }
+}
+</style>

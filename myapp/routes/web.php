@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('forecast', ForecastController::class)->name('forecast');
     Route::resource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::post('pods/{pod}/fund', [PodController::class, 'fund'])->name('pods.fund');
     Route::post('subscriptions/{subscription}/pay', [SubscriptionController::class, 'pay'])->name('subscriptions.pay');
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::post('subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
