@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, Trash2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PodController from '@/actions/App/Http/Controllers/PodController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import PodCard from '@/components/PodCard.vue';
+import PodProjection from '@/components/PodProjection.vue';
 import ProofForm from '@/components/ProofForm.vue';
 import type { ProofValues } from '@/components/ProofForm.vue';
 import SelectNative from '@/components/SelectNative.vue';
@@ -49,6 +50,36 @@ const editing = ref<number | null>(null);
 const form = useForm({ ...blank });
 const fundForm = useForm<ProofValues>({ card_id: 0, amount: '', paid_on: today(), reference: '', receipt_id: null });
 
+// Monthly suggestion: what is left to save, spread over the months until the target date (at least one),
+// or over a year when no date is set yet. It fills the Monthly field until the user types their own amount there.
+const DEFAULT_MONTHS = 12;
+const monthlyTouched = ref(false);
+// the projection slides in beside the form once there is a target to chart
+const showChart = computed(() => Number(form.target_amount) > 0);
+const centavos = (v: string) => Math.round((Number(v) || 0) * 100);
+const months = computed(() => {
+    if (!form.target_date) {
+        return DEFAULT_MONTHS;
+    }
+
+    const now = new Date();
+    const end = new Date(form.target_date + 'T00:00');
+    const m = (end.getFullYear() - now.getFullYear()) * 12 + end.getMonth() - now.getMonth() + (end.getDate() > now.getDate() ? 1 : 0);
+
+    return Math.max(1, m);
+});
+const suggested = computed(() => {
+    const left = Number(form.target_amount) - Number(form.saved_amount || 0);
+
+    return left > 0 ? Math.ceil(left / months.value) : null;
+});
+
+watch(suggested, (v) => {
+    if (v !== null && !monthlyTouched.value) {
+        form.monthly_amount = String(v);
+    }
+});
+
 function openPod(p: Pod) {
     selectedId.value = p.id;
     panel.value = 'info';
@@ -59,6 +90,7 @@ function add() {
     editing.value = null;
     form.defaults({ ...blank, card_id: props.cards[0] ? String(props.cards[0].id) : '' });
     form.reset();
+    monthlyTouched.value = false;
     panel.value = 'edit';
 }
 
@@ -74,6 +106,7 @@ function edit(p: Pod) {
         card_id: p.card_id ? String(p.card_id) : '',
     });
     form.reset();
+    monthlyTouched.value = true; // an existing monthly amount is only replaced when the user asks
     panel.value = 'edit';
 }
 
@@ -144,9 +177,9 @@ const date = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'nume
         <Dialog :open="panel !== null" @update:open="(v) => !v && (panel === 'edit' ? cancel() : (panel = null))">
             <DialogContent
                 class="max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 transition-[max-width] duration-300 md:flex"
-                :class="selected && panel !== 'info' ? 'sm:max-w-3xl' : 'sm:max-w-md'"
+                :class="(panel === 'edit' ? showChart : selected && panel !== 'info') ? 'sm:max-w-3xl' : 'sm:max-w-md'"
             >
-                <div v-if="selected" class="relative min-w-0 md:shrink-0" :class="panel === 'info' ? 'md:w-full' : 'md:w-[26rem]'">
+                <div v-if="selected && panel !== 'edit'" class="relative min-w-0 md:shrink-0" :class="panel === 'info' ? 'md:w-full' : 'md:w-[26rem]'">
                     <div class="grid gap-5 p-6">
                         <DialogHeader class="flex-row items-center gap-3 p-0 pr-8 text-left">
                             <div class="min-w-0 flex-1">
@@ -267,7 +300,7 @@ const date = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'nume
                 </Transition>
 
                 <Transition name="slide">
-                    <div v-if="panel === 'edit'" class="grid min-w-0 flex-1 content-start gap-5 p-6" :class="selected && 'border-t md:border-t-0 md:border-l'">
+                    <div v-if="panel === 'edit'" class="grid min-w-0 flex-1 content-start gap-5 p-6">
                         <DialogHeader class="p-0 pr-8 text-left">
                             <DialogTitle>{{ editing ? 'Edit pod' : 'Add pod' }}</DialogTitle>
                             <DialogDescription>A savings goal, and the card you fund it from.</DialogDescription>
@@ -299,7 +332,31 @@ const date = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'nume
                                 </div>
                                 <div class="grid gap-2">
                                     <Label for="monthly_amount">Monthly (PHP)</Label>
-                                    <Input id="monthly_amount" v-model="form.monthly_amount" type="number" step="0.01" min="0" required />
+                                    <Input
+                                        id="monthly_amount"
+                                        v-model="form.monthly_amount"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                        @input="monthlyTouched = true"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        <template v-if="suggested !== null">
+                                            {{ formatPeso(suggested * 100) }} a month for {{ months }}
+                                            {{ months === 1 ? 'month' : 'months' }} reaches it.
+                                            <template v-if="!form.target_date">Add a target date to change this.</template>
+                                            <button
+                                                v-if="monthlyTouched && Number(form.monthly_amount) !== suggested"
+                                                type="button"
+                                                class="font-medium underline"
+                                                @click="((form.monthly_amount = String(suggested)), (monthlyTouched = false))"
+                                            >
+                                                Use this
+                                            </button>
+                                        </template>
+                                        <template v-else>Enter a target to see the monthly amount.</template>
+                                    </p>
                                     <InputError :message="form.errors.monthly_amount" />
                                 </div>
                                 <div class="grid gap-2">
@@ -313,6 +370,20 @@ const date = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'nume
                                 <Button type="button" variant="ghost" @click="cancel">Cancel</Button>
                             </div>
                         </form>
+                    </div>
+                </Transition>
+                <Transition name="slide">
+                    <div v-if="panel === 'edit' && showChart" class="grid min-w-0 content-start gap-4 border-t p-6 md:w-[24rem] md:shrink-0 md:border-t-0 md:border-l">
+                        <DialogHeader class="p-0 text-left">
+                            <DialogTitle>Projection</DialogTitle>
+                            <DialogDescription>What saving this much each month adds up to.</DialogDescription>
+                        </DialogHeader>
+                        <PodProjection
+                            :saved="centavos(form.saved_amount)"
+                            :monthly="centavos(form.monthly_amount)"
+                            :target="centavos(form.target_amount)"
+                            :target-date="form.target_date || null"
+                        />
                     </div>
                 </Transition>
             </DialogContent>
