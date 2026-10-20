@@ -133,6 +133,13 @@ const renew = (s: Item) =>
 
 const total = computed(() => shown.value.reduce((n, i) => n + i.monthly, 0));
 const other = (k: Kind): Kind => (k === 'bill' ? 'subscription' : 'bill');
+// the middle stat on a card: how often it repeats, or how many loan payments remain
+const repeat = (s: Item): [string, string] =>
+    s.kind !== 'debt'
+        ? ['Repeats', s.cadence]
+        : s.installments === null
+          ? ['Repeats', 'monthly']
+          : ['Payments', s.left ? `${s.left} of ${s.installments} left` : 'completed'];
 const label = (k: Kind) => (k === 'debt' ? 'loan' : k);
 // a loan is paid off in 1, 2 or 3 payments, or over 6 or 12 months
 const terms = [
@@ -395,7 +402,9 @@ const dueDate = (d: string | null) =>
                 :key="s.id"
                 :name="s.name"
                 :logo="s.logo"
-                :meta="`${label(s.kind)} · ${detail(s)} · ${dueDate(s.next_due_on)}`"
+                :kind="label(s.kind)"
+                :repeat="repeat(s)"
+                :date="dueDate(s.next_due_on)"
                 :amount="s.amount"
                 :due="s.next_due_on"
                 :done="s.installments !== null && !s.left"

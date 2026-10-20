@@ -6,6 +6,7 @@ use App\Contracts\AiProvider;
 use DomainException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Files\Audio;
 use Laravel\Ai\Files\Image;
 
 use function Laravel\Ai\agent;
@@ -174,6 +175,14 @@ TXT;
 
         return trim(agent(instructions: self::PHRASE)
             ->prompt(json_encode(['question' => $question, 'facts' => $facts]), provider: Lab::Gemini, model: config('services.gemini.model'))->text);
+    }
+
+    public function transcribe(string $audioPath, string $mime): string
+    {
+        $this->requireKey();
+
+        return trim(agent(instructions: 'Transcribe the speech exactly as spoken. It may be English, Tagalog or Taglish; keep the words in the language spoken. Output only the transcript, nothing else. If there is no speech, output nothing.')
+            ->prompt('Transcribe this audio.', attachments: [Audio::fromPath($audioPath, $mime)], provider: Lab::Gemini, model: config('services.gemini.model'))->text);
     }
 
     /** The key stays in server config; it never goes to Inertia or the browser. */

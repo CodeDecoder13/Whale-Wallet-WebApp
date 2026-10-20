@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { VisDonut, VisSingleContainer } from '@unovis/vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { PiggyBank, Receipt, ShoppingCart, Wallet } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import ForecastChart from '@/components/ForecastChart.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import IncomeDialog from '@/components/IncomeDialog.vue';
@@ -13,6 +16,7 @@ import { dueTone } from '@/lib/dueTone';
 import { dashboard, forecast as forecastPage } from '@/routes';
 import { edit as profileEdit } from '@/routes/profile';
 import { index as tipsPage } from '@/routes/tips';
+import { index as transactionsPage } from '@/routes/transactions';
 
 type Slice = { name: string; total: number };
 
@@ -53,6 +57,7 @@ const props = defineProps<{
             merchant: string;
         } | null;
     }[];
+    week: { day: string; amount: number }[];
     tips: { id: number; text: string }[];
     categories: Slice[];
     upcoming: {
@@ -74,26 +79,71 @@ const total = computed(() => props.categories.reduce((n, c) => n + c.total, 0));
 const pctOfIncome = (n: number) =>
     props.summary.income ? Math.min(100, (n / props.summary.income) * 100) : 0;
 
-const tiles = computed(() => [
-    [
-        'Income',
-        props.summary.income,
-        props.income_entries.length
-            ? 'Received this month'
-            : 'Expected this month',
-    ],
-    [
-        'Fixed expenses',
-        props.summary.fixed,
-        `${pctOfIncome(props.summary.fixed).toFixed(1)}% of income`,
-    ],
-    ['Left to spend', props.summary.safe, 'After bills and spending'],
-    [
-        'Spent this month',
-        props.summary.spent,
-        `${pctOfIncome(props.summary.spent).toFixed(1)}% of income`,
-    ],
-]);
+type Tile = {
+    key: 'income' | 'fixed' | 'safe' | 'spent';
+    title: string;
+    icon: typeof Wallet;
+    color: string; // the tile's accent: icon, bars and status
+    amount: number;
+    status: string;
+    hint: string;
+    bars?: number[]; // 0 to 1, drawn as columns
+    fill?: number; // 0 to 1, drawn as a single bar
+    pace?: number; // 0 to 1, a tick on that bar
+};
+
+const GREEN = '#22c55e';
+const YELLOW = '#eab308';
+const RED = '#ef4444';
+const BLUE = 'var(--color-brand)';
+
+// what you could have spent by today if you spread the free money evenly over the month
+const pace = computed(() => {
+    const d = new Date();
+    const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+
+    return Math.max(0, props.summary.income - props.summary.fixed) * (d.getDate() / days);
+});
+const weekMax = computed(() => Math.max(1, ...props.week.map((w) => w.amount)));
+const unit = (n: number) => Math.min(1, Math.max(0, n));
+
+const tiles = computed<Tile[]>(() => {
+    const { income, fixed, spent, safe } = props.summary;
+    const fixedPct = income ? (fixed / income) * 100 : 0;
+    const received = props.income_entries.length > 0;
+    const safeTone =
+        safe < 0 ? ['Overspent', RED] : income && safe < income * 0.2 ? ['Tight', YELLOW] : ['On track', GREEN];
+    const fixedTone =
+        fixedPct < 50 ? ['Healthy', GREEN] : fixedPct < 70 ? ['Heavy', YELLOW] : ['Very heavy', RED];
+    const spentTone =
+        spent === 0 ? ['Nothing logged yet', BLUE] : spent <= pace.value ? ['Under pace', GREEN] : ['Over pace', RED];
+
+    return [
+        {
+            key: 'income', title: 'Income', icon: Wallet, color: received ? GREEN : BLUE, amount: income,
+            status: received ? 'Received' : 'Expected', hint: received ? 'Received this month' : 'Expected this month',
+            fill: received ? 1 : 0,
+        },
+        {
+            key: 'fixed', title: 'Fixed expenses', icon: Receipt, color: fixedTone[1], amount: fixed,
+            status: fixedTone[0], hint: `${pctOfIncome(fixed).toFixed(1)}% of income`, fill: unit(fixed / (income || 1)), pace: 0.5,
+        },
+        {
+            key: 'safe', title: 'Left to spend', icon: PiggyBank, color: safeTone[1], amount: safe,
+            status: safeTone[0],
+            hint: props.forecast.safe_per_day > 0 ? `About ${formatPeso(props.forecast.safe_per_day)} a day until payday` : 'After bills and spending',
+            fill: unit(safe / (income || 1)),
+        },
+        {
+            key: 'spent', title: 'Spent this month', icon: ShoppingCart, color: spentTone[1], amount: spent,
+            status: spentTone[0], hint: `${pctOfIncome(spent).toFixed(1)}% of income`,
+            bars: props.week.map((w) => w.amount / weekMax.value),
+        },
+    ];
+});
+const panel = ref<Tile['key'] | null>(null);
+const panelOpen = computed({ get: () => panel.value !== null, set: (v) => !v && (panel.value = null) });
+const panelTile = computed(() => tiles.value.find((t) => t.key === panel.value));
 
 const left = computed(() =>
     Math.max(
@@ -243,29 +293,91 @@ const dueDate = (d: string) =>
             </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div
-                v-for="[label, amount, note] in tiles"
-                :key="label"
-                class="rounded-xl border bg-card p-5"
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            <button
+                v-for="t in tiles"
+                :key="t.key"
+                type="button"
+                class="group rounded-2xl border bg-card p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
+                @click="panel = t.key"
             >
-                <div class="text-xs text-muted-foreground">{{ label }}</div>
-                <div class="mt-4 text-2xl font-semibold">
-                    {{ formatPeso(Number(amount)) }}
+                <div class="flex items-center justify-between gap-2">
+                    <span class="flex min-w-0 items-center gap-2 text-sm font-medium">
+                        <component :is="t.icon" class="size-4 shrink-0" :style="{ color: t.color }" />
+                        <span class="truncate">{{ t.title }}</span>
+                    </span>
+                    <span class="hidden shrink-0 text-xs text-muted-foreground sm:inline">This month</span>
                 </div>
-                <div class="mt-3 text-xs text-brand-deep dark:text-brand-light">
-                    {{ note }}
+                <div class="mt-4 flex items-end justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="truncate text-xl font-semibold sm:text-2xl">{{ formatPeso(t.amount) }}</div>
+                        <div class="mt-1 text-xs font-medium" :style="{ color: t.color }">{{ t.status }}</div>
+                    </div>
+                    <div v-if="t.bars" class="flex h-12 items-end gap-1" aria-hidden="true">
+                        <div v-for="(b, i) in t.bars" :key="i" class="flex h-full w-1.5 items-end rounded-full bg-muted">
+                            <div
+                                class="w-full rounded-full"
+                                :style="{ height: `${Math.max(8, b * 100)}%`, background: t.color, opacity: i === t.bars.length - 1 ? 1 : 0.55 }"
+                            />
+                        </div>
+                    </div>
                 </div>
-                <button
-                    v-if="label === 'Income'"
-                    type="button"
-                    class="mt-2 text-xs font-medium underline underline-offset-4"
-                    @click="incomeOpen = true"
+                <div v-if="t.fill !== undefined" class="relative mt-3 h-1.5 rounded-full bg-muted" aria-hidden="true">
+                    <div class="h-full rounded-full" :style="{ width: `${t.fill * 100}%`, background: t.color }" />
+                    <div v-if="t.pace" class="absolute -top-0.5 h-2.5 w-0.5 bg-foreground/40" :style="{ left: `${t.pace * 100}%` }" />
+                </div>
+                <div class="mt-2 text-xs text-muted-foreground">{{ t.hint }}</div>
+                <span
+                    v-if="t.key === 'income'"
+                    role="button"
+                    class="mt-2 inline-block text-xs font-medium underline underline-offset-4"
+                    @click.stop="incomeOpen = true"
                 >
                     + Add income
-                </button>
-            </div>
+                </span>
+                <Link
+                    v-else-if="t.key === 'spent' && t.amount === 0"
+                    :href="transactionsPage()"
+                    class="mt-2 inline-block text-xs font-medium underline underline-offset-4"
+                    @click.stop
+                >
+                    + Add expense
+                </Link>
+            </button>
         </div>
+
+        <Sheet v-model:open="panelOpen">
+            <SheetContent class="w-full overflow-y-auto sm:max-w-md">
+                <SheetHeader>
+                    <SheetTitle>{{ panelTile?.title }}</SheetTitle>
+                    <SheetDescription>{{ panelTile?.hint }}</SheetDescription>
+                </SheetHeader>
+                <div v-if="panelTile" class="grid gap-5 px-4 pb-6 text-sm">
+                    <div class="text-3xl font-semibold">{{ formatPeso(panelTile.amount) }}</div>
+                    <ul v-if="panel === 'income'" class="divide-y rounded-xl border">
+                        <li v-for="e in income_entries" :key="e.id" class="flex justify-between p-3">
+                            <span>{{ e.name }}</span><span class="font-medium">{{ formatPeso(e.amount) }}</span>
+                        </li>
+                        <li v-if="!income_entries.length" class="p-3 text-muted-foreground">No income logged this month yet.</li>
+                    </ul>
+                    <ul v-else-if="panel === 'spent'" class="divide-y rounded-xl border">
+                        <li v-for="c in categories" :key="c.name" class="flex justify-between p-3">
+                            <span>{{ c.name }}</span><span class="font-medium">{{ formatPeso(c.total) }}</span>
+                        </li>
+                        <li v-if="!categories.length" class="p-3 text-muted-foreground">Nothing spent yet this month.</li>
+                    </ul>
+                    <ul v-else class="divide-y rounded-xl border">
+                        <li v-for="s in split" :key="s.label" class="flex justify-between p-3">
+                            <span>{{ s.label }}</span><span class="font-medium">{{ formatPeso(s.amount) }} · {{ s.pct.toFixed(0) }}%</span>
+                        </li>
+                    </ul>
+                    <Button v-if="panel === 'income'" @click="((panel = null), (incomeOpen = true))">+ Add income</Button>
+                    <Button v-else-if="panel === 'spent'" as-child>
+                        <Link :href="transactionsPage()">Open transactions</Link>
+                    </Button>
+                </div>
+            </SheetContent>
+        </Sheet>
 
         <WelcomeBackDialog
             v-model:open="welcomeOpen"

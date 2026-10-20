@@ -62,6 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('chat/threads/{thread}', [ChatController::class, 'renameThread'])->name('chat.threads.update');
     Route::delete('chat/threads/{thread}', [ChatController::class, 'deleteThread'])->name('chat.threads.destroy');
     Route::post('chat/messages', [ChatController::class, 'messages'])->middleware(['ai.consent', 'throttle:20,1'])->name('chat.messages');
+    Route::post('chat/transcribe', [ChatController::class, 'transcribe'])->middleware(['ai.consent', 'throttle:20,1'])->name('chat.transcribe');
     Route::post('chat/drafts/{message}/confirm', [ChatController::class, 'confirm'])->name('chat.confirm');
 
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'update', 'destroy']);

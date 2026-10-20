@@ -32,10 +32,10 @@ export type ChatProps = {
 
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Paperclip, Plus, SendHorizontal, Sparkles } from '@lucide/vue';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { Mic, Paperclip, Plus, SendHorizontal, Sparkles } from '@lucide/vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import { confirm, messages } from '@/routes/chat';
+import { confirm, messages, transcribe } from '@/routes/chat';
 import AiConsent from '@/components/AiConsent.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import Mascot from '@/components/Mascot.vue';
@@ -109,6 +109,54 @@ const text = ref('');
 const sending = ref(false);
 const log = ref<HTMLElement | null>(null);
 const picker = ref<HTMLInputElement | null>(null);
+
+// voice: record in the browser, Gemini transcribes and detects English, Tagalog or Taglish itself
+const listening = ref(false);
+const transcribing = ref(false);
+let recorder: MediaRecorder | null = null;
+
+async function listen() {
+    if (!navigator.mediaDevices || typeof MediaRecorder === 'undefined') {
+        toast.error('Voice input is not supported in this browser.');
+
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const chunks: Blob[] = [];
+        recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => chunks.push(e.data);
+        recorder.onstop = async () => {
+            stream.getTracks().forEach((t) => t.stop());
+            listening.value = false;
+            const blob = new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
+
+            if (blob.size < 1500) {
+                return; // nothing was said
+            }
+
+            const form = new FormData();
+            form.append('audio', blob, 'voice.webm');
+            transcribing.value = true;
+
+            try {
+                const r = await api<{ text: string }>(transcribe.url(), form);
+                text.value = `${text.value.trim()} ${r.text}`.trim().slice(0, 500);
+                void nextTick(() => field.value?.focus());
+            } catch (e) {
+                toast.error((e as ApiError).message);
+            } finally {
+                transcribing.value = false;
+            }
+        };
+        recorder.start();
+        listening.value = true;
+    } catch {
+        toast.error('Allow microphone access to use voice.');
+    }
+}
+onBeforeUnmount(() => recorder?.state === 'recording' && recorder.stop());
 
 const toBottom = () =>
     nextTick(() => log.value?.scrollTo({ top: log.value.scrollHeight }));
@@ -440,12 +488,30 @@ const ready = (m: Msg) =>
                     aria-label="Attach a receipt image"
                     @change="onFile"
                 />
-                <div class="flex items-center gap-3 px-5 pt-4">
-                    <DropdownMenu v-if="msgs.length">
+                <div class="flex items-center gap-1.5 p-2.5 pl-3">
+                    <DropdownMenu>
                         <DropdownMenuTrigger as-child>
                             <button
                                 type="button"
-                                class="grid size-8 shrink-0 place-items-center rounded-full text-brand-deep transition hover:bg-accent dark:text-brand-light"
+                                class="grid size-10 shrink-0 place-items-center rounded-full border bg-card transition hover:bg-accent"
+                                aria-label="Attach or speak"
+                                :disabled="sending"
+                            >
+                                <Plus class="size-4" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="top" align="start">
+                            <DropdownMenuItem @select="picker?.click()">
+                                <Paperclip class="size-4" /> Attach file
+                            </DropdownMenuItem>
+                            <DropdownMenuItem @select="listen()"><Mic class="size-4" /> Voice</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <button
+                                type="button"
+                                class="grid size-10 shrink-0 place-items-center rounded-full text-brand-deep transition hover:bg-accent dark:text-brand-light"
                                 aria-label="Start a request"
                                 :disabled="sending"
                             >
@@ -453,59 +519,29 @@ const ready = (m: Msg) =>
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent side="top" align="start">
-                            <DropdownMenuItem
-                                v-for="st in starters"
-                                :key="st.label"
-                                @select="startWith(st.fill)"
-                            >
+                            <DropdownMenuItem v-for="st in starters" :key="st.label" @select="startWith(st.fill)">
                                 {{ st.label }}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    <Sparkles v-else class="size-4 shrink-0 text-brand-deep dark:text-brand-light" />
                     <input
                         ref="field"
                         v-model="text"
-                        class="min-h-10 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                        placeholder="Log an expense, ask about your money, or change a bill"
+                        class="min-h-10 min-w-0 flex-1 bg-transparent px-1 text-base outline-none placeholder:text-muted-foreground"
+                        :placeholder="listening ? 'Listening... tap the mic when done' : transcribing ? 'Transcribing...' : 'Log an expense, ask about your money, or change a bill'"
                         maxlength="500"
                         aria-label="Message"
                         :disabled="sending"
                     />
-                </div>
-                <div class="mt-2 flex items-center gap-2 bg-muted/50 px-3 py-2.5">
-                    <!-- once the chat has started, attaching is a plain plus; the shortcuts live under the sparkle icon -->
                     <button
-                        v-if="msgs.length"
+                        v-if="listening"
                         type="button"
-                        class="grid size-10 shrink-0 place-items-center rounded-full border bg-card transition hover:bg-accent"
-                        aria-label="Attach a file"
-                        :disabled="sending"
-                        @click="picker?.click()"
+                        class="grid size-10 shrink-0 animate-pulse place-items-center rounded-full bg-red-500 text-white"
+                        aria-label="Stop listening"
+                        @click="recorder?.stop()"
                     >
-                        <Plus class="size-4" />
+                        <Mic class="size-4" />
                     </button>
-                    <div v-if="!msgs.length" class="flex min-w-0 flex-1 gap-2 overflow-x-auto">
-                        <button
-                            type="button"
-                            class="chip"
-                            :disabled="sending"
-                            @click="picker?.click()"
-                        >
-                            <Paperclip class="size-3.5" /> Attach file
-                        </button>
-                        <button
-                            v-for="st in starters"
-                            :key="st.label"
-                            type="button"
-                            class="chip"
-                            :disabled="sending"
-                            @click="startWith(st.fill)"
-                        >
-                            {{ st.label }}
-                        </button>
-                    </div>
-                    <span v-else class="flex-1" />
                     <button
                         class="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow transition active:scale-95 disabled:opacity-40"
                         :disabled="sending || !text.trim()"

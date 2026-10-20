@@ -52,6 +52,18 @@ class ChatTest extends TestCase
         ]);
     }
 
+    public function test_a_voice_recording_comes_back_as_text_and_needs_consent()
+    {
+        $user = $this->demo();
+        $clip = \Illuminate\Http\UploadedFile::fake()->create('voice.webm', 20, 'audio/webm');
+
+        $this->actingAs($user)->postJson(route('chat.transcribe'), ['audio' => $clip])->assertOk()->assertJsonStructure(['text']);
+        $this->actingAs($user)->postJson(route('chat.transcribe'), [])->assertStatus(422);
+
+        $user->forceFill(['ai_consent_at' => null])->save();
+        $this->actingAs($user)->postJson(route('chat.transcribe'), ['audio' => $clip])->assertStatus(422);
+    }
+
     public function test_quick_entry_needs_no_ai_and_saves_only_on_confirm()
     {
         $user = $this->demo();

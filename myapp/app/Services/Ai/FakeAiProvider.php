@@ -27,6 +27,11 @@ class FakeAiProvider implements AiProvider
         return $tips;
     }
 
+    public function transcribe(string $audioPath, string $mime): string
+    {
+        return 'Jollibee 250';
+    }
+
     /** Looks the image up by file name in tests/Fixtures/receipts/expected.json (key contained in the name). */
     public function parseReceipt(string $imagePath, array $categories): array
     {

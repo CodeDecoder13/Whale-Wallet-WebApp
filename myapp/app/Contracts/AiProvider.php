@@ -49,4 +49,7 @@ interface AiProvider
      * @param  list<array{role: string, content: string}>  $history
      */
     public function advise(string $text, array $facts, array $history): string;
+
+    /** Speech to text. The language (English, Tagalog or a mix) is detected from the audio. */
+    public function transcribe(string $audioPath, string $mime): string;
 }

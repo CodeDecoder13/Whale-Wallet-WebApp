@@ -7,6 +7,7 @@ use App\Actions\HandleChatMessage;
 use App\Actions\ManageByChat;
 use App\Actions\PayRecurring;
 use App\Actions\StoreReceipt;
+use App\Contracts\AiProvider;
 use App\Enums\RecurringKind;
 use App\Enums\TransactionSource;
 use App\Models\ChatMessage;
@@ -107,6 +108,23 @@ class ChatController extends Controller
         }
 
         return response()->json($out + ['thread_id' => $thread->id]);
+    }
+
+    /** Voice to text for the chat box: the browser sends a short recording, the text goes back to be edited and sent. */
+    public function transcribe(Request $request, AiProvider $ai): JsonResponse
+    {
+        $request->validate(['audio' => ['required', 'file', 'max:5120', 'mimetypes:audio/webm,video/webm,audio/mp4,video/mp4,audio/ogg,audio/mpeg,audio/wav,audio/x-wav']]);
+        $file = $request->file('audio');
+
+        try {
+            $text = $ai->transcribe($file->getRealPath(), explode(';', (string) $file->getMimeType())[0]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => AiErrors::message($e)], AiErrors::isQuota($e) ? 429 : 503);
+        }
+
+        return response()->json(['text' => mb_substr($text, 0, 500)]);
     }
 
     /** The only place a chat draft becomes a transaction. */

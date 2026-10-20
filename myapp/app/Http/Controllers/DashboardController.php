@@ -49,12 +49,18 @@ class DashboardController extends Controller
         $month = fn () => Transaction::where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth());
         $spent = (int) $month()->sum('amount');
 
+        // spending per day for the last 7 days, oldest first, for the mini chart on the Spent tile
+        $byDay = Transaction::where('type', 'expense')->where('occurred_at', '>=', today()->subDays(6))->get(['amount', 'occurred_at'])
+            ->groupBy(fn ($t) => $t->occurred_at->toDateString())->map->sum('amount');
+        $week = collect(range(6, 0))->map(fn ($n) => ['day' => today()->subDays($n)->format('D'), 'amount' => (int) ($byDay[today()->subDays($n)->toDateString()] ?? 0)]);
+
         $summary = $budget->for($request->user());
         $forecast = $loader->for($request->user());
 
         return Inertia::render('Dashboard', [
             'net_worth' => self::netWorth(),
             'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
+            'week' => $week,
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
                 ->map(fn ($e) => [...$e->only(['id', 'name', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),
             'income_proofs' => Receipt::where('purpose', 'income')->where('status', '!=', 'confirmed')->latest('id')->limit(3)->get()->map->toClient()->values(),
