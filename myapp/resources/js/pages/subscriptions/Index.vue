@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import SubscriptionController from '@/actions/App/Http/Controllers/SubscriptionController';
 import BillCard from '@/components/BillCard.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
+import WhaleAside from '@/components/WhaleAside.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import ProofForm from '@/components/ProofForm.vue';
@@ -140,6 +141,11 @@ const repeat = (s: Item): [string, string] =>
         : s.installments === null
           ? ['Repeats', 'monthly']
           : ['Payments', s.left ? `${s.left} of ${s.installments} left` : 'completed'];
+const kinds: { value: Kind; label: string }[] = [
+    { value: 'bill', label: 'Bill' },
+    { value: 'subscription', label: 'Subscription' },
+    { value: 'debt', label: 'Loan' },
+];
 const label = (k: Kind) => (k === 'debt' ? 'loan' : k);
 // a loan is paid off in 1, 2 or 3 payments, or over 6 or 12 months
 const terms = [
@@ -415,9 +421,14 @@ const dueDate = (d: string | null) =>
 
         <Dialog :open="panel !== null" @update:open="(v) => !v && (panel === 'edit' ? cancel() : (panel = null))">
             <DialogContent
-                class="max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 transition-[max-width] duration-300 md:flex"
-                :class="selected && panel !== 'info' ? 'sm:max-w-3xl' : 'sm:max-w-md'"
+                class="no-scrollbar max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 transition-[max-width] duration-300 md:flex"
+                :class="(selected && panel !== 'info') || (!selected && panel === 'edit') ? 'sm:max-w-3xl' : 'sm:max-w-md'"
             >
+                <WhaleAside
+                    v-if="panel === 'edit' && !selected"
+                    title="Make room for what matters."
+                    body="Add the next charge once. Whale Wallet keeps the rhythm visible for you."
+                />
                 <div v-if="selected" class="relative min-w-0 md:shrink-0" :class="panel === 'info' ? 'md:w-full' : 'md:w-[26rem]'">
                     <div class="grid gap-5 p-6">
                         <DialogHeader class="flex-row items-center gap-3 p-0 pr-8 text-left">
@@ -621,12 +632,21 @@ const dueDate = (d: string | null) =>
                     </DialogHeader>
                     <form class="grid gap-4" @submit.prevent="submit">
                         <div class="grid gap-2">
-                            <Label for="kind">Type</Label>
-                            <SelectNative id="kind" v-model="form.kind">
-                                <option value="bill">Bill</option>
-                                <option value="subscription">Subscription</option>
-                                <option value="debt">Loan</option>
-                            </SelectNative>
+                            <Label id="kind-label">Type</Label>
+                            <div role="radiogroup" aria-labelledby="kind-label" class="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1">
+                                <button
+                                    v-for="k in kinds"
+                                    :key="k.value"
+                                    type="button"
+                                    role="radio"
+                                    :aria-checked="form.kind === k.value"
+                                    class="rounded-lg px-3 py-2 text-sm font-medium transition active:scale-[0.98]"
+                                    :class="form.kind === k.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                                    @click="form.kind = k.value"
+                                >
+                                    {{ k.label }}
+                                </button>
+                            </div>
                             <InputError :message="form.errors.kind" />
                         </div>
                         <div class="grid gap-2">
@@ -674,7 +694,7 @@ const dueDate = (d: string | null) =>
                         </div>
                         <InputError :message="form.errors.logo" />
                         <div class="flex gap-2">
-                            <Button :disabled="form.processing">Save</Button>
+                            <Button :disabled="form.processing">{{ editing ? 'Save changes' : 'Save item' }}</Button>
                             <Button type="button" variant="ghost" @click="cancel">Cancel</Button>
                         </div>
                     </form>

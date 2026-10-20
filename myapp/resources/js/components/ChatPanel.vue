@@ -69,7 +69,7 @@ type Msg = {
 
 
 // page = the full chat page: hero with the mascot and a floating composer. Without it, the small pill window.
-const props = defineProps<ChatProps & { logClass?: string; page?: boolean; threadId?: number | null }>();
+const props = defineProps<ChatProps & { logClass?: string; page?: boolean; compact?: boolean; threadId?: number | null }>();
 const emit = defineEmits<{ sent: [] }>();
 
 const firstName = computed(
@@ -266,8 +266,8 @@ const ready = (m: Msg) =>
             ref="log"
             :class="
                 page
-                    ? 'flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-4 pb-64 md:px-6'
-                    : [logClass ?? 'min-h-0 flex-1', 'flex flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4']
+                    ? ['no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3', compact ? 'pt-3 pb-36' : 'pt-4 pb-64 md:px-6']
+                    : [logClass ?? 'min-h-0 flex-1', 'no-scrollbar flex flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4']
             "
             aria-live="polite"
         >
@@ -275,20 +275,20 @@ const ready = (m: Msg) =>
                 v-if="!msgs.length && page"
                 class="m-auto flex w-full max-w-2xl flex-col items-center pb-8 text-center"
             >
-                <h2 class="text-3xl leading-tight font-semibold tracking-tight text-balance md:text-4xl">
+                <h2 class="leading-tight font-semibold tracking-tight text-balance" :class="compact ? 'text-xl' : 'text-3xl md:text-4xl'">
                     <span class="text-muted-foreground">Hi {{ firstName }},</span>
                     what are we doing with your money today?
                 </h2>
-                <div class="relative mt-10 flex h-52 w-full max-w-lg items-end justify-center">
-                    <div class="bubble absolute top-6 left-0 sm:left-4">
+                <div class="relative flex w-full max-w-lg items-end justify-center" :class="compact ? 'mt-5 h-28' : 'mt-10 h-52'">
+                    <div v-if="!compact" class="bubble absolute top-6 left-0 sm:left-4">
                         <Mascot pose="happy" round class="size-6" />
                         Tell me what you spent
                     </div>
-                    <div class="bubble absolute top-0 right-0 sm:right-4">
+                    <div v-if="!compact" class="bubble absolute top-0 right-0 sm:right-4">
                         <Mascot pose="thinking" round class="size-6" />
                         Ask me about your money
                     </div>
-                    <Mascot pose="hero" round class="whale-float size-40 shadow-lg ring-1 ring-black/5" />
+                    <Mascot pose="hero" round class="whale-float shadow-lg ring-1 ring-black/5" :class="compact ? 'size-24' : 'size-40'" />
                 </div>
             </div>
 
@@ -474,7 +474,7 @@ const ready = (m: Msg) =>
 
         <div
             v-if="page"
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 px-3 pb-3 md:px-6 md:pb-5"
+            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 px-3 pb-3" :class="!compact && 'md:px-6 md:pb-5'"
         >
             <form
                 class="pointer-events-auto mx-auto w-full max-w-4xl overflow-hidden rounded-3xl border bg-card/95 shadow-xl ring-1 ring-black/5 backdrop-blur"
@@ -528,7 +528,7 @@ const ready = (m: Msg) =>
                         ref="field"
                         v-model="text"
                         class="min-h-10 min-w-0 flex-1 bg-transparent px-1 text-base outline-none placeholder:text-muted-foreground"
-                        :placeholder="listening ? 'Listening... tap the mic when done' : transcribing ? 'Transcribing...' : 'Log an expense, ask about your money, or change a bill'"
+                        :placeholder="listening ? 'Listening... tap the mic when done' : transcribing ? 'Transcribing...' : compact ? 'Log, ask, or change a bill' : 'Log an expense, ask about your money, or change a bill'"
                         maxlength="500"
                         aria-label="Message"
                         :disabled="sending"

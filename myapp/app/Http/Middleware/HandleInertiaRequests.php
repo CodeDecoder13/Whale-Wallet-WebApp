@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\RecurringItem;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,11 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // what the Whale Chat button flags: bills, subscriptions and loan payments due today or already late
+            'whaleDue' => fn () => $request->user()
+                ? RecurringItem::active()->where('next_due_on', '<=', today()->endOfDay())
+                    ->where(fn ($q) => $q->whereNull('installments')->orWhere('installments', '>', 0))->count()
+                : 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

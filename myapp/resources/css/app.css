@@ -183,3 +183,12 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* scrolls, but without the visible bar */
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}

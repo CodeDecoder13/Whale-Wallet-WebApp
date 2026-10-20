@@ -13,6 +13,8 @@ import {
     Zap,
 } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import BrandLogo from '@/components/BrandLogo.vue';
+import WhaleAside from '@/components/WhaleAside.vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -37,7 +39,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPeso, toPesos } from '@/lib/currency';
-import { index as categoriesIndex } from '@/routes/categories';
+import { index as categoriesIndex, store as categoriesStore } from '@/routes/categories';
 import { exportMd, exportMethod, index } from '@/routes/transactions';
 
 type Txn = {
@@ -70,7 +72,7 @@ const props = defineProps<{
         card_id?: string;
         category_id?: string;
     };
-    cards: Option[];
+    cards: (Option & { balance: number; type: string })[];
     pods: Option[];
     categories: Option[];
     draft?: { merchant: string; amount: number; card_id: number | null };
@@ -125,6 +127,42 @@ const expense = useForm({
     note: '',
     source: 'manual',
 });
+// a new category is saved right away and picked for this expense
+const addingCategory = ref(false);
+const newCategory = ref('');
+const categoryError = ref('');
+const typeName: Record<string, string> = { bank: 'Bank', ewallet: 'E-wallet', credit: 'Credit', cash: 'Cash' };
+
+function addCategory() {
+    const name = newCategory.value.trim();
+
+    if (!name) {
+        return;
+    }
+
+    router.post(
+        categoriesStore().url,
+        { name },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['categories'],
+            onSuccess: () => {
+                const made = props.categories.find((c) => c.name === name);
+
+                if (made) {
+                    expense.category_id = String(made.id);
+                }
+
+                addingCategory.value = false;
+                newCategory.value = '';
+                categoryError.value = '';
+            },
+            onError: (e) => (categoryError.value = e.name ?? 'Could not add that category.'),
+        },
+    );
+}
+
 const transfer = useForm({ from: '', to: '', amount: '' });
 const editing = ref<number | null>(null);
 
@@ -515,8 +553,13 @@ const sign = { expense: '-', income: '+', transfer: '' };
         </div>
 
         <Dialog v-model:open="expenseOpen">
-            <DialogContent class="sm:max-w-lg">
-                <DialogHeader>
+            <DialogContent class="max-h-[90svh] gap-0 overflow-hidden p-0 sm:max-w-4xl md:flex">
+                <WhaleAside
+                    title="Log it before you forget."
+                    body="Pick the card or e-wallet it came from. Whale Wallet updates that balance right away."
+                />
+                <div class="no-scrollbar grid max-h-[90svh] min-w-0 flex-1 content-start gap-5 overflow-y-auto p-6">
+                <DialogHeader class="p-0 pr-8 text-left">
                     <DialogTitle>
                         {{
                             editing
@@ -559,39 +602,62 @@ const sign = { expense: '-', income: '+', transfer: '' };
                         />
                         <InputError :message="expense.errors.amount" />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="card_id">Card</Label>
-                        <SelectNative
-                            id="card_id"
-                            v-model="expense.card_id"
-                            required
-                        >
-                            <option
+                    <div class="grid gap-2 sm:col-span-2">
+                        <Label id="card-label">Card or e-wallet</Label>
+                        <!-- up to four cards read best as tiles; more than that is a dropdown -->
+                        <SelectNative v-if="cards.length > 4" id="card_id" v-model="expense.card_id" required aria-labelledby="card-label">
+                            <option v-for="c in cards" :key="c.id" :value="String(c.id)">
+                                {{ c.name }} · {{ typeName[c.type] ?? c.type }} · {{ formatPeso(c.balance) }}
+                            </option>
+                        </SelectNative>
+                        <div v-else role="radiogroup" aria-labelledby="card-label" class="grid grid-cols-2 gap-2">
+                            <button
                                 v-for="c in cards"
                                 :key="c.id"
-                                :value="String(c.id)"
+                                type="button"
+                                role="radio"
+                                :aria-checked="expense.card_id === String(c.id)"
+                                class="flex items-center gap-2.5 rounded-xl border bg-card px-2.5 py-2 text-left text-sm transition hover:bg-accent active:scale-[0.98]"
+                                :class="expense.card_id === String(c.id) && 'border-transparent ring-2 ring-primary'"
+                                @click="expense.card_id = String(c.id)"
                             >
-                                {{ c.name }}
-                            </option>
-                        </SelectNative>
+                                <BrandLogo :name="c.name" class="!size-8" />
+                                <span class="min-w-0">
+                                    <span class="block truncate font-medium">{{ c.name }}</span>
+                                    <span class="block truncate text-xs text-muted-foreground">
+                                        {{ typeName[c.type] ?? c.type }} · {{ formatPeso(c.balance) }}
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
                         <InputError :message="expense.errors.card_id" />
                     </div>
-                    <div class="grid gap-2">
+                    <div class="grid gap-2 sm:col-span-2">
                         <Label for="category_id">Category</Label>
-                        <SelectNative
-                            id="category_id"
-                            v-model="expense.category_id"
-                        >
-                            <option value="">Uncategorized</option>
-                            <option
-                                v-for="c in categories"
-                                :key="c.id"
-                                :value="String(c.id)"
-                            >
-                                {{ c.name }}
-                            </option>
-                        </SelectNative>
-                        <InputError :message="expense.errors.category_id" />
+                        <div v-if="!addingCategory" class="flex gap-2">
+                            <SelectNative id="category_id" v-model="expense.category_id" class="flex-1">
+                                <option value="">Uncategorized</option>
+                                <option v-for="c in categories" :key="c.id" :value="String(c.id)">
+                                    {{ c.name }}
+                                </option>
+                            </SelectNative>
+                            <Button type="button" variant="outline" class="shrink-0" @click="addingCategory = true">
+                                <Plus class="size-4" /> Add category
+                            </Button>
+                        </div>
+                        <form v-else class="flex gap-2" @submit.prevent="addCategory">
+                            <Input
+                                v-model="newCategory"
+                                class="flex-1"
+                                maxlength="60"
+                                placeholder="New category name"
+                                aria-label="New category name"
+                                autofocus
+                            />
+                            <Button :disabled="!newCategory.trim()">Add</Button>
+                            <Button type="button" variant="ghost" @click="((addingCategory = false), (categoryError = ''))">Cancel</Button>
+                        </form>
+                        <InputError :message="categoryError || expense.errors.category_id" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="occurred_at">Date</Label>
@@ -627,6 +693,7 @@ const sign = { expense: '-', income: '+', transfer: '' };
                         </Button>
                     </DialogFooter>
                 </form>
+                </div>
             </DialogContent>
         </Dialog>
 

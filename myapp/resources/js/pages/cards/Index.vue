@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ArrowUpRight, Plus } from '@lucide/vue';
-import { ref } from 'vue';
+import { ArrowUpRight, Plus, Upload } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
 import CardController from '@/actions/App/Http/Controllers/CardController';
 import BankPicker from '@/components/BankPicker.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
-import SelectNative from '@/components/SelectNative.vue';
+import WhaleAside from '@/components/WhaleAside.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { bankColor, cardGradient } from '@/lib/banks';
+import { bankColor, banks, cardGradient } from '@/lib/banks';
 import { findBrand } from '@/lib/brandLogos';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { toDataUrl } from '@/lib/image';
@@ -129,6 +129,12 @@ const hasLogo = (c: WalletCard) => {
 };
 const kind = (t: string) =>
     t === 'credit' ? 'Credit' : t === 'cash' ? 'Cash' : 'Debit';
+// the bank or wallet picker names the card, so the Name field only shows when asked for or when the card already has its own name
+const own = ref(false);
+const preset = computed(() => banks.some((b) => b.name === form.name && b.color === form.color));
+const showName = computed(() => own.value || (!!form.name && !preset.value));
+watch(open, () => (own.value = false));
+const shortType: Record<string, string> = { bank: 'Bank', ewallet: 'E-wallet', credit: 'Credit', cash: 'Cash' };
 const typeLabel: Record<string, string> = {
     bank: 'Debit (bank account)',
     ewallet: 'Debit (e-wallet)',
@@ -243,8 +249,13 @@ const tile = (c: WalletCard, i: number) =>
         </ul>
 
         <Dialog :open="open" @update:open="(v) => !v && cancel()">
-            <DialogContent class="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
-                <DialogHeader>
+            <DialogContent class="max-h-[90svh] gap-0 overflow-hidden p-0 sm:max-w-4xl md:flex">
+                <WhaleAside
+                    title="Every peso in its place."
+                    body="Add a bank, wallet or cash once. Whale Wallet keeps each balance and limit in view."
+                />
+                <div class="no-scrollbar grid max-h-[90svh] min-w-0 flex-1 content-start gap-5 overflow-y-auto p-6">
+                <DialogHeader class="p-0 pr-8 text-left">
                     <DialogTitle>
                         {{ editing ? 'Edit card' : 'Add card' }}
                     </DialogTitle>
@@ -260,19 +271,32 @@ const tile = (c: WalletCard, i: number) =>
                     :color="form.color"
                     @pick="(b) => Object.assign(form, b)"
                 />
+                <button v-if="!showName" type="button" class="w-fit text-xs font-medium underline underline-offset-4" @click="own = true">
+                    Not listed? Type your own name
+                </button>
+                <InputError v-if="!showName" :message="form.errors.name" />
             </div>
-            <div class="grid gap-2">
+            <div v-if="showName" class="grid gap-2 sm:col-span-2">
                 <Label for="name">Name</Label>
                 <Input id="name" v-model="form.name" required @input="form.color = null" />
                 <InputError :message="form.errors.name" />
             </div>
-            <div class="grid gap-2">
-                <Label for="type">Type</Label>
-                <SelectNative id="type" v-model="form.type">
-                    <option v-for="t in types" :key="t" :value="t">
-                        {{ typeLabel[t] ?? t }}
-                    </option>
-                </SelectNative>
+            <div class="grid gap-2 sm:col-span-2">
+                <Label id="type-label">Type</Label>
+                <div role="radiogroup" aria-labelledby="type-label" class="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:grid-cols-4">
+                    <button
+                        v-for="t in types"
+                        :key="t"
+                        type="button"
+                        role="radio"
+                        :aria-checked="form.type === t"
+                        class="rounded-lg px-2 py-2 text-sm font-medium transition active:scale-[0.98]"
+                        :class="form.type === t ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                        @click="form.type = t"
+                    >
+                        {{ shortType[t] ?? t }}
+                    </button>
+                </div>
                 <InputError :message="form.errors.type" />
             </div>
             <div class="grid gap-2">
@@ -321,13 +345,14 @@ const tile = (c: WalletCard, i: number) =>
                         alt="QR code preview"
                         class="size-16 rounded-lg border bg-white object-contain"
                     />
-                    <input
-                        id="qr"
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        class="text-sm"
-                        @change="pickQr"
-                    />
+                    <label
+                        for="qr"
+                        class="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground transition hover:bg-accent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                    >
+                        <Upload class="size-4" />
+                        {{ form.qr ? 'Replace QR code' : 'Upload a QR code' }}
+                        <input id="qr" type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="pickQr" />
+                    </label>
                     <button
                         v-if="form.qr"
                         type="button"
@@ -340,12 +365,13 @@ const tile = (c: WalletCard, i: number) =>
                 <InputError :message="form.errors.qr" />
             </div>
             <div class="flex gap-2 sm:col-span-2">
-                <Button :disabled="form.processing">Save</Button>
+                <Button :disabled="form.processing || !form.name.trim()">{{ editing ? 'Save changes' : 'Save card' }}</Button>
                 <Button type="button" variant="ghost" @click="cancel">
                     Cancel
                 </Button>
             </div>
         </form>
+                </div>
             </DialogContent>
         </Dialog>
 

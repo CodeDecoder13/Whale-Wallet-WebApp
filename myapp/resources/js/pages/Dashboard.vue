@@ -137,6 +137,7 @@ const tiles = computed<Tile[]>(() => {
         {
             key: 'spent', title: 'Spent this month', icon: ShoppingCart, color: spentTone[1], amount: spent,
             status: spentTone[0], hint: `${pctOfIncome(spent).toFixed(1)}% of income`,
+            fill: unit(spent / (income || 1)),
             bars: props.week.map((w) => w.amount / weekMax.value),
         },
     ];
@@ -298,7 +299,7 @@ const dueDate = (d: string) =>
                 v-for="t in tiles"
                 :key="t.key"
                 type="button"
-                class="group rounded-2xl border bg-card p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
+                class="group flex flex-col items-stretch justify-start rounded-2xl border bg-card p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
                 @click="panel = t.key"
             >
                 <div class="flex items-center justify-between gap-2">
@@ -308,20 +309,27 @@ const dueDate = (d: string) =>
                     </span>
                     <span class="hidden shrink-0 text-xs text-muted-foreground sm:inline">This month</span>
                 </div>
-                <div class="mt-4 flex items-end justify-between gap-3">
+                <div class="mt-4 flex min-h-14 items-end justify-between gap-3">
                     <div class="min-w-0">
                         <div class="truncate text-xl font-semibold sm:text-2xl">{{ formatPeso(t.amount) }}</div>
                         <div class="mt-1 text-xs font-medium" :style="{ color: t.color }">{{ t.status }}</div>
                     </div>
-                    <div v-if="t.bars" class="flex h-12 items-end gap-1" aria-hidden="true">
-                        <div v-for="(b, i) in t.bars" :key="i" class="flex h-full w-1.5 items-end rounded-full bg-muted">
+                    <!-- last 7 days, today solid -->
+                    <div v-if="t.bars" class="flex h-14 shrink-0 items-end gap-1.5" role="img" aria-label="Spent per day, last 7 days">
+                        <div
+                            v-for="(b, i) in t.bars"
+                            :key="i"
+                            class="flex h-full w-2.5 items-end rounded-full bg-muted"
+                            :title="`${week[i].day}: ${formatPeso(week[i].amount)}`"
+                        >
                             <div
                                 class="w-full rounded-full"
-                                :style="{ height: `${Math.max(8, b * 100)}%`, background: t.color, opacity: i === t.bars.length - 1 ? 1 : 0.55 }"
+                                :style="{ height: `${Math.max(10, b * 100)}%`, background: t.color, opacity: i === t.bars.length - 1 ? 1 : 0.55 }"
                             />
                         </div>
                     </div>
                 </div>
+                <div class="mt-auto" />
                 <div v-if="t.fill !== undefined" class="relative mt-3 h-1.5 rounded-full bg-muted" aria-hidden="true">
                     <div class="h-full rounded-full" :style="{ width: `${t.fill * 100}%`, background: t.color }" />
                     <div v-if="t.pace" class="absolute -top-0.5 h-2.5 w-0.5 bg-foreground/40" :style="{ left: `${t.pace * 100}%` }" />
@@ -343,6 +351,7 @@ const dueDate = (d: string) =>
                 >
                     + Add expense
                 </Link>
+                <span v-else class="mt-2 block h-4" aria-hidden="true" />
             </button>
         </div>
 

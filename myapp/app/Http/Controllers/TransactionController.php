@@ -36,7 +36,7 @@ class TransactionController extends Controller
         return Inertia::render('transactions/Index', [
             'transactions' => $transactions,
             'filters' => (object) $f,
-            'cards' => Card::orderBy('name')->get(['id', 'name', 'balance']),
+            'cards' => Card::orderBy('name')->get(['id', 'name', 'balance', 'type']),
             'pods' => Pod::orderBy('name')->get(['id', 'name', 'saved_amount']),
             'categories' => Category::orderBy('name')->get(['id', 'name']),
             'draft' => session('draft'),
