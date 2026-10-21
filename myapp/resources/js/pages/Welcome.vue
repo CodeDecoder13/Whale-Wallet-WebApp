@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import AppLogo from '@/components/AppLogo.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import ForecastChart from '@/components/ForecastChart.vue';
 import type { Point } from '@/components/ForecastChart.vue';
@@ -21,12 +20,28 @@ const series: Point[] = balances.map((balance, i) => ({
     balance,
 }));
 const daysToGo = series.length - 1;
-const safePerDay = Math.floor(
-    (balances[0] - balances[daysToGo]) / daysToGo,
-);
+const safePerDay = Math.floor((balances[0] - balances[daysToGo]) / daysToGo);
 
 // real marks only: the banks and wallets whose logos are bundled with the app
-const partners = ['GCash', 'BDO', 'BPI', 'Metrobank', 'Landbank', 'PNB', 'UnionBank', 'Security Bank', 'EastWest', 'PSBank', 'GoTyme', 'CIMB', 'China Bank', 'RCBC', 'Maribank', 'ShopeePay', 'GrabPay'].map((name) => ({ name, brand: findBrand(name) }));
+const partners = [
+    'GCash',
+    'BDO',
+    'BPI',
+    'Metrobank',
+    'Landbank',
+    'PNB',
+    'UnionBank',
+    'Security Bank',
+    'EastWest',
+    'PSBank',
+    'GoTyme',
+    'CIMB',
+    'China Bank',
+    'RCBC',
+    'Maribank',
+    'ShopeePay',
+    'GrabPay',
+].map((name) => ({ name, brand: findBrand(name) }));
 
 const exampleBills = [
     { name: 'Converge - Wifi', due: '21 Oct', amount: 160_000 },
@@ -50,32 +65,9 @@ const lift =
             name="description"
             content="Whale Wallet shows what is safe to spend each day until payday, with your cards, bills, loans and net worth in one place."
         />
-        <link rel="preconnect" href="https://rsms.me/" />
-        <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     </Head>
 
-    <div class="min-h-screen bg-background text-foreground">
-        <header
-            class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-8"
-        >
-            <Link href="/" class="flex items-center" aria-label="Whale Wallet home">
-                <AppLogo tagline />
-            </Link>
-            <nav class="flex items-center gap-2 text-sm">
-                <Button v-if="$page.props.auth.user" as-child>
-                    <Link :href="dashboard()">Dashboard</Link>
-                </Button>
-                <template v-else>
-                    <Button variant="ghost" as-child>
-                        <Link :href="login()">Log in</Link>
-                    </Button>
-                    <Button as-child>
-                        <Link :href="register()">Create account</Link>
-                    </Button>
-                </template>
-            </nav>
-        </header>
-
+    <div>
         <main>
             <!-- hero: the product's own headline numbers, net worth first -->
             <section
@@ -122,7 +114,9 @@ const lift =
                                 <div class="text-xs text-white/60">
                                     Safe to spend today
                                 </div>
-                                <div class="mt-1 text-2xl font-semibold tabular-nums">
+                                <div
+                                    class="mt-1 text-2xl font-semibold tabular-nums"
+                                >
                                     {{ formatPeso(safePerDay) }}
                                 </div>
                                 <div class="mt-1 text-xs text-white/60">
@@ -130,8 +124,12 @@ const lift =
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="flex items-center justify-end gap-2 text-sm font-medium">
-                                    <span class="size-2 rounded-full bg-brand-light" />
+                                <div
+                                    class="flex items-center justify-end gap-2 text-sm font-medium"
+                                >
+                                    <span
+                                        class="size-2 rounded-full bg-brand-light"
+                                    />
                                     Net worth
                                 </div>
                                 <div
@@ -144,7 +142,9 @@ const lift =
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-6 min-w-0 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
+                        <div
+                            class="mt-6 min-w-0 rounded-xl bg-white/5 p-3 ring-1 ring-white/10"
+                        >
                             <ForecastChart
                                 :series="series"
                                 compact
@@ -182,7 +182,10 @@ const lift =
                                 role="img"
                                 :aria-label="p.name"
                             >
-                                <path :d="p.brand.icon.path" :fill="`#${p.brand.icon.hex}`" />
+                                <path
+                                    :d="p.brand.icon.path"
+                                    :fill="`#${p.brand.icon.hex}`"
+                                />
                             </svg>
                         </li>
                     </ul>
@@ -196,34 +199,50 @@ const lift =
                     Log money the way you already talk about it.
                 </h2>
 
-                <div class="mt-10 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-6">
+                <div
+                    class="mt-10 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-6"
+                >
                     <!-- Whale Chat -->
                     <article
                         :class="lift"
                         class="flex flex-col justify-between gap-8 rounded-2xl bg-linear-to-br from-navy-2 to-navy p-7 text-white md:col-span-4 md:p-9"
                     >
                         <div>
-                            <h3 class="text-xl font-medium">Whale Chat does the typing</h3>
+                            <h3 class="text-xl font-medium">
+                                Whale Chat does the typing
+                            </h3>
                             <p class="mt-2 max-w-md text-sm text-white/80">
-                                Log an expense, add a loan, record your salary or
-                                mark a bill as paid. Nothing is saved until you
-                                tap Save.
+                                Log an expense, add a loan, record your salary
+                                or mark a bill as paid. Nothing is saved until
+                                you tap Save.
                             </p>
                         </div>
                         <div class="grid gap-2 text-sm">
                             <div class="ml-auto rounded-2xl bg-brand px-4 py-2">
                                 paid converge from BDO
                             </div>
-                            <div class="flex max-w-md items-start gap-2 rounded-2xl bg-white/10 px-3 py-2">
-                                <Mascot pose="happy" round class="size-7 shrink-0" />
+                            <div
+                                class="flex max-w-md items-start gap-2 rounded-2xl bg-white/10 px-3 py-2"
+                            >
+                                <Mascot
+                                    pose="happy"
+                                    round
+                                    class="size-7 shrink-0"
+                                />
                                 Mark Converge - Wifi as paid: ₱1,600.00 from
                                 BDO? The next due date moves forward.
                             </div>
                             <div class="ml-auto rounded-2xl bg-brand px-4 py-2">
                                 I got my salary
                             </div>
-                            <div class="flex max-w-md items-start gap-2 rounded-2xl bg-white/10 px-3 py-2">
-                                <Mascot pose="happy" round class="size-7 shrink-0" />
+                            <div
+                                class="flex max-w-md items-start gap-2 rounded-2xl bg-white/10 px-3 py-2"
+                            >
+                                <Mascot
+                                    pose="happy"
+                                    round
+                                    class="size-7 shrink-0"
+                                />
                                 Nice! How much did you receive? Then attach a
                                 screenshot of the transfer as proof.
                             </div>
@@ -248,8 +267,13 @@ const lift =
                     </article>
 
                     <!-- bills, subscriptions, loans -->
-                    <article :class="lift" class="rounded-2xl border bg-card p-7 md:col-span-2">
-                        <h3 class="text-xl font-medium">Bills, subscriptions and loans</h3>
+                    <article
+                        :class="lift"
+                        class="rounded-2xl border bg-card p-7 md:col-span-2"
+                    >
+                        <h3 class="text-xl font-medium">
+                            Bills, subscriptions and loans
+                        </h3>
                         <ul class="mt-4 divide-y text-sm">
                             <li
                                 v-for="b in exampleBills"
@@ -258,10 +282,16 @@ const lift =
                             >
                                 <BrandLogo :name="b.name" />
                                 <div class="min-w-0 flex-1">
-                                    <div class="truncate font-medium">{{ b.name }}</div>
-                                    <div class="text-xs text-muted-foreground">{{ b.due }}</div>
+                                    <div class="truncate font-medium">
+                                        {{ b.name }}
+                                    </div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ b.due }}
+                                    </div>
                                 </div>
-                                <span class="tabular-nums">{{ formatPeso(b.amount) }}</span>
+                                <span class="tabular-nums">{{
+                                    formatPeso(b.amount)
+                                }}</span>
                             </li>
                         </ul>
                         <p class="mt-4 text-sm text-muted-foreground">
@@ -284,8 +314,12 @@ const lift =
                             >
                                 <div class="flex items-center gap-3 text-sm">
                                     <BrandLogo :name="c.name" />
-                                    <span class="flex-1 font-medium">{{ c.name }}</span>
-                                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">
+                                    <span class="flex-1 font-medium">{{
+                                        c.name
+                                    }}</span>
+                                    <span
+                                        class="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium"
+                                    >
                                         {{ c.kind }}
                                     </span>
                                 </div>
@@ -295,12 +329,14 @@ const lift =
                             </div>
                         </div>
                         <div class="self-center">
-                            <h3 class="text-xl font-medium">Cards that look like your banks</h3>
+                            <h3 class="text-xl font-medium">
+                                Cards that look like your banks
+                            </h3>
                             <p class="mt-2 text-sm text-muted-foreground">
                                 Add the account holder, number and QR so you can
-                                share your details in one tap. Net worth adds your
-                                cards and savings pods, then subtracts loans and
-                                credit card balances.
+                                share your details in one tap. Net worth adds
+                                your cards and savings pods, then subtracts
+                                loans and credit card balances.
                             </p>
                         </div>
                     </article>
@@ -388,7 +424,10 @@ const lift =
                     class="flex flex-col items-start justify-between gap-8 rounded-2xl bg-linear-to-br from-navy to-navy-2 p-8 text-white md:flex-row md:items-center md:p-12"
                 >
                     <div class="flex items-center gap-6">
-                        <Mascot pose="excited" class="hidden size-24 shrink-0 sm:block" />
+                        <Mascot
+                            pose="excited"
+                            class="hidden size-24 shrink-0 sm:block"
+                        />
                         <h2
                             class="max-w-md text-3xl font-semibold tracking-tight text-balance md:text-4xl"
                         >
@@ -414,22 +453,5 @@ const lift =
                 </div>
             </section>
         </main>
-
-        <footer
-            class="mx-auto max-w-6xl px-4 pb-10 text-sm text-muted-foreground md:px-8"
-        >
-            <div
-                class="flex flex-wrap items-center justify-between gap-3 border-t pt-6"
-            >
-                <span>© {{ new Date().getFullYear() }} Whale Wallet. Stay Afloat, Spend Smart.</span>
-                <Link
-                    v-if="!$page.props.auth.user"
-                    :href="login()"
-                    class="hover:text-foreground"
-                >
-                    Log in
-                </Link>
-            </div>
-        </footer>
     </div>
 </template>

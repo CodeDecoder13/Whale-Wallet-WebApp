@@ -99,6 +99,16 @@ defineOptions({
                 <Spinner v-if="processing" />
                 Create account
             </Button>
+            <p class="text-center text-xs text-muted-foreground">
+                By creating an account you agree to the
+                <a href="/terms" class="underline underline-offset-4"
+                    >Terms and Conditions</a
+                >
+                and acknowledge the
+                <a href="/privacy-policy" class="underline underline-offset-4"
+                    >Privacy Policy</a
+                >.
+            </p>
         </div>
 
         <div class="text-center text-sm text-muted-foreground">

@@ -3,6 +3,7 @@
 use App\Http\Controllers\CardController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\IncomeController;
@@ -15,6 +16,34 @@ use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+
+// public site: one entry per page, so the sitemap and the footer stay in step with the routes
+Route::inertia('/about', 'About')->name('about');
+Route::inertia('/pricing', 'Pricing')->name('pricing');
+Route::inertia('/docs', 'Docs')->name('docs');
+Route::inertia('/privacy', 'privacy/Overview')->name('privacy');
+Route::inertia('/privacy/ai', 'privacy/Ai')->name('privacy.ai');
+Route::inertia('/privacy/security', 'privacy/Security')->name('privacy.security');
+Route::inertia('/privacy/processors', 'privacy/Processors')->name('privacy.processors');
+Route::inertia('/privacy/changes', 'privacy/Changes')->name('privacy.changes');
+Route::inertia('/privacy-policy', 'legal/Privacy')->name('privacy.policy');
+Route::inertia('/terms', 'legal/Terms')->name('terms');
+Route::inertia('/cookies', 'legal/Cookies')->name('cookies');
+Route::get('/contact', [ContactController::class, 'show'])->name('contact');
+Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
+
+Route::get('/.well-known/security.txt', fn () => response(
+    "Contact: mailto:support@whalewallet.cloud\nExpires: ".now()->addYear()->toIso8601ZuluString()."\nPreferred-Languages: en, fil\nCanonical: ".url('/.well-known/security.txt')."\n",
+    200, ['Content-Type' => 'text/plain; charset=utf-8'],
+));
+
+Route::get('/sitemap.xml', fn () => response(
+    '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    .collect(['home', 'about', 'pricing', 'docs', 'privacy', 'privacy.ai', 'privacy.security', 'privacy.processors', 'privacy.changes', 'privacy.policy', 'terms', 'cookies', 'contact'])
+        ->map(fn ($name) => '<url><loc>'.route($name).'</loc></url>')->implode('')
+    .'</urlset>',
+    200, ['Content-Type' => 'application/xml'],
+));
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
