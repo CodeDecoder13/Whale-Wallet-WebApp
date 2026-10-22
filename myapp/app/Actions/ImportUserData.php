@@ -21,8 +21,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Loads a Whale Wallet export (Settings, Data) into the signed-in account.
- * Rows that are already there are matched, not duplicated, so importing the same file twice is safe.
+ * Loads a Whale Wallet export (Settings, Data) into the signed-in account, either merged with what is there
+ * or, with $replace, as an exact copy (the account's cards, bills, pods, categories, transactions and income are cleared first).
+ * When merging, rows that are already there are matched, not duplicated, so importing the same file twice is safe.
  * Ids in the file are only labels: each is mapped to the new row's id before anything that points at it is written.
  * Card balances come from the file for new cards and are never changed for existing ones; imported
  * transactions do not touch balances (the exported balance already includes them).
@@ -33,7 +34,7 @@ class ImportUserData
     private const MAX_ROWS = 20000;
 
     /** @return array<string, int> what was added, and "skipped" for rows that were already there */
-    public function handle(User $user, array $data): array
+    public function handle(User $user, array $data, bool $replace = false): array
     {
         $d = $this->validate($data);
         $new = ['cards' => 0, 'pods' => 0, 'categories' => 0, 'recurring_items' => 0, 'transactions' => 0, 'income_sources' => 0, 'skipped' => 0];
@@ -42,7 +43,17 @@ class ImportUserData
             return $old === null ? null : ($map[$table][$old] ?? null);
         };
 
-        DB::transaction(function () use ($user, $d, &$new, &$map, $id) {
+        DB::transaction(function () use ($user, $d, $replace, &$new, &$map, $id) {
+            // replace: this account becomes an exact copy of the file, so what is here is cleared first (same transaction: a failure keeps it all)
+            if ($replace) {
+                Transaction::query()->delete();
+                IncomeSource::get()->each->forget(); // also deletes salary proof images
+                RecurringItem::query()->delete();
+                Pod::query()->delete();
+                Card::query()->delete();
+                Category::query()->delete();
+            }
+
             // categories first (a parent may come after its child in the file, so parents are linked in a second pass)
             foreach ($d['categories'] ?? [] as $row) {
                 $found = Category::whereRaw('lower(name) = ?', [mb_strtolower($row['name'])])->first();
@@ -70,16 +81,28 @@ class ImportUserData
                 $map['pods'][$row['id']] = $pod->id;
             }
 
+            // What is already here, as signature => ids. A file row claims one of them, so two identical rows in the file
+            // (two loans with the same name and amount, two purchases in the same minute) both come across instead of collapsing into one.
+            $take = fn (array &$have, string $sig): ?int => isset($have[$sig]) ? (array_shift($have[$sig]) ?: null) : null;
+
+            $haveItems = [];
+            foreach (RecurringItem::get(['id', 'name', 'amount', 'cadence']) as $r) {
+                $haveItems[mb_strtolower($r->name).'|'.$r->amount.'|'.$r->cadence][] = $r->id;
+            }
             foreach ($d['recurring_items'] ?? [] as $row) {
-                $found = RecurringItem::whereRaw('lower(name) = ?', [mb_strtolower($row['name'])])->where('amount', $row['amount'])->where('cadence', $row['cadence'])->first();
-                $item = $found ?? RecurringItem::create(
+                $foundId = $take($haveItems, mb_strtolower($row['name']).'|'.$row['amount'].'|'.$row['cadence']);
+                $itemId = $foundId ?? RecurringItem::create(
                     Arr::only($row, ['name', 'amount', 'currency', 'cadence', 'next_due_on', 'kind', 'installments', 'logo', 'cancelled_at', 'cancel_reason'])
                     + ['card_id' => $id('cards', $row['card_id'] ?? null), 'category_id' => $id('categories', $row['category_id'] ?? null)],
-                );
-                $found || $new['recurring_items']++;
-                $map['recurring_items'][$row['id']] = $item->id;
+                )->id;
+                $foundId || $new['recurring_items']++;
+                $map['recurring_items'][$row['id']] = $itemId;
             }
 
+            $haveTx = [];
+            foreach (Transaction::get(['id', 'card_id', 'type', 'amount', 'occurred_at', 'merchant']) as $t) {
+                $haveTx[$t->card_id.'|'.$t->type->value.'|'.$t->amount.'|'.$t->occurred_at->format('Y-m-d H:i:s').'|'.$t->merchant][] = $t->id;
+            }
             foreach ($d['transactions'] ?? [] as $row) {
                 // the export writes UTC ("Z"); the database holds app-timezone clock time
                 $row['occurred_at'] = Carbon::parse($row['occurred_at'])->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
@@ -91,10 +114,7 @@ class ImportUserData
                     continue;
                 }
 
-                $same = Transaction::where('card_id', $cardId)->where('type', $row['type'])->where('amount', $row['amount'])
-                    ->where('occurred_at', $row['occurred_at'])->where('merchant', $row['merchant'] ?? null)->exists();
-
-                if ($same) {
+                if ($take($haveTx, $cardId.'|'.$row['type'].'|'.$row['amount'].'|'.$row['occurred_at'].'|'.($row['merchant'] ?? ''))) {
                     $new['skipped']++;
 
                     continue;
@@ -111,14 +131,14 @@ class ImportUserData
                 $new['transactions']++;
             }
 
+            // income is the same entry when the reference number matches, else when name and date do
+            $incomeSig = fn ($amount, $kind, $month, $ref, $name, $on) => implode('|', [$amount, $kind ?: 'salary', $month, $ref ?: $name.'#'.$on]);
+            $haveIncome = [];
+            foreach (IncomeSource::get() as $i) {
+                $haveIncome[$incomeSig($i->amount, $i->kind, $i->month, $i->reference, $i->name, $i->received_on?->toDateString())][] = $i->id;
+            }
             foreach ($d['income_sources'] ?? [] as $row) {
-                $same = IncomeSource::where('amount', $row['amount'])->where('kind', $row['kind'] ?? 'salary')->where('month', $row['month'] ?? null)
-                    ->where(fn ($q) => ($row['reference'] ?? null)
-                        ? $q->where('reference', $row['reference'])
-                        : $q->where('name', $row['name'])->where('received_on', $row['received_on'] ?? null))
-                    ->exists();
-
-                if ($same) {
+                if ($take($haveIncome, $incomeSig($row['amount'], $row['kind'] ?? null, $row['month'] ?? null, $row['reference'] ?? null, $row['name'], isset($row['received_on']) ? Carbon::parse($row['received_on'])->toDateString() : null))) {
                     $new['skipped']++;
 
                     continue;
@@ -129,8 +149,8 @@ class ImportUserData
                 $new['income_sources']++;
             }
 
-            // settings follow the data only into an account that has none yet (no payday set), so a working account is never overwritten
-            if (! $user->pay_dates && ! empty($d['user']['pay_dates'])) {
+            // settings follow the data into an account with no payday yet, or always when replacing; a merge never overwrites a working account's settings
+            if (($replace || ! $user->pay_dates) && ! empty($d['user']['pay_dates'])) {
                 $user->forceFill(array_filter(Arr::only($d['user'], ['pay_dates', 'digest_enabled', 'digest_time', 'keep_receipts']), fn ($v) => $v !== null)
                     +['pay_cycle' => count($d['user']['pay_dates']) > 1 ? 'semi_monthly' : 'monthly'])->save();
             }

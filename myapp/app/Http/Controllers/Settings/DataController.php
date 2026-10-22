@@ -39,14 +39,14 @@ class DataController extends Controller
     /** Loads an export from this app (or another account) into the signed-in account; ImportUserData says how rows are matched. */
     public function import(Request $request, ImportUserData $import): RedirectResponse
     {
-        $request->validate(['file' => ['required', 'file', 'max:20480']]);
+        $request->validate(['file' => ['required', 'file', 'max:20480'], 'replace' => ['nullable', 'boolean']]);
         $data = json_decode($request->file('file')->get(), true);
 
         if (! is_array($data)) {
             throw ValidationException::withMessages(['file' => 'That file is not valid JSON. Use a file downloaded from Whale Wallet.']);
         }
 
-        $n = $import->handle($request->user(), $data);
+        $n = $import->handle($request->user(), $data, $request->boolean('replace'));
         $added = collect($n)->except('skipped')->filter()->map(fn ($count, $what) => $count.' '.str_replace('_', ' ', $what))->implode(', ');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => ($added ?: 'Nothing new to import').($n['skipped'] ? ' ('.$n['skipped'].' already there)' : '').'.']);

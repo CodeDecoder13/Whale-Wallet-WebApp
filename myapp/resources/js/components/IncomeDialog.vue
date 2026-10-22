@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
+import { X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AiConsent from '@/components/AiConsent.vue';
 import InputError from '@/components/InputError.vue';
@@ -103,6 +104,8 @@ function startManual() {
     manual.value = true;
 }
 
+let cancelled = false; // set by the X: an upload still in flight is thrown away when it lands
+
 async function upload(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -125,18 +128,36 @@ async function upload(e: Event) {
         return;
     }
 
-    const body = new FormData();
-    body.append('image', await shrinkImage(file));
-    body.append('purpose', 'income');
+    cancelled = false;
     uploading.value = true;
+    const body = new FormData();
+    body.append('purpose', 'income');
 
     try {
-        items.value.unshift(await api<Proof>(store.url(), body));
+        body.append('image', await shrinkImage(file));
+        const proof = await api<Proof>(store.url(), body);
+
+        if (cancelled) {
+            await discard(proof);
+        } else {
+            items.value.unshift(proof);
+        }
     } catch (err) {
         const e = err as ApiError;
-        uploadError.value = e.data?.errors?.image?.[0] ?? e.message;
+        uploadError.value = cancelled ? null : (e.data?.errors?.image?.[0] ?? e.message);
     } finally {
         uploading.value = false;
+    }
+}
+
+// the X on "Reading your screenshot": stop waiting, delete what is still being read, and show the upload box again
+function cancelReading() {
+    cancelled = true;
+    uploading.value = false;
+    uploadError.value = null;
+
+    for (const p of items.value.filter((i) => i.status === 'queued' || i.status === 'parsing')) {
+        discard(p).catch(() => drop(p));
     }
 }
 
@@ -330,6 +351,14 @@ const day = (d: string | null) =>
                     class="flex items-center gap-2 text-sm text-muted-foreground"
                 >
                     <Spinner /> Reading your screenshot…
+                    <button
+                        type="button"
+                        class="ml-auto grid size-7 place-items-center rounded-md hover:bg-accent hover:text-foreground"
+                        aria-label="Cancel"
+                        @click="cancelReading"
+                    >
+                        <X class="size-4" aria-hidden="true" />
+                    </button>
                 </div>
 
                 <div v-else class="grid gap-2">

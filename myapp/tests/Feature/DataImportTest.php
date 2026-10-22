@@ -115,4 +115,58 @@ class DataImportTest extends TestCase
         $this->actingAs($b);
         $this->assertSame(0, Card::count());
     }
+
+    /** What the dashboard adds up from an account, so two accounts can be compared like prod and dev. */
+    private function figures(): array
+    {
+        return [\App\Http\Controllers\DashboardController::netWorth(), (new \App\Services\BudgetSummary)->for(auth()->user()), auth()->user()->fresh()->pay_dates];
+    }
+
+    private function source(): array
+    {
+        $a = User::factory()->create(['pay_dates' => [21], 'pay_cycle' => 'monthly']);
+        $card = Card::factory()->for($a)->create(['name' => 'GoTyme', 'type' => 'bank', 'balance' => 500_000]);
+        // alike rows must all come across: two loans with the same name and amount, two purchases in the same minute
+        foreach ([1, 2] as $_) {
+            RecurringItem::factory()->for($a)->create(['name' => 'Loan', 'amount' => 300_000, 'cadence' => 'monthly', 'kind' => 'debt', 'installments' => 6, 'next_due_on' => now()->addDays(5)->toDateString(), 'card_id' => $card->id]);
+            Transaction::factory()->for($a)->create(['card_id' => $card->id, 'merchant' => 'Parking', 'amount' => 5_000, 'type' => 'expense', 'occurred_at' => '2026-03-02 13:30:00']);
+        }
+        $this->actingAs($a);
+
+        return [$this->figures(), $this->get('/settings/data/export')->getContent()];
+    }
+
+    public function test_alike_rows_all_come_across_and_the_dashboard_adds_up_the_same()
+    {
+        [$before, $json] = $this->source();
+        $b = User::factory()->create();
+
+        $this->import($b, $json)->assertSessionHasNoErrors();
+        $this->actingAs($b);
+
+        $this->assertSame($before, $this->figures());
+        $this->assertSame([2, 2], [RecurringItem::count(), Transaction::count()]);
+
+        $this->import($b, $json); // again: still two of each
+        $this->assertSame([2, 2], [RecurringItem::count(), Transaction::count()]);
+    }
+
+    public function test_replace_makes_an_account_that_already_has_data_an_exact_copy()
+    {
+        [$before, $json] = $this->source();
+
+        // the target already has its own payday, a stray loan and a card of its own: a merge would keep all of it
+        $b = User::factory()->create(['pay_dates' => [22], 'pay_cycle' => 'monthly']);
+        $stray = Card::factory()->for($b)->create(['name' => 'Old', 'balance' => 99]);
+        RecurringItem::factory()->for($b)->create(['name' => 'Stray loan', 'amount' => 1_000_000, 'kind' => 'debt', 'installments' => 12, 'next_due_on' => now()->addDays(3)->toDateString(), 'card_id' => $stray->id]);
+
+        $this->import($b, $json)->assertSessionHasNoErrors();
+        $this->actingAs($b);
+        $this->assertNotSame($before, $this->figures()); // merge: not the same
+
+        $this->actingAs($b)->post('/settings/data/import', ['replace' => true, 'file' => UploadedFile::fake()->createWithContent('x.json', $json)])->assertSessionHasNoErrors();
+
+        $this->assertSame($before, $this->figures());
+        $this->assertSame(['GoTyme'], Card::pluck('name')->all());
+    }
 }

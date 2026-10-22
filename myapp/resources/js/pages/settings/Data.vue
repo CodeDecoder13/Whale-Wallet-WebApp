@@ -12,9 +12,16 @@ defineOptions({
     },
 });
 
-const upload = useForm<{ file: File | null }>({ file: null });
+const upload = useForm<{ file: File | null; replace: boolean }>({ file: null, replace: false });
 
 function importFile() {
+    if (
+        upload.replace &&
+        !confirm('Replace everything in this account with the file? Your current cards, bills, loans, pods, categories, transactions and income are deleted first. This cannot be undone.')
+    ) {
+        return;
+    }
+
     upload.post('/settings/data/import', {
         preserveScroll: true,
         forceFormData: true,
@@ -67,6 +74,15 @@ function clearChat() {
                 />
                 <InputError :message="upload.errors.file" />
             </div>
+            <label class="flex items-start gap-2 text-sm">
+                <input v-model="upload.replace" type="checkbox" class="mt-1" />
+                <span>
+                    Replace what is in this account with the file, so both are exactly the same.
+                    <span class="text-muted-foreground">
+                        Use this to sync prod and local. Without it, the file is merged into what you already have.
+                    </span>
+                </span>
+            </label>
             <div>
                 <Button :disabled="upload.processing || !upload.file">Import</Button>
             </div>
