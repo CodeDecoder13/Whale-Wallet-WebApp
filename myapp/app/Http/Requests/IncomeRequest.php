@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Validation\Rule;
 
-/** A received salary is only accepted with its parsed proof screenshot and a unique reference number. */
+/** Income comes with its parsed proof screenshot and a unique reference number, or is typed in by hand (then both are optional). */
 class IncomeRequest extends PesoRequest
 {
     protected array $pesos = ['amount'];
@@ -14,11 +14,11 @@ class IncomeRequest extends PesoRequest
         $mine = fn (string $table) => Rule::exists($table, 'id')->where('user_id', $this->user()->id);
 
         return [
-            'receipt_id' => ['required', 'integer', $mine('receipts')],
+            'receipt_id' => ['nullable', 'integer', $mine('receipts')],
             'name' => ['nullable', 'string', 'max:80'],
             'amount' => ['required', 'integer', 'min:1'],
             'received_on' => ['required', 'date', 'before_or_equal:today'],
-            'reference' => ['required', 'string', 'max:80', Rule::unique('income_sources', 'reference')->where('user_id', $this->user()->id)],
+            'reference' => ['required_with:receipt_id', 'nullable', 'string', 'max:80', Rule::unique('income_sources', 'reference')->where('user_id', $this->user()->id)],
         ];
     }
 

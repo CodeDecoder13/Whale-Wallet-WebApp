@@ -60,7 +60,7 @@ class HandleChatMessage
         if ($salary || $amountAnswer) {
             $income = self::incomeDraft($amountAnswer ?? self::amountFrom($text));
             $reply = $income['amount']
-                ? 'Got it, ₱'.number_format($income['amount'] / 100, 2).'. Attach a screenshot of the transfer with the image button. I will read the reference number, date and amount, check it against what you told me, then you confirm it from Add income on your dashboard.'
+                ? 'Got it, ₱'.number_format($income['amount'] / 100, 2).'. Tap Save to record it now. If you want proof on file, attach a screenshot of the transfer with the image button instead.'
                 : 'Nice! How much did you receive?';
         } elseif ($pendingLoan && ($update = self::loanUpdate($pendingLoan, $text))) {
             $loan = $this->loanDraft($update);
@@ -328,8 +328,8 @@ class HandleChatMessage
     private static function incomeDraft(?int $amount): array
     {
         return [
-            'kind' => 'income', 'amount' => $amount, 'missing' => $amount ? [] : ['amount'],
-            'merchant' => null, 'card_id' => null, 'card' => null, 'category_id' => null, 'category' => null,
+            'kind' => 'income', 'amount' => $amount, 'missing' => $amount ? [] : ['amount'], 'label' => 'Save income',
+            'merchant' => 'Income', 'card_id' => null, 'card' => null, 'category_id' => null, 'category' => null,
             'occurred_at' => today()->toDateString(),
         ];
     }

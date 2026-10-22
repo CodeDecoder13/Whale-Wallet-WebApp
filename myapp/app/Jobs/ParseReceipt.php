@@ -30,7 +30,7 @@ class ParseReceipt implements ShouldQueue
 
     public int $timeout = 90;
 
-    private const MAX_SIDE = 1600;
+    private const MAX_SIDE = 1280;
 
     public function __construct(public int $receiptId) {}
 
@@ -141,7 +141,7 @@ class ParseReceipt implements ShouldQueue
             })->limit(5)->pluck('id')->all();
     }
 
-    /** Re-encodes the stored image as JPEG with its longest side at most 1600px; returns the absolute path. */
+    /** Re-encodes the stored image as JPEG with its longest side at most 1280px; returns the absolute path. */
     private function downscale(Receipt $receipt): string
     {
         $disk = Storage::disk();
@@ -162,7 +162,7 @@ class ParseReceipt implements ShouldQueue
         $new = preg_replace('/\.\w+$/', '.jpg', $receipt->path);
         // the AI provider needs a local file, and a remote disk has no path(), so write to temp and upload
         $tmp = sys_get_temp_dir().'/'.basename($new); // ulid-prefixed, so unique
-        imagejpeg($out, $tmp, 85);
+        imagejpeg($out, $tmp, 80);
         $disk->put($new, file_get_contents($tmp));
 
         if ($new !== $receipt->path) {

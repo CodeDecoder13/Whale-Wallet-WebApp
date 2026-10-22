@@ -51,6 +51,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { api, ApiError } from '@/lib/api';
 import { formatPeso } from '@/lib/currency';
 import { dueTone } from '@/lib/dueTone';
+import { shrinkImage } from '@/lib/image';
 import { dashboard } from '@/routes';
 import { index as subscriptions } from '@/routes/subscriptions';
 import { index as transactions } from '@/routes/transactions';
@@ -170,7 +171,7 @@ async function send(body: string | File) {
     if (typeof body === 'string') {
         form.append('text', body);
     } else {
-        form.append('image', body);
+        form.append('image', await shrinkImage(body));
     }
 
     if (props.threadId) {
@@ -242,7 +243,9 @@ async function save(m: Msg) {
         m.draft!.done = r.message;
         toast.success(
             r.message ??
-                (m.draft!.kind === 'loan'
+                (m.draft!.kind === 'income'
+                ? 'Income recorded.'
+                : m.draft!.kind === 'loan'
                 ? 'Saved to Bills & Subs.'
                 : m.draft!.recurring_id
                   ? 'Bill marked as paid.'
@@ -358,7 +361,6 @@ const ready = (m: Msg) =>
                 <div
                     v-if="
                         m.draft &&
-                        m.draft.kind !== 'income' &&
                         m.draft.kind !== 'dues' &&
                         !m.dismissed &&
                         !m.draft.missing.length
@@ -376,6 +378,9 @@ const ready = (m: Msg) =>
                     <p class="mt-1 text-xs text-muted-foreground">
                         <template v-if="m.draft.kind === 'manage'">
                             <span v-for="l in m.draft.lines" :key="l" class="block">{{ l }}</span>
+                        </template>
+                        <template v-else-if="m.draft.kind === 'income'">
+                            Income · {{ m.draft.occurred_at }}
                         </template>
                         <template v-else-if="m.draft.kind === 'loan'">
                             Loan · {{ m.draft.payments }}

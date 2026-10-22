@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { api, ApiError } from '@/lib/api';
 import { formatPeso, toPesos } from '@/lib/currency';
+import { shrinkImage } from '@/lib/image';
 import { confirm, destroy, keep, show, store } from '@/routes/receipts';
 
 type Draft = {
@@ -108,7 +109,7 @@ async function upload(files: FileList | File[]) {
         }
 
         const body = new FormData();
-        body.append('image', file);
+        body.append('image', await shrinkImage(file));
         uploading.value = true;
 
         try {
@@ -161,7 +162,7 @@ onMounted(() => {
                 // keep waiting; the next tick tries again
             }
         }
-    }, 1500);
+    }, 800);
 });
 onBeforeUnmount(() => {
     window.removeEventListener('paste', onPaste);

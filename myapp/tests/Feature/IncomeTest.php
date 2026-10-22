@@ -63,7 +63,6 @@ class IncomeTest extends TestCase
         [$user, $other] = [$this->user(), $this->user()];
         $this->actingAs($user);
 
-        $this->post(route('income.store'), ['amount' => '100', 'received_on' => '2026-03-05', 'reference' => 'X'])->assertSessionHasErrors('receipt_id');
         $this->post(route('income.store'), $this->body($this->proof($other)))->assertSessionHasErrors('receipt_id'); // someone else's proof
         $this->post(route('income.store'), $this->body($this->proof($user), ['reference' => '']))->assertSessionHasErrors('reference');
         $this->post(route('income.store'), $this->body($this->proof($user), ['received_on' => '2026-04-01']))->assertSessionHasErrors('received_on');
@@ -103,6 +102,33 @@ class IncomeTest extends TestCase
         $this->postJson(route('receipts.confirm', $proof->id), ['merchant' => 'x', 'amount' => '1', 'occurred_at' => '2026-03-01'])->assertStatus(422);
     }
 
+    public function test_income_can_be_typed_in_without_a_screenshot_or_reference()
+    {
+        $user = $this->user();
+        $this->actingAs($user);
+
+        $this->post(route('income.store'), ['amount' => '1200', 'received_on' => '2026-03-05', 'name' => 'Freelance'])->assertRedirect();
+
+        $row = IncomeSource::where('name', 'Freelance')->sole();
+        $this->assertSame([120_000, '2026-03', null, null], [$row->amount, $row->month, $row->reference, $row->receipt_id]);
+
+        // a proof still needs its reference number
+        $this->post(route('income.store'), ['receipt_id' => $this->proof($user)->id, 'amount' => '1', 'received_on' => '2026-03-05'])->assertSessionHasErrors('reference');
+    }
+
+    public function test_a_typed_salary_in_chat_saves_with_one_tap()
+    {
+        $user = $this->user();
+        $this->actingAs($user);
+
+        $r = $this->postJson(route('chat.messages'), ['text' => 'I got my salary 25k'])->assertOk();
+        $this->postJson(route('chat.confirm', $r->json('id')))->assertOk();
+
+        $row = IncomeSource::whereNotNull('month')->sole();
+        $this->assertSame([2_500_000, '2026-03'], [$row->amount, $row->month]);
+        $this->postJson(route('chat.confirm', $r->json('id')))->assertStatus(422); // not twice
+    }
+
     public function test_chat_asks_how_much_then_for_a_screenshot_and_files_it_as_a_salary_proof()
     {
         Queue::fake();
@@ -133,6 +159,8 @@ class IncomeTest extends TestCase
 
         $r = $this->postJson(route('chat.messages'), ['text' => 'received my 13th month pay 30,000'])->assertOk();
         $this->assertSame([3_000_000, []], [$r->json('draft.amount'), $r->json('draft.missing')]);
-        $this->postJson(route('chat.confirm', $r->json('id')))->assertStatus(422);
+        $this->postJson(route('chat.confirm', $r->json('id')))->assertOk();
+        $this->assertSame(3_000_000, IncomeSource::whereNotNull('month')->sole()->amount);
+        $this->assertSame(0, \App\Models\Transaction::count()); // income, not an expense
     }
 }

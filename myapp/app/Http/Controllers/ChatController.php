@@ -12,6 +12,7 @@ use App\Enums\RecurringKind;
 use App\Enums\TransactionSource;
 use App\Models\ChatMessage;
 use App\Models\ChatThread;
+use App\Models\IncomeSource;
 use App\Models\Receipt;
 use App\Models\RecurringItem;
 use App\Services\Ai\AiErrors;
@@ -134,7 +135,17 @@ class ChatController extends Controller
         $id = DB::transaction(function () use ($message, $create, &$done) {
             $message = ChatMessage::lockForUpdate()->findOrFail($message->id);
             $d = $message->draft_json;
-            abort_unless($d && ! $d['missing'] && empty($d['saved']) && ! in_array($d['kind'] ?? null, ['income', 'dues'], true), 422, 'There is no complete draft to save here.');
+            abort_unless($d && ! $d['missing'] && empty($d['saved']) && ($d['kind'] ?? null) !== 'dues', 422, 'There is no complete draft to save here.');
+
+            // typed income: saved without proof, like Add income entered by hand
+            if (($d['kind'] ?? null) === 'income') {
+                $income = IncomeSource::create([
+                    'name' => 'Income', 'amount' => $d['amount'], 'received_on' => $d['occurred_at'], 'month' => substr($d['occurred_at'], 0, 7),
+                ]);
+                $message->update(['draft_json' => $d + ['saved' => $income->id, 'done' => 'Income recorded.']]);
+
+                return $income->id;
+            }
 
             // add, edit, cancel, renew or delete from chat; the target is checked again inside apply()
             if (($d['kind'] ?? null) === 'manage') {

@@ -18,18 +18,19 @@ class IncomeController extends Controller
         $d = $request->validated();
 
         DB::transaction(function () use ($d) {
-            $receipt = Receipt::lockForUpdate()->findOrFail($d['receipt_id']);
-            abort_unless($receipt->status === 'parsed' && $receipt->purpose === 'income', 409, 'This proof was already handled.');
+            // typed in by hand: no proof to lock or confirm
+            $receipt = ($d['receipt_id'] ?? null) ? Receipt::lockForUpdate()->findOrFail($d['receipt_id']) : null;
+            abort_unless(! $receipt || ($receipt->status === 'parsed' && $receipt->purpose === 'income'), 409, 'This proof was already handled.');
 
             IncomeSource::create([
                 'name' => $d['name'] ?? null ?: 'Salary',
                 'amount' => $d['amount'],
                 'received_on' => $d['received_on'],
                 'month' => substr($d['received_on'], 0, 7),
-                'reference' => $d['reference'],
-                'receipt_id' => $receipt->id,
+                'reference' => $d['reference'] ?? null,
+                'receipt_id' => $receipt?->id,
             ]);
-            $receipt->update(['status' => 'confirmed']);
+            $receipt?->update(['status' => 'confirmed']);
         });
 
         return back();

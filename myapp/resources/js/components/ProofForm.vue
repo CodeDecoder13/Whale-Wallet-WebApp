@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { api, type ApiError } from '@/lib/api';
 import { formatPeso, toPesos } from '@/lib/currency';
+import { shrinkImage } from '@/lib/image';
 import { destroy as receiptDestroy, show as receiptShow, store as receiptStore } from '@/routes/receipts';
 
 /**
@@ -110,7 +111,7 @@ async function pickReceipt(e: Event) {
     }
 
     const body = new FormData();
-    body.append('image', file);
+    body.append('image', await shrinkImage(file));
     scanning.value = true;
 
     try {
@@ -121,7 +122,7 @@ async function pickReceipt(e: Event) {
             } catch {
                 // keep waiting; the next tick tries again
             }
-        }, 1500);
+        }, 800);
     } catch (err) {
         const e = err as ApiError;
         scanError.value = e.data?.errors?.image?.[0] ?? e.message;

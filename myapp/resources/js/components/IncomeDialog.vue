@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { api, ApiError } from '@/lib/api';
 import { formatPeso, toPesos } from '@/lib/currency';
+import { shrinkImage } from '@/lib/image';
 import { destroy as removeIncome, store as storeIncome } from '@/routes/income';
 import { destroy, show, store } from '@/routes/receipts';
 
@@ -56,8 +57,10 @@ const waiting = computed(() =>
 );
 const failed = computed(() => items.value.filter((i) => i.status === 'failed'));
 
+const manual = ref(false); // typed in by hand: no screenshot, no reference needed
+
 const form = useForm({
-    receipt_id: 0,
+    receipt_id: null as number | null,
     amount: '',
     received_on: '',
     reference: '',
@@ -84,6 +87,18 @@ watch(
     { immediate: true },
 );
 
+function startManual() {
+    form.defaults({
+        receipt_id: null,
+        amount: '',
+        received_on: new Date().toLocaleDateString('en-CA'),
+        reference: '',
+        name: '',
+    });
+    form.reset();
+    manual.value = true;
+}
+
 async function upload(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -107,7 +122,7 @@ async function upload(e: Event) {
     }
 
     const body = new FormData();
-    body.append('image', file);
+    body.append('image', await shrinkImage(file));
     body.append('purpose', 'income');
     uploading.value = true;
 
@@ -121,7 +136,7 @@ async function upload(e: Event) {
     }
 }
 
-// the queue worker parses in the background; ask for news every 1.5 seconds
+// the queue worker parses in the background; ask for news every 0.8 seconds
 let timer: ReturnType<typeof setInterval>;
 onMounted(() => {
     timer = setInterval(async () => {
@@ -136,7 +151,7 @@ onMounted(() => {
                 // keep waiting; the next tick tries again
             }
         }
-    }, 1500);
+    }, 800);
 });
 onBeforeUnmount(() => clearInterval(timer));
 
@@ -154,6 +169,7 @@ function save() {
         preserveScroll: true,
         onSuccess: () => {
             items.value = items.value.filter((i) => i.id !== id);
+            manual.value = false;
             open.value = false;
         },
     });
@@ -174,9 +190,10 @@ const day = (d: string | null) =>
             <DialogHeader>
                 <DialogTitle>Add income</DialogTitle>
                 <DialogDescription>
-                    Upload a screenshot of the salary you received. I read the
-                    reference number, date and amount from it. What you actually
-                    received replaces your expected income for that month.
+                    Type in what you received, or upload a screenshot and I read
+                    the reference number, date and amount from it. What you
+                    actually received replaces your expected income for that
+                    month.
                 </DialogDescription>
             </DialogHeader>
 
@@ -192,7 +209,7 @@ const day = (d: string | null) =>
                     <div class="min-w-0">
                         <div>{{ e.name }}</div>
                         <div class="text-xs text-muted-foreground">
-                            {{ day(e.received_on) }} · Ref {{ e.reference }}
+                            {{ day(e.received_on) }} · {{ e.reference ? 'Ref ' + e.reference : 'Typed in' }}
                         </div>
                     </div>
                     <span class="font-medium">{{ formatPeso(e.amount) }}</span>
@@ -210,16 +227,24 @@ const day = (d: string | null) =>
                 </li>
             </ul>
 
-            <AiConsent v-if="!consented" />
+            <Button
+                v-if="!manual && !active && !waiting && !uploading"
+                type="button"
+                @click="startManual"
+            >
+                Enter it manually
+            </Button>
+
+            <AiConsent v-if="!consented && !manual" />
 
             <template v-else>
-                <form v-if="active" class="grid gap-4" @submit.prevent="save">
+                <form v-if="active || manual" class="grid gap-4" @submit.prevent="save">
                     <p class="text-xs text-muted-foreground">
-                        Check what I read from your screenshot, then save.
+                        {{ active ? 'Check what I read from your screenshot, then save.' : 'No screenshot needed.' }}
                     </p>
                     <p
                         v-if="
-                            active.claimed &&
+                            active?.claimed &&
                             active.draft &&
                             active.claimed !== active.draft.amount
                         "
@@ -252,11 +277,11 @@ const day = (d: string | null) =>
                         <InputError :message="form.errors.received_on" />
                     </div>
                     <div class="grid gap-2">
-                        <Label for="income-ref">Reference number</Label>
+                        <Label for="income-ref">Reference number{{ active ? '' : ' (optional)' }}</Label>
                         <Input
                             id="income-ref"
                             v-model="form.reference"
-                            required
+                            :required="!!active"
                         />
                         <InputError :message="form.errors.reference" />
                     </div>
@@ -274,7 +299,7 @@ const day = (d: string | null) =>
                         <Button
                             type="button"
                             variant="ghost"
-                            @click="active && discard(active)"
+                            @click="active ? discard(active) : (manual = false)"
                         >
                             Discard
                         </Button>

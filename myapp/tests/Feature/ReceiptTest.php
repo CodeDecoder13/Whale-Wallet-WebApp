@@ -145,7 +145,7 @@ class ReceiptTest extends TestCase
         ParseReceipt::dispatchSync($receipt->id);
 
         [$w, $h] = getimagesize(Storage::disk('local')->path($receipt->fresh()->path));
-        $this->assertSame([1600, 500], [$w, $h]);
+        $this->assertSame([1280, 400], [$w, $h]);
     }
 
     public function test_polling_shows_status_and_draft_only()

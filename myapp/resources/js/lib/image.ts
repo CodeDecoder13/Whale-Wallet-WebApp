@@ -22,3 +22,28 @@ export function toDataUrl(file: File, max: number, type = 'image/png', quality =
         img.src = URL.createObjectURL(file);
     });
 }
+
+/** Receipt upload: a phone screenshot is several MB but the reader needs about 1280px, so send a JPEG that is a fraction of the size. Falls back to the original file. */
+export async function shrinkImage(file: File, max = 1280): Promise<File> {
+    try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+
+        if (scale === 1 && file.size < 400_000) {
+            return file;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#fff'; // flatten PNG transparency
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.82));
+
+        return blob && blob.size < file.size ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
+    } catch {
+        return file;
+    }
+}
