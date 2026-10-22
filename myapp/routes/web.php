@@ -71,6 +71,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('pods/{pod}/fund', [PodController::class, 'fund'])->name('pods.fund');
     Route::post('subscriptions/{subscription}/pay', [SubscriptionController::class, 'pay'])->name('subscriptions.pay');
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::post('subscriptions/{subscription}/hide', [SubscriptionController::class, 'hide'])->name('subscriptions.hide');
+    Route::post('subscriptions/{subscription}/show', [SubscriptionController::class, 'show'])->name('subscriptions.show');
     Route::post('subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
 
     Route::get('tips', [RecommendationController::class, 'index'])->name('tips.index');

@@ -14,10 +14,16 @@ class RecurringItem extends Model
 
     protected $guarded = ['user_id'];
 
-    /** Everything except cancelled subscriptions (those stay on file but stop counting). */
+    /** Everything that counts: not a cancelled subscription and not hidden for now (both stay on file but stop counting). */
     public function scopeActive($query)
     {
-        return $query->whereNull('cancelled_at');
+        return $query->whereNull('cancelled_at')->whereNull('hidden_at');
+    }
+
+    /** Hidden items drop out of income left, the forecast, due lists, tips and net worth until shown again. */
+    public function hide(bool $hidden = true): void
+    {
+        $this->update(['hidden_at' => $hidden ? now() : null]);
     }
 
     /** A cancelled subscription stays on file with its reason, so it can be renewed. */
@@ -118,6 +124,6 @@ class RecurringItem extends Model
 
     protected function casts(): array
     {
-        return ['kind' => RecurringKind::class, 'next_due_on' => 'date', 'cancelled_at' => 'datetime'];
+        return ['kind' => RecurringKind::class, 'next_due_on' => 'date', 'cancelled_at' => 'datetime', 'hidden_at' => 'datetime'];
     }
 }

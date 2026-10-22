@@ -17,11 +17,12 @@ const props = defineProps<{
     due: string | null;
     done: boolean;
     cancelled?: boolean;
+    hidden?: boolean;
 }>();
 defineEmits<{ select: [] }>();
 
 const tone = computed(() =>
-    props.cancelled ? { c: '#94a3b8', text: 'Cancelled' } : dueTone(props.due, props.done),
+    props.cancelled || props.hidden ? { c: '#94a3b8', text: props.cancelled ? 'Cancelled' : 'Hidden' } : dueTone(props.due, props.done),
 );
 
 // the decoration in the corner follows the brand: a gear for motorbikes, fibre strands for internet and so on
@@ -94,7 +95,7 @@ onMounted(() => {
 <template>
     <li
         class="bill-card relative overflow-hidden rounded-[1.75rem] text-sm shadow-sm ring-1 ring-border"
-        :class="cancelled && 'opacity-70'"
+        :class="(cancelled || hidden) && 'opacity-70'"
         :style="{ '--vibe': vibe, '--tone': tone.c }"
     >
         <!-- corner decoration in the logo colour; the shape follows the brand (see motif) -->

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { ImagePlus, ScanLine, TriangleAlert } from '@lucide/vue';
+import { ImagePlus, ScanLine, TriangleAlert, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import AiConsent from '@/components/AiConsent.vue';
@@ -330,6 +330,14 @@ const toggleKeep = (e: Event) =>
                                             ? 'Waiting in line...'
                                             : 'Reading your receipt...'
                                     }}
+                                    <button
+                                        type="button"
+                                        class="ml-auto grid size-7 place-items-center rounded-md hover:bg-accent hover:text-foreground"
+                                        aria-label="Cancel"
+                                        @click="discard(item).catch(() => drop(item))"
+                                    >
+                                        <X class="size-4" aria-hidden="true" />
+                                    </button>
                                 </div>
 
                                 <div

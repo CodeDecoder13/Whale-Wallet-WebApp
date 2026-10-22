@@ -30,7 +30,7 @@ class DashboardController extends Controller
     {
         $cards = Card::get(['type', 'balance']);
         $credit = (int) $cards->where('type', CardType::Credit)->sum('balance');
-        $loans = (int) RecurringItem::where('kind', RecurringKind::Debt)->whereNotNull('installments')->get()
+        $loans = (int) RecurringItem::where('kind', RecurringKind::Debt)->whereNull('hidden_at')->whereNotNull('installments')->get()
             ->sum(fn ($i) => $i->amount * $i->paymentsLeft());
 
         $assets = (int) $cards->where('type', '!=', CardType::Credit)->sum('balance') + (int) Pod::sum('saved_amount') + max(0, $credit);

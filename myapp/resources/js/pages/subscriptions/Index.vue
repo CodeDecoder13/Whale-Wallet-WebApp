@@ -32,6 +32,8 @@ type Item = {
     card_id: number | null;
     last_paid: string | null;
     cancelled: boolean;
+    hidden: boolean;
+    hidden_monthly: number;
     cancel_reason: string | null;
     payments: { id: number; amount: number; card: string; paid_on: string }[];
     logo: string | null;
@@ -105,8 +107,8 @@ const panel = ref<'info' | 'pay' | 'edit' | 'cancel' | 'delete' | null>(null);
 const selectedId = ref<number | null>(null);
 const selected = computed(() => props.items.find((i) => i.id === selectedId.value) ?? null);
 const tone = (s: Item) =>
-    s.cancelled
-        ? { days: null, c: '#94a3b8', text: 'Cancelled' }
+    s.cancelled || s.hidden
+        ? { days: null, c: '#94a3b8', text: s.cancelled ? 'Cancelled' : 'Hidden' }
         : dueTone(s.next_due_on, s.installments !== null && !s.left);
 
 // Delete and cancel ask first inside the panel; cancel keeps the subscription so it can be renewed.
@@ -133,6 +135,12 @@ const renew = (s: Item) =>
     router.post(SubscriptionController.renew.url(s.id), {}, { preserveScroll: true });
 
 const total = computed(() => shown.value.reduce((n, i) => n + i.monthly, 0));
+// what hiding takes off every month (for the items in this tab)
+const hiddenTotal = computed(() => shown.value.reduce((n, i) => n + i.hidden_monthly, 0));
+
+// Hide for now: the item stays here but is left out of income left, the forecast, due lists and net worth until shown again.
+const toggleHidden = (s: Item) =>
+    router.post(s.hidden ? SubscriptionController.show.url(s.id) : SubscriptionController.hide.url(s.id), {}, { preserveScroll: true });
 const other = (k: Kind): Kind => (k === 'bill' ? 'subscription' : 'bill');
 // the middle stat on a card: how often it repeats, or how many loan payments remain
 const repeat = (s: Item): [string, string] =>
@@ -328,6 +336,9 @@ const dueDate = (d: string | null) =>
             <div class="mt-2 text-xs text-brand-deep dark:text-brand-light">
                 {{ shown.length }} {{ shown.length === 1 ? 'item' : 'items' }}
             </div>
+            <div v-if="hiddenTotal" class="mt-1 text-xs text-muted-foreground">
+                Hiding {{ formatPeso(hiddenTotal) }} a month. Not counted in your dashboard until you show it again.
+            </div>
         </div>
 
         <p v-if="!shown.length" class="text-sm text-muted-foreground">
@@ -415,6 +426,7 @@ const dueDate = (d: string | null) =>
                 :due="s.next_due_on"
                 :done="s.installments !== null && !s.left"
                 :cancelled="s.cancelled"
+                :hidden="s.hidden"
                 @select="openItem(s)"
             />
         </ul>
@@ -524,6 +536,17 @@ const dueDate = (d: string | null) =>
                             <Button class="w-full" @click="renew(selected)">Renew subscription</Button>
                         </template>
                         <Button v-else-if="payable(selected)" class="w-full" @click="pay(selected)">Pay now</Button>
+
+                        <div v-if="!selected.cancelled && !completed(selected)" class="grid gap-2">
+                            <Button variant="outline" class="w-full" @click="toggleHidden(selected)">
+                                {{ selected.hidden ? 'Show again' : 'Hide for now' }}
+                            </Button>
+                            <p class="text-xs text-muted-foreground">
+                                {{ selected.hidden
+                                    ? 'Hidden: left out of your income left, forecast, due list and net worth. Show it again to count it.'
+                                    : 'Hiding keeps it on file but leaves it out of your income left, forecast, due list and net worth, so you can see how things look without it.' }}
+                            </p>
+                        </div>
 
                         <div class="grid gap-2">
                             <h3 class="text-sm font-medium">Transactions</h3>

@@ -10,7 +10,7 @@ export type ProofValues = {
 
 <script setup lang="ts">
 import type { InertiaForm } from '@inertiajs/vue3';
-import { ImagePlus, PencilLine, ScanLine, TriangleAlert } from '@lucide/vue';
+import { ImagePlus, PencilLine, ScanLine, TriangleAlert, X } from '@lucide/vue';
 import { onBeforeUnmount, ref } from 'vue';
 import AiConsent from '@/components/AiConsent.vue';
 import InputError from '@/components/InputError.vue';
@@ -200,6 +200,14 @@ onBeforeUnmount(() => {
                 class="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground"
             >
                 <Spinner /> Reading your receipt…
+                <button
+                    type="button"
+                    class="ml-auto grid size-7 place-items-center rounded-md hover:bg-accent hover:text-foreground"
+                    aria-label="Cancel"
+                    @click="dropScan"
+                >
+                    <X class="size-4" aria-hidden="true" />
+                </button>
             </div>
             <div v-else-if="scan.status === 'failed'" class="grid gap-3 rounded-xl border border-destructive/40 p-4 text-sm">
                 <p class="text-destructive">{{ scan.error }}</p>

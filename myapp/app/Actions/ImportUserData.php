@@ -92,7 +92,7 @@ class ImportUserData
             foreach ($d['recurring_items'] ?? [] as $row) {
                 $foundId = $take($haveItems, mb_strtolower($row['name']).'|'.$row['amount'].'|'.$row['cadence']);
                 $itemId = $foundId ?? RecurringItem::create(
-                    Arr::only($row, ['name', 'amount', 'currency', 'cadence', 'next_due_on', 'kind', 'installments', 'logo', 'cancelled_at', 'cancel_reason'])
+                    Arr::only($row, ['name', 'amount', 'currency', 'cadence', 'next_due_on', 'kind', 'installments', 'logo', 'cancelled_at', 'cancel_reason', 'hidden_at'])
                     + ['card_id' => $id('cards', $row['card_id'] ?? null), 'category_id' => $id('categories', $row['category_id'] ?? null)],
                 )->id;
                 $foundId || $new['recurring_items']++;
@@ -212,6 +212,7 @@ class ImportUserData
             'recurring_items.*.installments' => $int,
             'recurring_items.*.logo' => ['nullable', 'string', 'max:200000'],
             'recurring_items.*.cancelled_at' => ['nullable', 'date'],
+            'recurring_items.*.hidden_at' => ['nullable', 'date'],
             'recurring_items.*.cancel_reason' => ['nullable', 'string', 'max:500'],
 
             'transactions' => ['nullable', 'array', $max],

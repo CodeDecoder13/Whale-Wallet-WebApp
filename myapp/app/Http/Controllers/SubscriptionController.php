@@ -37,10 +37,13 @@ class SubscriptionController extends Controller
                 ])->values(),
                 ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo', 'card_id', 'cancel_reason']),
                 'cancelled' => $i->cancelled_at !== null,
+                'hidden' => $i->hidden_at !== null,
                 'kind' => $i->kind->value,
                 'next_due_on' => $i->next_due_on?->toDateString(),
                 'left' => $i->installments !== null ? $i->paymentsLeft() : null,
-                'monthly' => $i->cancelled_at || ($i->installments !== null && ! $i->paymentsLeft()) ? 0 : $i->monthlyAmount(),
+                // hidden items stay visible but count for nothing; hidden_monthly is what hiding them takes off
+                'monthly' => $i->cancelled_at || $i->hidden_at || ($i->installments !== null && ! $i->paymentsLeft()) ? 0 : $i->monthlyAmount(),
+                'hidden_monthly' => $i->hidden_at && ! $i->cancelled_at && ($i->installments === null || $i->paymentsLeft()) ? $i->monthlyAmount() : 0,
                 'last_paid' => ($p = $paid[$i->id] ?? null) ? Date::parse($p)->toDateString() : null,
             ]),
             'cards' => Card::orderBy('name')->get(['id', 'name', 'balance']),
@@ -77,6 +80,21 @@ class SubscriptionController extends Controller
     public function cancel(Request $request, int $subscription): RedirectResponse
     {
         $this->find($subscription)->cancel($request->validate(['reason' => ['required', 'string', 'max:255']])['reason']);
+
+        return back();
+    }
+
+    /** Hide for now: the item stays on file but drops out of every calculation until it is shown again. */
+    public function hide(int $subscription): RedirectResponse
+    {
+        $this->find($subscription)->hide();
+
+        return back();
+    }
+
+    public function show(int $subscription): RedirectResponse
+    {
+        $this->find($subscription)->hide(false);
 
         return back();
     }
