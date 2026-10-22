@@ -19,6 +19,7 @@ class TransactionRequest extends PesoRequest
             'category_id' => ['nullable', $mine('categories')],
             'occurred_at' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:500'],
+            'reference' => ['nullable', 'string', 'max:80'],
             'source' => ['required', 'in:manual,quick'],
         ];
     }

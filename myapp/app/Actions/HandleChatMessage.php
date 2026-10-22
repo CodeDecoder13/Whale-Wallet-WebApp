@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Contracts\AiProvider;
 use App\Http\Requests\PesoRequest;
+use App\Models\Card;
 use App\Models\ChatThread;
 use App\Models\RecurringItem;
 use App\Models\User;
@@ -29,7 +30,7 @@ class HandleChatMessage
     public static function isSalary(string $text): bool
     {
         return ! str_contains($text, '?') && ! preg_match('/^\s*(how|what|show|when|why|where)\b/i', $text)
-            && preg_match('/\b(salary|sweldo|sahod|payroll|paycheck|got paid|income|bonus|allowance|commission|freelance|13th month)\b/i', $text) === 1;
+            && preg_match('/\b(salary|sweldo|sahod|payroll|paycheck|got paid|income|bonus|allowance|commission|freelance|13th month|side hustle|side gig|sideline|extra money|raket|gift|ayuda)\b/i', $text) === 1;
     }
 
     /** @return array{id: int, reply: string, draft?: array, quick_replies?: list<string>} */
@@ -52,16 +53,29 @@ class HandleChatMessage
         $salary = self::isSalary($text);
         $amountAnswer = $incomeDraft && in_array('amount', $incomeDraft['missing'], true) ? self::amountFrom($text) : null;
         $income = null;
+        $incomeQuick = [];
         $manage = self::isManage($text);
         $turns = null;
         $bill = ! $salary && ! $pendingLoan && ! $incomeDraft && ! $manage ? $this->billPayment($user, $text) : null;
         $quick = ! $salary && ! $manage && ! str_contains($text, '?') && str_word_count($text) <= 5 && ! preg_match('/\b(loan|utang|borrowed)\b/i', $text) ? $this->quick->handle($text) : null;
 
-        if ($salary || $amountAnswer) {
-            $income = self::incomeDraft($amountAnswer ?? self::amountFrom($text));
-            $reply = $income['amount']
-                ? 'Got it, ₱'.number_format($income['amount'] / 100, 2).'. Tap Save to record it now. If you want proof on file, attach a screenshot of the transfer with the image button instead.'
-                : 'Nice! How much did you receive?';
+        // income waiting for its card: the next message names one
+        $cards = Card::orderBy('name')->get(['id', 'name']);
+        $named = $cards->first(fn ($c) => str_contains(mb_strtolower($text), mb_strtolower($c->name)));
+        $cardAnswer = $incomeDraft && ! $amountAnswer && in_array('card', $incomeDraft['missing'], true) ? $named : null;
+
+        if ($salary || $amountAnswer || $cardAnswer) {
+            // side money is added on top of the salary; kind, amount and card stick to the draft while it waits for the rest
+            $prior = $amountAnswer || $cardAnswer ? $incomeDraft : [];
+            $incomeKind = $prior['income_kind'] ?? (preg_match('/\b(side income|side hustle|side gig|sideline|extra income|extra money|raket|freelance|bonus|gift|ayuda)\b/i', $text) ? 'side' : 'salary');
+            $amount = $cardAnswer ? $prior['amount'] : ($amountAnswer ?? self::amountFrom($text));
+            $card = $named ?? $cards->firstWhere('id', $prior['card_id'] ?? null) ?? ($cards->count() === 1 ? $cards->first() : null);
+            $income = self::incomeDraft($amount, $incomeKind, $card, $cards->isNotEmpty());
+            $money = $amount ? '₱'.number_format($amount / 100, 2) : null;
+            $reply = ! $money ? 'Nice! How much did you receive?'
+                : (! $card && $cards->isNotEmpty() ? "Got it, {$money}. Which card received it?"
+                    : "Got it, {$money}".($card ? " into {$card->name}" : "").". Tap Save to record it now. If you want proof on file, attach a screenshot of the transfer with the image button instead.");
+            $incomeQuick = $money && ! $card && $cards->isNotEmpty() ? $cards->pluck('name')->all() : [];
         } elseif ($pendingLoan && ($update = self::loanUpdate($pendingLoan, $text))) {
             $loan = $this->loanDraft($update);
         } elseif (! $pendingLoan && ! $incomeDraft && self::isDueQuestion($text)) {
@@ -102,7 +116,7 @@ class HandleChatMessage
             if ($draft && ! empty($fields['recurring_id'])) {
                 $draft['recurring_id'] = (int) $fields['recurring_id'];
             }
-            $quickReplies = [];
+            $quickReplies = $incomeQuick;
 
             if ($draft && ! $income) {
                 [$reply, $quickReplies] = $this->wording($user, $draft);
@@ -325,11 +339,11 @@ class HandleChatMessage
     }
 
     /** Held on the chat message so the proof upload that follows can be checked against the amount. */
-    private static function incomeDraft(?int $amount): array
+    private static function incomeDraft(?int $amount, string $incomeKind, ?Card $card, bool $needsCard): array
     {
         return [
-            'kind' => 'income', 'amount' => $amount, 'missing' => $amount ? [] : ['amount'], 'label' => 'Save income',
-            'merchant' => 'Income', 'card_id' => null, 'card' => null, 'category_id' => null, 'category' => null,
+            'kind' => 'income', 'income_kind' => $incomeKind, 'amount' => $amount, 'missing' => ! $amount ? ['amount'] : ($card || ! $needsCard ? [] : ['card']), 'label' => 'Save income',
+            'merchant' => $incomeKind === 'side' ? 'Side income' : 'Income', 'card_id' => $card?->id, 'card' => $card?->name, 'category_id' => null, 'category' => null,
             'occurred_at' => today()->toDateString(),
         ];
     }

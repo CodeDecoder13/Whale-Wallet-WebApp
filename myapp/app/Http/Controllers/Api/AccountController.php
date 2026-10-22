@@ -133,33 +133,14 @@ class AccountController extends Controller
     {
         $d = $request->validated();
 
-        $row = DB::transaction(function () use ($d) {
-            $receipt = Receipt::lockForUpdate()->findOrFail($d['receipt_id']);
-            abort_unless($receipt->status === 'parsed' && $receipt->purpose === 'income', 409, 'This proof was already handled.');
-            $receipt->update(['status' => 'confirmed']);
+        $row = IncomeSource::record($d);
 
-            return IncomeSource::create([
-                'name' => $d['name'] ?? null ?: 'Salary',
-                'amount' => $d['amount'],
-                'received_on' => $d['received_on'],
-                'month' => substr($d['received_on'], 0, 7),
-                'reference' => $d['reference'],
-                'receipt_id' => $receipt->id,
-            ]);
-        });
-
-        return response()->json($row->only(['id', 'name', 'amount', 'month', 'reference']) + ['received_on' => $row->received_on?->toDateString()], 201);
+        return response()->json($row->only(['id', 'name', 'kind', 'amount', 'month', 'reference']) + ['received_on' => $row->received_on?->toDateString()], 201);
     }
 
     public function removeIncome(int $income): JsonResponse
     {
-        $row = IncomeSource::whereNotNull('month')->findOrFail($income);
-
-        if ($receipt = $row->receipt_id ? Receipt::find($row->receipt_id) : null) {
-            $receipt->path && Storage::disk()->delete($receipt->path);
-            $receipt->delete();
-        }
-        $row->delete();
+        IncomeSource::whereNotNull('month')->findOrFail($income)->forget();
 
         return response()->json(null, 204);
     }

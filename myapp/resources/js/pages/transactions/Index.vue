@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeftRight,
+    ArrowRight,
     ChevronLeft,
     ChevronRight,
     Ellipsis,
@@ -50,9 +51,14 @@ type Txn = {
     occurred_at: string;
     source: string;
     note: string | null;
+    reference: string | null;
     card_id: number;
+    to_card_id: number | null;
+    to_pod_id: number | null;
+    from_pod_id: number | null;
     category_id: number | null;
     card: { name: string };
+    recurring_item: { logo: string | null } | null;
     category: { name: string } | null;
 };
 type Option = { id: number; name: string };
@@ -80,6 +86,20 @@ const props = defineProps<{
     keepReceipts: boolean;
     receipts: InstanceType<typeof ReceiptsDialog>['$props']['receipts'];
 }>();
+
+// a transfer shows where the money went: bank logo to bank logo (a pod on either end shows by its name)
+function ends(t: Txn): [string, string] {
+    const pod = (id: number | null) => props.pods.find((p) => p.id === id)?.name ?? 'Pod';
+
+    if (t.from_pod_id) {
+        return [pod(t.from_pod_id), t.card.name];
+    }
+
+    return [
+        t.card.name,
+        t.to_card_id ? (props.cards.find((c) => c.id === t.to_card_id)?.name ?? 'Card') : pod(t.to_pod_id),
+    ];
+}
 
 defineOptions({
     layout: { breadcrumbs: [{ title: 'Transactions', href: index() }] },
@@ -125,6 +145,7 @@ const expense = useForm({
     category_id: '',
     occurred_at: new Date().toISOString().slice(0, 10),
     note: '',
+    reference: '',
     source: 'manual',
 });
 // a new category is saved right away and picked for this expense
@@ -246,6 +267,7 @@ function edit(t: Txn) {
         category_id: t.category_id ? String(t.category_id) : '',
         occurred_at: t.occurred_at.slice(0, 10),
         note: t.note ?? '',
+        reference: t.reference ?? '',
         source: t.source,
     });
     expenseOpen.value = true;
@@ -427,14 +449,19 @@ const sign = { expense: '-', income: '+', transfer: '' };
                             <td class="p-3">
                                 <div class="flex items-center gap-3">
                                     <span
-                                        class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-accent-foreground"
+                                        v-if="t.type === 'transfer'"
+                                        class="flex shrink-0 items-center gap-1"
                                     >
-                                        {{
-                                            (t.merchant ?? '?')
-                                                .charAt(0)
-                                                .toUpperCase()
-                                        }}
+                                        <BrandLogo :name="ends(t)[0]" class="!size-8" />
+                                        <ArrowRight class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                                        <BrandLogo :name="ends(t)[1]" class="!size-8" />
                                     </span>
+                                    <BrandLogo
+                                        v-else
+                                        :name="t.merchant ?? '?'"
+                                        :logo="t.recurring_item?.logo"
+                                        class="!size-8"
+                                    />
                                     <div>
                                         <span class="font-medium">
                                             {{ t.merchant }}
@@ -451,6 +478,12 @@ const sign = { expense: '-', income: '+', transfer: '' };
                                             class="text-xs text-muted-foreground"
                                         >
                                             {{ t.note }}
+                                        </div>
+                                        <div
+                                            v-if="t.reference"
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Ref {{ t.reference }}
                                         </div>
                                     </div>
                                 </div>
@@ -673,6 +706,11 @@ const sign = { expense: '-', income: '+', transfer: '' };
                         <Label for="note">Note</Label>
                         <Input id="note" v-model="expense.note" />
                         <InputError :message="expense.errors.note" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="reference">Reference number (optional)</Label>
+                        <Input id="reference" v-model="expense.reference" maxlength="80" />
+                        <InputError :message="expense.errors.reference" />
                     </div>
                     <DialogFooter class="sm:col-span-2">
                         <p

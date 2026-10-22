@@ -380,7 +380,7 @@ const ready = (m: Msg) =>
                             <span v-for="l in m.draft.lines" :key="l" class="block">{{ l }}</span>
                         </template>
                         <template v-else-if="m.draft.kind === 'income'">
-                            Income · {{ m.draft.occurred_at }}
+                            Income into {{ m.draft.card }} · {{ m.draft.occurred_at }}
                         </template>
                         <template v-else-if="m.draft.kind === 'loan'">
                             Loan · {{ m.draft.payments }}

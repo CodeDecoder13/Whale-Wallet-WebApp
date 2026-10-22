@@ -15,6 +15,8 @@ class IncomeRequest extends PesoRequest
 
         return [
             'receipt_id' => ['nullable', 'integer', $mine('receipts')],
+            'kind' => ['nullable', 'in:salary,side'],
+            'card_id' => ['nullable', Rule::requiredIf(fn () => $this->user()->cards()->exists()), $mine('cards')],
             'name' => ['nullable', 'string', 'max:80'],
             'amount' => ['required', 'integer', 'min:1'],
             'received_on' => ['required', 'date', 'before_or_equal:today'],

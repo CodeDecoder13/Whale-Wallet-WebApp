@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import SelectNative from '@/components/SelectNative.vue';
 import { Spinner } from '@/components/ui/spinner';
 import { api, ApiError } from '@/lib/api';
 import { formatPeso, toPesos } from '@/lib/currency';
@@ -44,6 +45,7 @@ const open = defineModel<boolean>('open', { required: true });
 const props = defineProps<{
     consented: boolean;
     entries: Entry[];
+    cards: { id: number; name: string }[];
     proofs: Proof[];
 }>();
 
@@ -61,6 +63,8 @@ const manual = ref(false); // typed in by hand: no screenshot, no reference need
 
 const form = useForm({
     receipt_id: null as number | null,
+    kind: 'salary',
+    card_id: props.cards[0] ? String(props.cards[0].id) : '',
     amount: '',
     received_on: '',
     reference: '',
@@ -169,6 +173,7 @@ function save() {
         preserveScroll: true,
         onSuccess: () => {
             items.value = items.value.filter((i) => i.id !== id);
+            form.reset('kind');
             manual.value = false;
             open.value = false;
         },
@@ -192,8 +197,8 @@ const day = (d: string | null) =>
                 <DialogDescription>
                     Type in what you received, or upload a screenshot and I read
                     the reference number, date and amount from it. What you
-                    actually received replaces your expected income for that
-                    month.
+                    actually received as salary replaces your expected income
+                    for that month. Side income is added on top. The card you pick receives the money, so your net worth goes up.
                 </DialogDescription>
             </DialogHeader>
 
@@ -255,6 +260,20 @@ const day = (d: string | null) =>
                         Check the amount before saving.
                     </p>
                     <div class="grid gap-2">
+                        <Label for="income-kind">Type</Label>
+                        <SelectNative id="income-kind" v-model="form.kind">
+                            <option value="salary">Salary</option>
+                            <option value="side">Side income (added on top of your salary)</option>
+                        </SelectNative>
+                    </div>
+                    <div v-if="cards.length" class="grid gap-2">
+                        <Label for="income-card">Received in</Label>
+                        <SelectNative id="income-card" v-model="form.card_id">
+                            <option v-for="c in cards" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                        </SelectNative>
+                        <InputError :message="form.errors.card_id" />
+                    </div>
+                    <div class="grid gap-2">
                         <Label for="income-amount">Amount (PHP)</Label>
                         <Input
                             id="income-amount"
@@ -290,7 +309,7 @@ const day = (d: string | null) =>
                         <Input
                             id="income-name"
                             v-model="form.name"
-                            placeholder="Salary"
+                            :placeholder="form.kind === 'side' ? 'Side income' : 'Salary'"
                         />
                     </div>
                     <InputError :message="form.errors.receipt_id" />

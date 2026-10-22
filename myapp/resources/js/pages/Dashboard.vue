@@ -38,9 +38,11 @@ const props = defineProps<{
     net_worth: { assets: number; debts: number; total: number };
     consented: boolean;
     welcome: boolean;
+    cards: { id: number; name: string }[];
     income_entries: {
         id: number;
         name: string;
+        kind: string;
         amount: number;
         reference: string | null;
         received_on: string | null;
@@ -110,7 +112,7 @@ const unit = (n: number) => Math.min(1, Math.max(0, n));
 const tiles = computed<Tile[]>(() => {
     const { income, fixed, spent, safe } = props.summary;
     const fixedPct = income ? (fixed / income) * 100 : 0;
-    const received = props.income_entries.length > 0;
+    const received = props.income_entries.some((e) => e.kind === 'salary');
     const safeTone =
         safe < 0 ? ['Overspent', RED] : income && safe < income * 0.2 ? ['Tight', YELLOW] : ['On track', GREEN];
     const fixedTone =
@@ -400,6 +402,7 @@ const dueDate = (d: string) =>
             v-model:open="incomeOpen"
             :consented="consented"
             :entries="income_entries"
+            :cards="cards"
             :proofs="income_proofs"
         />
 

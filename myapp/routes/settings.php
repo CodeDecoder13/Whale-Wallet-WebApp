@@ -32,6 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/data', [DataController::class, 'index'])->name('data.index');
     Route::get('settings/data/export', [DataController::class, 'export'])->name('data.export');
+    Route::post('settings/data/import', [DataController::class, 'import'])->middleware('throttle:6,1')->name('data.import');
     Route::delete('settings/data/chat', [DataController::class, 'clearChat'])->name('data.clear-chat');
 
     Route::get('settings/tokens', [TokenController::class, 'index'])->name('tokens.index');

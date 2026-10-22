@@ -32,6 +32,22 @@ class TransactionEditTest extends TestCase
         return Transaction::latest('id')->first();
     }
 
+    public function test_reference_number_is_optional_when_adding_and_editing()
+    {
+        $card = Card::factory()->for($this->user)->create(['balance' => 100_000]);
+        $body = ['merchant' => 'X', 'amount' => '250', 'card_id' => $card->id, 'occurred_at' => '2026-03-01', 'source' => 'manual'];
+
+        $this->post(route('transactions.store'), $body)->assertRedirect();
+        $t = Transaction::latest('id')->first();
+        $this->assertNull($t->reference);
+
+        $this->put(route('transactions.update', $t), $body + ['reference' => 'GC-123'])->assertRedirect();
+        $this->assertSame('GC-123', $t->fresh()->reference);
+
+        $this->post(route('transactions.store'), $body + ['reference' => 'GC-456'])->assertRedirect();
+        $this->assertSame('GC-456', Transaction::latest('id')->first()->reference);
+    }
+
     public function test_delete_expense_restores_balance()
     {
         $card = Card::factory()->for($this->user)->create(['balance' => 100_000]);

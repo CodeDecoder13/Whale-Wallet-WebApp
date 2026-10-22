@@ -32,6 +32,7 @@ class Transaction extends Model
             ->when($f['q'] ?? null, fn ($q, $s) => $q->where(
                 fn ($q) => $q->whereRaw('lower(merchant) like ?', ['%'.mb_strtolower($s).'%'])
                     ->orWhereRaw('lower(note) like ?', ['%'.mb_strtolower($s).'%'])
+                    ->orWhereRaw('lower(reference) like ?', ['%'.mb_strtolower($s).'%'])
             ))
             ->when($f['from'] ?? null, fn ($q, $d) => $q->whereDate('occurred_at', '>=', $d))
             ->when($f['to'] ?? null, fn ($q, $d) => $q->whereDate('occurred_at', '<=', $d))
@@ -42,6 +43,12 @@ class Transaction extends Model
     public function card(): BelongsTo
     {
         return $this->belongsTo(Card::class);
+    }
+
+    /** The bill, subscription or loan this paid; its logo is shown on the transaction. */
+    public function recurringItem(): BelongsTo
+    {
+        return $this->belongsTo(RecurringItem::class);
     }
 
     public function category(): BelongsTo

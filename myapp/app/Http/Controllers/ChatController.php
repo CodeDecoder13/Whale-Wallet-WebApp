@@ -139,8 +139,8 @@ class ChatController extends Controller
 
             // typed income: saved without proof, like Add income entered by hand
             if (($d['kind'] ?? null) === 'income') {
-                $income = IncomeSource::create([
-                    'name' => 'Income', 'amount' => $d['amount'], 'received_on' => $d['occurred_at'], 'month' => substr($d['occurred_at'], 0, 7),
+                $income = IncomeSource::record([
+                    'kind' => $d['income_kind'] ?? 'salary', 'card_id' => $d['card_id'], 'name' => $d['merchant'], 'amount' => $d['amount'], 'received_on' => $d['occurred_at'],
                 ]);
                 $message->update(['draft_json' => $d + ['saved' => $income->id, 'done' => 'Income recorded.']]);
 

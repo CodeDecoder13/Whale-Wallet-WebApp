@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\HandleChatMessage;
 use App\Jobs\ParseReceipt;
+use App\Models\Card;
 use App\Models\IncomeSource;
 use App\Models\Receipt;
 use App\Models\User;
@@ -114,6 +115,60 @@ class IncomeTest extends TestCase
 
         // a proof still needs its reference number
         $this->post(route('income.store'), ['receipt_id' => $this->proof($user)->id, 'amount' => '1', 'received_on' => '2026-03-05'])->assertSessionHasErrors('reference');
+    }
+
+    public function test_side_income_is_added_on_top_and_never_replaces_the_baseline()
+    {
+        $user = $this->user();
+        IncomeSource::factory()->create(['user_id' => $user->id, 'name' => 'Income', 'amount' => 3_500_000]);
+        $this->actingAs($user);
+
+        $this->post(route('income.store'), ['kind' => 'side', 'amount' => '500', 'received_on' => '2026-03-05'])->assertRedirect();
+        $this->assertSame(3_550_000, (new BudgetSummary)->for($user)['income']); // baseline + side
+        $this->assertSame('Side income', IncomeSource::where('kind', 'side')->sole()->name);
+
+        $this->post(route('income.store'), $this->body($this->proof($user), ['amount' => '30000']))->assertRedirect();
+        $this->assertSame(3_050_000, (new BudgetSummary)->for($user)['income']); // salary replaces the baseline, side stays
+    }
+
+    public function test_side_money_typed_in_chat_is_filed_as_side_income()
+    {
+        $this->actingAs($this->user());
+
+        $r = $this->postJson(route('chat.messages'), ['text' => 'got side hustle money 800'])->assertOk();
+        $this->postJson(route('chat.confirm', $r->json('id')))->assertOk();
+
+        $this->assertSame(['side', 80_000], [IncomeSource::whereNotNull('month')->sole()->kind, IncomeSource::whereNotNull('month')->sole()->amount]);
+    }
+
+    public function test_income_goes_into_the_chosen_card_and_comes_back_out_when_removed()
+    {
+        $user = $this->user();
+        $card = Card::factory()->for($user)->create(['balance' => 100_000]);
+        $this->actingAs($user);
+
+        $this->post(route('income.store'), ['amount' => '500', 'received_on' => '2026-03-05', 'kind' => 'side'])->assertSessionHasErrors('card_id'); // a card is required once you have one
+        $this->post(route('income.store'), ['amount' => '500', 'received_on' => '2026-03-05', 'kind' => 'side', 'card_id' => $card->id])->assertRedirect();
+        $this->assertSame(150_000, $card->fresh()->balance);
+
+        $this->delete(route('income.destroy', IncomeSource::where('kind', 'side')->sole()->id))->assertRedirect();
+        $this->assertSame(100_000, $card->fresh()->balance);
+    }
+
+    public function test_chat_asks_which_card_received_the_income()
+    {
+        $user = $this->user();
+        [$gcash] = [Card::factory()->for($user)->create(['name' => 'GCash', 'balance' => 0]), Card::factory()->for($user)->create(['name' => 'BDO', 'balance' => 0])];
+        $this->actingAs($user);
+
+        $r = $this->postJson(route('chat.messages'), ['text' => 'side hustle 800'])->assertOk();
+        $this->assertSame(['card'], $r->json('draft.missing'));
+        $this->assertEqualsCanonicalizing(['GCash', 'BDO'], $r->json('quick_replies'));
+
+        $r = $this->postJson(route('chat.messages'), ['text' => 'GCash'])->assertOk();
+        $this->assertSame([[], 80_000, 'GCash'], [$r->json('draft.missing'), $r->json('draft.amount'), $r->json('draft.card')]);
+        $this->postJson(route('chat.confirm', $r->json('id')))->assertOk();
+        $this->assertSame(80_000, $gcash->fresh()->balance);
     }
 
     public function test_a_typed_salary_in_chat_saves_with_one_tap()

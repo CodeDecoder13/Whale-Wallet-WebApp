@@ -28,7 +28,7 @@ class TransactionController extends Controller
     {
         $f = $request->safe()->except('per_page');
 
-        $transactions = Transaction::with(['card:id,name', 'category:id,name'])
+        $transactions = Transaction::with(['card:id,name', 'category:id,name', 'recurringItem:id,logo'])
             ->filter($f)
             ->latest('occurred_at')->latest('id')
             ->paginate(20)->withQueryString();

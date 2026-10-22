@@ -62,10 +62,11 @@ class DashboardController extends Controller
             'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
             'week' => $week,
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
-                ->map(fn ($e) => [...$e->only(['id', 'name', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),
+                ->map(fn ($e) => [...$e->only(['id', 'name', 'kind', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),
             'income_proofs' => Receipt::where('purpose', 'income')->where('status', '!=', 'confirmed')->latest('id')->limit(3)->get()->map->toClient()->values(),
             'welcome' => (bool) $request->session()->pull('welcome', false),
             'consented' => (bool) $request->user()->ai_consent_at,
+            'cards' => Card::orderBy('name')->get(['id', 'name']), // which card receives income
             'forecast' => $forecast,
             'tips' => Recommendation::whereNull('dismissed_at')->latest('id')->limit(3)->get(['id', 'text']),
             'categories' => $month()->with('category:id,name')
