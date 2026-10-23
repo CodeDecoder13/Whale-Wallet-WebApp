@@ -115,4 +115,7 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    // where Contact form messages are forwarded (defaults to the from address)
+    'contact_to' => env('CONTACT_TO_ADDRESS') ?: env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+
 ];

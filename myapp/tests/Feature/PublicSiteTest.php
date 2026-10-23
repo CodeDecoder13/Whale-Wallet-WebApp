@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ContactReceived;
 use App\Models\ContactMessage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class PublicSiteTest extends TestCase
@@ -48,6 +50,18 @@ class PublicSiteTest extends TestCase
         $this->post(route('contact.store'), ['name' => 'Ana', 'email' => 'ana@example.com', 'topic' => 'Support', 'message' => 'Hello'])->assertRedirect();
 
         $this->assertSame(1, ContactMessage::where('email', 'ana@example.com')->count());
+    }
+
+    public function test_contact_form_is_forwarded_to_the_support_inbox_with_reply_to(): void
+    {
+        Mail::fake();
+        config(['mail.contact_to' => 'support@whale-wallet.cloud']);
+
+        $this->post(route('contact.store'), ['name' => 'Ana', 'email' => 'ana@example.com', 'topic' => 'Support', 'message' => 'Hello'])->assertRedirect();
+        $this->post(route('contact.store'), ['name' => 'Bot', 'email' => 'b@example.com', 'topic' => 'Other', 'message' => 'spam', 'website' => 'x'])->assertRedirect();
+
+        Mail::assertSent(ContactReceived::class, 1);
+        Mail::assertSent(ContactReceived::class, fn ($m) => $m->hasTo('support@whale-wallet.cloud') && $m->hasReplyTo('ana@example.com'));
     }
 
     public function test_contact_form_validates_and_ignores_bots(): void

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ContactReceived;
 use App\Models\ContactMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
+use Throwable;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +32,14 @@ class ContactController extends Controller
 
         // honeypot: real people leave the hidden "website" field empty; bots get the same thank-you and nothing is stored
         if (! $request->filled('website')) {
-            ContactMessage::create($d);
+            $message = ContactMessage::create($d);
+
+            // the message is already stored, so a mail outage must not turn the thank-you into an error
+            try {
+                Mail::to(config('mail.contact_to'))->send(new ContactReceived($message));
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Thanks, your message was sent.']);
