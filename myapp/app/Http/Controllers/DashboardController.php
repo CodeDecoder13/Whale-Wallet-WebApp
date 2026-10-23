@@ -48,6 +48,7 @@ class DashboardController extends Controller
         // transfers and income are excluded: only expenses count as spending
         $month = fn () => Transaction::where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth());
         $spent = (int) $month()->sum('amount');
+        $paidFixed = (int) $month()->whereNotNull('recurring_item_id')->sum('amount');
 
         // spending per day for the last 7 days, oldest first, for the mini chart on the Spent tile
         $byDay = Transaction::where('type', 'expense')->where('occurred_at', '>=', today()->subDays(6))->get(['amount', 'occurred_at'])
@@ -59,7 +60,8 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'net_worth' => self::netWorth(),
-            'summary' => [...$summary, 'spent' => $spent, 'safe' => $summary['remaining'] - $spent],
+            // fixed = bills, subscriptions and loans actually PAID this month (they are already inside spent), so left = income - spent
+            'summary' => [...$summary, 'fixed' => $paidFixed, 'spent' => $spent, 'safe' => $summary['income'] - $spent],
             'week' => $week,
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
                 ->map(fn ($e) => [...$e->only(['id', 'name', 'kind', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),

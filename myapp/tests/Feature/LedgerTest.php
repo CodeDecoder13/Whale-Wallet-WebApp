@@ -69,7 +69,7 @@ class LedgerTest extends TestCase
         $this->assertSame(TransactionType::Transfer, Transaction::withoutGlobalScopes()->sole()->type);
 
         $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
-            ->where('summary.spent', 0)->where('summary.safe', 1_584_400));
+            ->where('summary.spent', 0)->where('summary.safe', 3_500_000));
     }
 
     public function test_transfer_rejects_overdraw()
@@ -149,8 +149,8 @@ class LedgerTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
             ->where('summary.income', 3_500_000)
-            ->where('summary.fixed', 1_915_600)
-            ->where('summary.safe', 1_584_400) // 15,844 pesos
+            ->where('summary.fixed', 0) // nothing paid yet, so unpaid bills are not counted
+            ->where('summary.safe', 3_500_000)
             ->has('categories', 0));
     }
 
@@ -166,9 +166,21 @@ class LedgerTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
             ->where('summary.spent', 100_000)
-            ->where('summary.safe', 1_484_400)
+            ->where('summary.safe', 3_400_000)
             ->has('categories', 1)
             ->has('upcoming', 1));
+    }
+
+    public function test_a_paid_bill_counts_once_and_an_unpaid_one_not_at_all()
+    {
+        $this->seed(DatabaseSeeder::class);
+        $user = User::where('email', 'demo@example.com')->first();
+        $bill = $user->recurringItems()->first();
+        $card = $user->cards()->first();
+        Transaction::factory()->for($user)->create(['card_id' => $card->id, 'amount' => 100_000, 'occurred_at' => now(), 'recurring_item_id' => $bill->id]);
+
+        $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
+            ->where('summary.fixed', 100_000)->where('summary.spent', 100_000)->where('summary.safe', 3_400_000));
     }
 
     public function test_new_user_without_cards_is_sent_to_onboarding_and_can_finish_it()
@@ -185,7 +197,7 @@ class LedgerTest extends TestCase
         ])->assertRedirect(route('dashboard'));
 
         $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
-            ->where('summary.income', 3_500_000)->where('summary.fixed', 800_000));
+            ->where('summary.income', 3_500_000)->where('summary.fixed', 0));
         $this->assertSame(500_000, $user->cards()->sole()->balance);
         $this->assertSame(0, $user->pods()->count());
     }

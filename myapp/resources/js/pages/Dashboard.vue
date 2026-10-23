@@ -128,12 +128,12 @@ const tiles = computed<Tile[]>(() => {
         },
         {
             key: 'fixed', title: 'Fixed expenses', icon: Receipt, color: fixedTone[1], amount: fixed,
-            status: fixedTone[0], hint: `${pctOfIncome(fixed).toFixed(1)}% of income`, fill: unit(fixed / (income || 1)), pace: 0.5,
+            status: fixedTone[0], hint: `Paid · ${pctOfIncome(fixed).toFixed(1)}% of income`, fill: unit(fixed / (income || 1)), pace: 0.5,
         },
         {
             key: 'safe', title: 'Left to spend', icon: PiggyBank, color: safeTone[1], amount: safe,
             status: safeTone[0],
-            hint: props.forecast.safe_per_day > 0 ? `About ${formatPeso(props.forecast.safe_per_day)} a day until payday` : 'After bills and spending',
+            hint: props.forecast.safe_per_day > 0 ? `About ${formatPeso(props.forecast.safe_per_day)} a day until payday` : 'Income minus what you spent',
             fill: unit(safe / (income || 1)),
         },
         {

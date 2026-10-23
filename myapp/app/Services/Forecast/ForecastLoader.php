@@ -36,7 +36,8 @@ class ForecastLoader
                 ->reject(fn ($item) => $item->id === $skipId)
                 ->flatMap(fn ($item) => array_map(
                     fn ($d) => ['date' => $d->toDateString(), 'amount' => $item->amount],
-                    $item->occurrences($today, $today->addDays(35)),
+                    // golden rule: a bill that is overdue or due today and not yet paid is not counted; it joins the numbers once paid
+                    $item->occurrences($today->addDay(), $today->addDays(35)),
                 ))->values()->all(),
             'spend' => (clone $expenses)->where('occurred_at', '>=', $today->subDays(30))->where('occurred_at', '<', $today)
                 ->get(['card_id', 'amount', 'occurred_at'])

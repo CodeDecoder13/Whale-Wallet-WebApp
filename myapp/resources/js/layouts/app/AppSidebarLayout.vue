@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePoll } from '@inertiajs/vue3';
 import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
@@ -10,6 +11,9 @@ import type { BreadcrumbItem } from '@/types';
 type Props = {
     breadcrumbs?: BreadcrumbItem[];
 };
+
+// numbers stay live: every 10s re-fetch the page props in place (paused while the tab is hidden; forms and dialogs keep their state)
+usePoll(10_000);
 
 withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
