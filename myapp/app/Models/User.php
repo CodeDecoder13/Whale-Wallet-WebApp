@@ -48,7 +48,9 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         Cache::put("otp:{$this->id}", Hash::make($code), now()->addMinutes(10));
         Cache::forget("otp-tries:{$this->id}");
 
-        Mail::to($this)->send(new VerifyCode($this->name, $code));
+        // sent right after the page loads, in the same process: no queue worker or scheduler is needed, and the page does not wait on the mail server
+        $user = $this;
+        dispatch(fn () => Mail::to($user)->send(new VerifyCode($user->name, $code)))->afterResponse();
     }
 
     /** Rows cascade in the database; files and polymorphic tokens do not. */

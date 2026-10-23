@@ -16,6 +16,7 @@ class EmailOtpTest extends TestCase
     {
         Mail::fake();
         $user->sendEmailVerificationNotification();
+        app()->terminate(); // runs the send that is queued for after the response
         $code = null;
         Mail::assertSent(VerifyCode::class, function ($m) use (&$code) {
             $code = $m->code;
