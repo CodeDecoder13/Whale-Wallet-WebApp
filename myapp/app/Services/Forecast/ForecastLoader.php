@@ -3,11 +3,12 @@
 namespace App\Services\Forecast;
 
 use App\Models\User;
+use App\Services\BudgetSummary;
 
 /** Reads a user's data and hands plain arrays to ForecastService. */
 class ForecastLoader
 {
-    public function __construct(private ForecastService $forecast) {}
+    public function __construct(private ForecastService $forecast, private BudgetSummary $budget) {}
 
     /**
      * @param  int|null  $skipId  recurring item to leave out ("what if I cancel it")
@@ -28,7 +29,7 @@ class ForecastLoader
             $limits[$card->id] = max(0, $card->monthly_limit - $spent);
         }
 
-        return $this->forecast->forecast([
+        $result = $this->forecast->forecast([
             'balance' => (int) $cards->sum('balance'),
             'today' => $today,
             'pay_dates' => $user->pay_dates ?? [],
@@ -46,5 +47,18 @@ class ForecastLoader
             'card_limits' => $limits,
             'pod_monthly' => (int) $user->pods()->sum('monthly_amount'),
         ]);
+
+        // safe to spend: what is left of this month's income after spending, minus the bills still unpaid this month, spread to payday
+        return ['safe_per_day' => $this->safePerDay($user, $result['days'], $skipId)] + $result;
+    }
+
+    private function safePerDay(User $user, int $days, ?int $skipId): int
+    {
+        $month = $user->transactions()->where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth());
+        $paid = (int) (clone $month)->whereNotNull('recurring_item_id')->sum('amount');
+        $fixed = $user->recurringItems()->active()->get()->reject(fn ($i) => $i->id === $skipId)->sum(fn ($i) => $i->monthlyAmount());
+        $left = $this->budget->for($user)['income'] - (int) $month->sum('amount');
+
+        return max(0, intdiv($left - max(0, $fixed - $paid), max(1, $days)));
     }
 }

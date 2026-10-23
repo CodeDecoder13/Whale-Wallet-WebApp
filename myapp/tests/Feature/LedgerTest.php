@@ -171,6 +171,19 @@ class LedgerTest extends TestCase
             ->has('upcoming', 1));
     }
 
+    public function test_safe_to_spend_is_income_left_minus_unpaid_bills_spread_to_payday()
+    {
+        $this->seed(DatabaseSeeder::class);
+        $user = User::where('email', 'demo@example.com')->first();
+        $card = $user->cards()->first();
+        $bill = $user->recurringItems()->first();
+        Transaction::factory()->for($user)->create(['card_id' => $card->id, 'amount' => 100_000, 'occurred_at' => now(), 'recurring_item_id' => $bill->id]);
+
+        // income 3,500,000 - spent 100,000 - unpaid bills (1,915,600 - 100,000 paid)
+        $forecast = $this->actingAs($user)->get(route('dashboard'))->viewData('page')['props']['forecast'];
+        $this->assertSame(intdiv(1_584_400, $forecast['days']), $forecast['safe_per_day']);
+    }
+
     public function test_a_paid_bill_counts_once_and_an_unpaid_one_not_at_all()
     {
         $this->seed(DatabaseSeeder::class);
