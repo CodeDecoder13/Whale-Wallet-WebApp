@@ -27,6 +27,7 @@
         </td>
     </tr>
 </table>
+@include('mail.partials.legal')
 </td></tr>
 </table>
 </body>

@@ -23,6 +23,6 @@ class ContactReceived extends Mailable
 
     public function content(): Content
     {
-        return new Content(markdown: 'mail.contact');
+        return new Content(view: 'mail.contact');
     }
 }
