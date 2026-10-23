@@ -38,6 +38,16 @@ class PasswordResetTest extends TestCase
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
+    public function test_reset_email_uses_the_whale_wallet_design_and_links_to_the_reset_page()
+    {
+        $user = User::factory()->create();
+        $html = (string) (new ResetPassword('tok123'))->toMail($user)->render();
+
+        $this->assertStringContainsString('/mascot/happy.png', $html);
+        $this->assertStringContainsString('Reset password', $html);
+        $this->assertStringContainsString('/reset-password/tok123?email='.urlencode($user->email), $html);
+    }
+
     public function test_reset_password_screen_can_be_rendered()
     {
         Notification::fake();
