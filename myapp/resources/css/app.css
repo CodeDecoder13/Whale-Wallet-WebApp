@@ -192,3 +192,9 @@
         display: none;
     }
 }
+
+@keyframes marquee {
+    to {
+        transform: translateX(calc(-50% - 0.375rem));
+    }
+}

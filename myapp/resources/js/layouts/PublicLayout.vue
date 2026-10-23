@@ -4,7 +4,7 @@ import PublicHeader from '@/components/public/PublicHeader.vue';
 </script>
 
 <template>
-    <div class="min-h-screen bg-background text-foreground">
+    <div class="min-h-screen overflow-x-clip bg-background text-foreground">
         <PublicHeader />
         <main><slot /></main>
         <PublicFooter />

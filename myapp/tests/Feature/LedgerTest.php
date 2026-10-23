@@ -184,6 +184,20 @@ class LedgerTest extends TestCase
         $this->assertSame(intdiv(1_584_400, $forecast['days']), $forecast['safe_per_day']);
     }
 
+    public function test_forecast_skip_list_only_offers_bills_not_yet_paid()
+    {
+        $this->seed(DatabaseSeeder::class);
+        $user = User::where('email', 'demo@example.com')->first();
+        $bill = $user->recurringItems()->whereIn('kind', ['bill', 'subscription'])->first();
+        $this->actingAs($user)->get(route('forecast'))->assertInertia(fn (Assert $p) => $p
+            ->where('subscriptions', fn ($l) => collect($l)->contains('id', $bill->id)));
+
+        Transaction::factory()->for($user)->create(['card_id' => $user->cards()->first()->id, 'occurred_at' => now(), 'recurring_item_id' => $bill->id]);
+
+        $this->get(route('forecast'))->assertInertia(fn (Assert $p) => $p
+            ->where('subscriptions', fn ($l) => ! collect($l)->contains('id', $bill->id)));
+    }
+
     public function test_a_paid_bill_counts_once_and_an_unpaid_one_not_at_all()
     {
         $this->seed(DatabaseSeeder::class);

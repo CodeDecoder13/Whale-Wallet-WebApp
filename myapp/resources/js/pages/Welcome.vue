@@ -104,7 +104,7 @@ const lift =
                     <Mascot
                         pose="hero"
                         bare
-                        class="pointer-events-none absolute -bottom-8 -left-4 z-10 hidden w-32 sm:block md:-left-10 md:w-40"
+                        class="pointer-events-none relative z-10 mx-auto -mb-8 w-28 sm:absolute sm:-bottom-8 sm:-left-4 sm:mx-0 sm:mb-0 sm:w-32 md:-left-10 md:w-40"
                     />
                     <div
                         class="relative overflow-hidden rounded-2xl bg-linear-to-br from-navy to-navy-2 p-6 pb-7 text-white shadow-[0_24px_60px_-24px_rgba(11,37,69,0.55)] sm:pl-28 md:p-8 md:pl-32"
@@ -133,7 +133,7 @@ const lift =
                                     Net worth
                                 </div>
                                 <div
-                                    class="mt-1 text-4xl font-bold tracking-tight tabular-nums md:text-5xl"
+                                    class="mt-1 text-2xl font-bold tracking-tight tabular-nums min-[420px]:text-4xl md:text-5xl"
                                 >
                                     {{ formatPeso(4_840_000) }}
                                 </div>
@@ -163,11 +163,15 @@ const lift =
                         Made for how Filipinos pay. Your banks and e-wallets
                         keep their own logos and colors.
                     </p>
-                    <ul class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                </div>
+                <!-- a slow carousel: the list is shown twice so the loop has no gap; it pauses on hover and stands still for reduced motion -->
+                <div class="group relative overflow-hidden pb-12 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+                    <ul class="flex w-max animate-[marquee_40s_linear_infinite] gap-3 group-hover:[animation-play-state:paused] motion-reduce:w-full motion-reduce:animate-none motion-reduce:flex-wrap motion-reduce:justify-center">
                         <li
-                            v-for="p in partners"
-                            :key="p.name"
-                            class="flex h-20 items-center justify-center rounded-xl bg-white p-4 ring-1 ring-black/10"
+                            v-for="(p, i) in [...partners, ...partners]"
+                            :key="i"
+                            :aria-hidden="i >= partners.length || undefined"
+                            class="flex h-20 w-36 shrink-0 items-center justify-center rounded-xl bg-white p-4 ring-1 ring-black/10 sm:w-44 motion-reduce:[&:nth-child(n+18)]:hidden"
                         >
                             <img
                                 v-if="p.brand?.image"
@@ -426,7 +430,7 @@ const lift =
                     <div class="flex items-center gap-6">
                         <Mascot
                             pose="excited"
-                            class="hidden size-24 shrink-0 sm:block"
+                            class="size-16 shrink-0 sm:size-24"
                         />
                         <h2
                             class="max-w-md text-3xl font-semibold tracking-tight text-balance md:text-4xl"

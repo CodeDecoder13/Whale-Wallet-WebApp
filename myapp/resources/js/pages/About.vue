@@ -339,7 +339,7 @@ const bars = [100, 92, 84, 76, 70, 62, 52, 46, 36, 28];
     <section :class="section">
         <div class="flex flex-col items-start justify-between gap-6 rounded-3xl bg-linear-to-br from-navy to-navy-2 p-8 text-white md:flex-row md:items-center md:p-12">
             <div class="flex items-center gap-5">
-                <Mascot pose="excited" class="hidden size-24 shrink-0 sm:block" />
+                <Mascot pose="excited" class="size-16 shrink-0 sm:size-24" />
                 <h2 class="max-w-sm text-3xl font-semibold tracking-tight text-balance md:text-4xl">Start with your next payday.</h2>
             </div>
             <Button size="lg" class="bg-white text-navy hover:bg-white/90" as-child>
