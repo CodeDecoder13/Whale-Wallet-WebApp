@@ -45,13 +45,13 @@ const code = ref('');
         #default="{ errors, processing }"
     >
         <input type="hidden" name="code" :value="code" />
-        <InputOTP v-model="code" :maxlength="6" :disabled="processing" autofocus>
-            <InputOTPGroup>
-                <InputOTPSlot v-for="i in 6" :key="i" :index="i - 1" />
+        <InputOTP v-model="code" :maxlength="6" :disabled="processing" autofocus class="w-full">
+            <InputOTPGroup class="w-full">
+                <InputOTPSlot v-for="i in 6" :key="i" :index="i - 1" class="h-12 w-auto flex-1 text-lg" />
             </InputOTPGroup>
         </InputOTP>
         <InputError :message="errors.code" />
-        <Button type="submit" class="w-full" :disabled="processing || code.length < 6">
+        <Button type="submit" class="justify-self-center px-8" :disabled="processing || code.length < 6">
             <Spinner v-if="processing" />
             Verify and continue
         </Button>
