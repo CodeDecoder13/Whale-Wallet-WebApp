@@ -16,7 +16,7 @@ const bars = [38, 44, 40, 52, 47, 60, 66, 62, 70, 74, 71, 80];
 <template>
     <div
         aria-hidden="true"
-        class="pointer-events-none flex w-[760px] origin-top-left -rotate-6 overflow-hidden rounded-2xl bg-[#f3f6fb] text-navy shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] ring-1 ring-white/20"
+        class="pointer-events-none flex w-[660px] origin-top-left -rotate-6 overflow-hidden rounded-2xl bg-[#f3f6fb] text-navy shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] ring-1 ring-white/20"
     >
         <div class="w-40 shrink-0 border-r bg-white p-4">
             <div class="flex items-center gap-2 text-sm font-semibold">

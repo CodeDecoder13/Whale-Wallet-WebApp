@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { Link } from '@inertiajs/vue3';
+import AppLogo from '@/components/AppLogo.vue';
 import DashboardPreview from '@/components/DashboardPreview.vue';
 import { home } from '@/routes';
-
-const name = usePage().props.name as string;
 
 // where the dashboard preview sits: Register puts it on the right, Login on the left
 withDefaults(
@@ -23,9 +21,8 @@ withDefaults(
             class="flex flex-col px-6 py-8 sm:px-12"
             :class="side === 'left' && 'lg:order-2'"
         >
-            <Link :href="home()" class="flex items-center gap-2 text-lg font-semibold">
-                <AppLogoIcon class="size-8" />
-                {{ name }}
+            <Link :href="home()" class="flex items-center" aria-label="Whale Wallet home">
+                <AppLogo />
             </Link>
             <div class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 py-10">
                 <div class="space-y-2">
@@ -37,7 +34,7 @@ withDefaults(
         </div>
 
         <div
-            class="relative hidden overflow-hidden bg-linear-to-br from-navy to-navy-2 p-12 text-white lg:block"
+            class="relative hidden flex-col justify-center overflow-hidden bg-linear-to-br from-navy to-navy-2 py-12 pl-12 text-white lg:flex"
             :class="side === 'left' && 'lg:order-1'"
         >
             <h2 class="max-w-md text-4xl leading-tight font-semibold tracking-tight text-balance">
@@ -46,7 +43,7 @@ withDefaults(
             <p class="mt-3 max-w-md text-sm text-white/70">
                 Your cards, bills, loans and spending in one clear number.
             </p>
-            <div class="absolute top-56 left-16">
+            <div class="mt-10 h-[420px]">
                 <DashboardPreview />
             </div>
         </div>
