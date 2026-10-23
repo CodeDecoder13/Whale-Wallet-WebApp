@@ -21,6 +21,6 @@ class DailyDigest extends Mailable
 
     public function content(): Content
     {
-        return new Content(markdown: 'mail.digest');
+        return new Content(view: 'mail.digest');
     }
 }

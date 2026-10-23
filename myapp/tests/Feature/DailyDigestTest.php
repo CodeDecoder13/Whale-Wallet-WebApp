@@ -36,6 +36,7 @@ class DailyDigestTest extends TestCase
         $this->travelTo('2026-03-10 01:02:00'); // 09:02 in Manila
         $this->assertSame(['refreshed' => 1, 'emailed' => 1], app(Digest::class)->run());
         Mail::assertSent(DailyDigest::class, fn ($m) => $m->hasTo($this->user->email) && $m->tips->count() >= 3);
+        Mail::assertSent(DailyDigest::class, fn ($m) => str_contains($m->render(), '/mascot/happy.png') && str_contains($m->render(), $m->tips->first()->text));
         $this->assertSame('2026-03-10', $this->user->fresh()->digest_sent_on->toDateString());
         $this->assertGreaterThanOrEqual(3, $this->user->recommendations()->whereNull('dismissed_at')->count(), 'the dashboard shows the same tips');
 
