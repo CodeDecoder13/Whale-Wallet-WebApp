@@ -22,7 +22,7 @@ withDefaults(
             :class="side === 'left' && 'lg:order-2'"
         >
             <Link :href="home()" class="flex items-center" aria-label="Whale Wallet home">
-                <AppLogo />
+                <AppLogo tagline />
             </Link>
             <div class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 py-10">
                 <div class="space-y-2">

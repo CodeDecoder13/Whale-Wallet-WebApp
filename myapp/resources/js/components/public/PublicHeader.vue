@@ -34,7 +34,7 @@ const on = (href: string) =>
                 class="flex items-center"
                 aria-label="Whale Wallet home"
             >
-                <AppLogo />
+                <AppLogo tagline />
             </Link>
 
             <nav
