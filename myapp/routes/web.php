@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmailOtpController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\OnboardingController;
@@ -44,6 +45,8 @@ Route::get('/sitemap.xml', fn () => response(
     .'</urlset>',
     200, ['Content-Type' => 'application/xml'],
 ));
+
+Route::post('email/otp', EmailOtpController::class)->middleware(['auth', 'throttle:10,1'])->name('verification.otp');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');

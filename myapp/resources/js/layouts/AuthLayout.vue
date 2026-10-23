@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import AuthLayout from '@/layouts/auth/AuthSimpleLayout.vue';
+import AuthLayout from '@/layouts/auth/AuthSplitLayout.vue';
 
-const { title = '', description = '' } = defineProps<{
+const {
+    title = '',
+    description = '',
+    side = 'right',
+} = defineProps<{
     title?: string;
     description?: string;
+    side?: 'left' | 'right';
 }>();
 </script>
 
 <template>
-    <AuthLayout :title="title" :description="description">
+    <AuthLayout :title="title" :description="description" :side="side">
         <slot />
     </AuthLayout>
 </template>

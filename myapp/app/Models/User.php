@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Mail\VerifyCode;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -11,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
@@ -36,6 +40,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    /** A 6-digit code instead of a link: sent on sign-up and by "Resend" (Fortify calls this for both). */
+    public function sendEmailVerificationNotification(): void
+    {
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put("otp:{$this->id}", Hash::make($code), now()->addMinutes(10));
+        Cache::forget("otp-tries:{$this->id}");
+
+        Mail::to($this)->send(new VerifyCode($this->name, $code));
+    }
 
     /** Rows cascade in the database; files and polymorphic tokens do not. */
     protected static function booted(): void

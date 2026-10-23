@@ -1,47 +1,64 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
+import {
+    InputOTP,
+    InputOTPGroup,
+    InputOTPSlot,
+} from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
 import { logout } from '@/routes';
-import { send } from '@/routes/verification';
+import { otp, send } from '@/routes/verification';
 
 defineOptions({
     layout: {
-        title: 'Email verification',
-        description:
-            'Please verify your email address by clicking on the link we just emailed to you.',
+        title: 'Enter your code',
+        description: 'We emailed a 6-digit code to confirm your email address. It works for 10 minutes.',
     },
 });
 
 defineProps<{
     status?: string;
 }>();
+
+const code = ref('');
 </script>
 
 <template>
-    <Head title="Email verification" />
+    <Head title="Verify your email" />
 
     <div
         v-if="status === 'verification-link-sent'"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        class="text-sm font-medium text-green-600"
     >
-        A new verification link has been sent to the email address you provided
-        during registration.
+        A new code is on its way to your email.
     </div>
 
     <Form
-        v-bind="send.form()"
-        class="space-y-6 text-center"
-        v-slot="{ processing }"
+        v-bind="otp.form()"
+        reset-on-error
+        class="grid gap-5"
+        @error="code = ''"
+        #default="{ errors, processing }"
     >
-        <Button :disabled="processing" variant="secondary">
+        <input type="hidden" name="code" :value="code" />
+        <InputOTP v-model="code" :maxlength="6" :disabled="processing" autofocus>
+            <InputOTPGroup>
+                <InputOTPSlot v-for="i in 6" :key="i" :index="i - 1" />
+            </InputOTPGroup>
+        </InputOTP>
+        <InputError :message="errors.code" />
+        <Button type="submit" class="w-full" :disabled="processing || code.length < 6">
             <Spinner v-if="processing" />
-            Resend verification email
+            Verify and continue
         </Button>
+    </Form>
 
-        <TextLink :href="logout()" as="button" class="mx-auto block text-sm">
-            Log out
-        </TextLink>
+    <Form v-bind="send.form()" class="flex items-center justify-between text-sm" v-slot="{ processing }">
+        <Button :disabled="processing" variant="ghost" size="sm">Send a new code</Button>
+        <TextLink :href="logout()" as="button">Log out</TextLink>
     </Form>
 </template>
