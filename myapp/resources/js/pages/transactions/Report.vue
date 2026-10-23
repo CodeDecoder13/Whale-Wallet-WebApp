@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Printer } from '@lucide/vue';
+import { ArrowLeft, Ellipsis, Printer } from '@lucide/vue';
 import { computed } from 'vue';
 import Mascot from '@/components/Mascot.vue';
 import { formatPeso } from '@/lib/currency';
-import { index } from '@/routes/transactions';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { index as categoriesIndex } from '@/routes/categories';
+import { exportMd, exportMethod, index } from '@/routes/transactions';
 
 type Row = {
     id: number;
@@ -49,13 +56,33 @@ const range = computed(() => {
             <Link :href="index().url" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
                 <ArrowLeft class="size-4" /> Back to transactions
             </Link>
-            <button
-                type="button"
-                class="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-brand-deep"
-                @click="print"
-            >
-                <Printer class="size-4" /> Download PDF
-            </button>
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    class="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-brand-deep"
+                    @click="print"
+                >
+                    <Printer class="size-4" /> Download PDF
+                </button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <button type="button" aria-label="More" class="grid size-10 place-items-center rounded-lg border bg-white text-slate-700 hover:bg-slate-50">
+                            <Ellipsis class="size-4" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem as-child>
+                            <a :href="exportMethod.url()" download>Export CSV</a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem as-child>
+                            <a :href="exportMd.url()" download>Export Markdown</a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem as-child>
+                            <Link :href="categoriesIndex().url">Categories</Link>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
 
         <article class="mx-auto max-w-4xl overflow-hidden rounded-2xl bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 print:rounded-none print:shadow-none print:ring-0 [print-color-adjust:exact]">

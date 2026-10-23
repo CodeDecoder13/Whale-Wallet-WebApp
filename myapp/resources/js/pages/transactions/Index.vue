@@ -5,8 +5,8 @@ import {
     ArrowRight,
     ChevronLeft,
     ChevronRight,
-    Ellipsis,
     Pencil,
+    FileText,
     Plus,
     ScanLine,
     Search,
@@ -30,17 +30,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPeso, toPesos } from '@/lib/currency';
-import { index as categoriesIndex, store as categoriesStore } from '@/routes/categories';
-import { exportMd, exportMethod, index, report } from '@/routes/transactions';
+import { store as categoriesStore } from '@/routes/categories';
+import { index, report } from '@/routes/transactions';
 
 type Txn = {
     id: number;
@@ -353,27 +347,6 @@ const sign = { expense: '-', income: '+', transfer: '' };
                     Every expense is charged to a card. Transfers are not spending.
                 </p>
             </header>
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <Button variant="ghost" size="icon" aria-label="More">
-                        <Ellipsis class="size-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem as-child>
-                        <Link :href="categoriesIndex().url">Categories</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem as-child>
-                        <a :href="report.url({ query: query() })" target="_blank" rel="noopener">View transactions</a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem as-child>
-                        <a :href="exportMethod.url()" download>Export CSV</a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem as-child>
-                        <a :href="exportMd.url()" download>Export Markdown</a>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
         </div>
 
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -392,6 +365,12 @@ const sign = { expense: '-', income: '+', transfer: '' };
             <Button variant="outline" @click="scanOpen = true">
                 <ScanLine class="size-4" />
                 Scan receipt
+            </Button>
+            <Button variant="outline" as-child>
+                <a :href="report.url({ query: query() })" target="_blank" rel="noopener">
+                    <FileText class="size-4" />
+                    View transactions
+                </a>
             </Button>
         </div>
 

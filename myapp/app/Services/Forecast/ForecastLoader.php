@@ -30,7 +30,9 @@ class ForecastLoader
         }
 
         $result = $this->forecast->forecast([
-            'balance' => (int) $cards->sum('balance'),
+            // side income on a cash/bank/e-wallet card is already in that balance; one received on a credit card (left out above) or on no card is still money in hand
+            'balance' => (int) $cards->sum('balance') + (int) $user->incomeSources()->where('kind', 'side')->where('month', now()->format('Y-m'))
+                ->where(fn ($q) => $q->whereNull('card_id')->orWhereNotIn('card_id', $cards->modelKeys()))->sum('amount'),
             'today' => $today,
             'pay_dates' => $user->pay_dates ?? [],
             'outflows' => $user->recurringItems()->active()->get()

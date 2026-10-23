@@ -117,6 +117,20 @@ class IncomeTest extends TestCase
         $this->post(route('income.store'), ['receipt_id' => $this->proof($user)->id, 'amount' => '1', 'received_on' => '2026-03-05'])->assertSessionHasErrors('reference');
     }
 
+    public function test_forecast_counts_side_income_that_landed_outside_the_cash_cards()
+    {
+        $user = $this->user();
+        Card::factory()->for($user)->create(['balance' => 100_000]);
+        $credit = Card::factory()->for($user)->create(['type' => 'credit', 'balance' => 0]);
+        $user->update(['pay_dates' => [30]]);
+        $this->actingAs($user);
+
+        $before = app(\App\Services\Forecast\ForecastLoader::class)->for($user)['series'][0]['balance'];
+        $this->post(route('income.store'), ['kind' => 'side', 'amount' => '500', 'received_on' => '2026-03-05', 'card_id' => $credit->id])->assertRedirect();
+
+        $this->assertSame($before + 50_000, app(\App\Services\Forecast\ForecastLoader::class)->for($user)['series'][0]['balance']);
+    }
+
     public function test_side_income_is_added_on_top_and_never_replaces_the_baseline()
     {
         $user = $this->user();
