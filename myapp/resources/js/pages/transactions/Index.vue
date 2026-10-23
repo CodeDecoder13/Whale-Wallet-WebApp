@@ -18,7 +18,6 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import BrandLogo from '@/components/BrandLogo.vue';
 import WhaleAside from '@/components/WhaleAside.vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import ReceiptsDialog from '@/components/ReceiptsDialog.vue';
 import SelectNative from '@/components/SelectNative.vue';
@@ -344,11 +343,17 @@ const sign = { expense: '-', income: '+', transfer: '' };
 
     <div class="flex flex-col gap-6 p-4 md:p-8">
         <div class="flex items-start justify-between gap-3">
-            <Heading
-                class="mb-0!"
-                title="Transactions"
-                description="Every expense is charged to a card. Transfers are not spending."
-            />
+            <header class="space-y-0.5">
+                <h2 class="flex items-center gap-3 text-2xl font-semibold tracking-tight">
+                    Transactions
+                    <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-brand">
+                        {{ transactions.total }} total
+                    </span>
+                </h2>
+                <p class="text-sm text-muted-foreground">
+                    Every expense is charged to a card. Transfers are not spending.
+                </p>
+            </header>
             <DropdownMenu>
                 <DropdownMenuTrigger as-child>
                     <Button variant="ghost" size="icon" aria-label="More">
@@ -405,17 +410,6 @@ const sign = { expense: '-', income: '+', transfer: '' };
         />
 
         <div class="rounded-xl border bg-card p-5">
-            <div class="mb-4">
-                <h2 class="flex items-center gap-2 text-lg font-semibold">
-                    Transaction history
-                    <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-brand">
-                        {{ transactions.total }} total
-                    </span>
-                </h2>
-                <p class="text-sm text-muted-foreground">
-                    Here you will see everything you spent, moved and received.
-                </p>
-            </div>
             <form
                 class="flex flex-wrap items-center gap-2"
                 @submit.prevent="applyFilters"
