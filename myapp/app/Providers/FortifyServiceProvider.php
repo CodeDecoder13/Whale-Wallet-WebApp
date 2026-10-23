@@ -5,7 +5,10 @@ namespace App\Providers;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use Illuminate\Cache\RateLimiting\Limit;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -41,7 +44,36 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::createUsersUsing(CreateNewUser::class);
-    }
+
+        // the login form can send a 6-digit PIN (mode=pin, in the password field) instead of the password
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = User::where('email', $request->input('email'))->first();
+            $secret = (string) $request->input('password');
+
+            if (! $user) {
+                return null;
+            }
+
+            if ($request->input('mode') !== 'pin') {
+                return Hash::check($secret, $user->password) ? $user : null;
+            }
+
+            // a 6-digit PIN is guessable, so five misses block it for 15 minutes (the password still works)
+            $key = "pin-fails:{$user->id}";
+            if (! $user->pin || Cache::get($key, 0) >= 5) {
+                return null;
+            }
+
+            if (! Hash::check($secret, $user->pin)) {
+                Cache::put($key, Cache::get($key, 0) + 1, now()->addMinutes(15));
+
+                return null;
+            }
+
+            Cache::forget($key);
+
+            return $user;
+        });    }
 
     /**
      * Configure Fortify views.

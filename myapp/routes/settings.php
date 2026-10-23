@@ -28,6 +28,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:6,1')
         ->name('user-password.update');
 
+    Route::put('settings/pin', [SecurityController::class, 'pin'])->middleware('throttle:6,1')->name('user-pin.update');
+
     Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
 
     Route::get('settings/data', [DataController::class, 'index'])->name('data.index');

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -11,7 +12,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import PasskeyVerify from '@/components/PasskeyVerify.vue';
+import {
+    InputOTP,
+    InputOTPGroup,
+    InputOTPSlot,
+} from '@/components/ui/input-otp';
 
 defineOptions({
     layout: {
@@ -25,6 +30,10 @@ defineProps<{
     status?: string;
     canResetPassword: boolean;
 }>();
+
+// "Use PIN" swaps the password box for a 6-digit code; the form posts it as the password with mode=pin
+const usePin = ref(false);
+const pin = ref('');
 </script>
 
 <template>
@@ -37,11 +46,10 @@ defineProps<{
         {{ status }}
     </div>
 
-    <PasskeyVerify />
-
     <Form
         v-bind="store.form()"
         :reset-on-success="['password']"
+        @error="pin = ''"
         v-slot="{ errors, processing }"
         class="flex flex-col gap-6"
     >
@@ -63,9 +71,9 @@ defineProps<{
 
             <div class="grid gap-2">
                 <div class="flex items-center justify-between">
-                    <Label for="password">Password</Label>
+                    <Label for="password">{{ usePin ? 'PIN' : 'Password' }}</Label>
                     <TextLink
-                        v-if="canResetPassword"
+                        v-if="canResetPassword && !usePin"
                         :href="request()"
                         class="text-sm"
                         :tabindex="5"
@@ -73,7 +81,17 @@ defineProps<{
                         Forgot your password?
                     </TextLink>
                 </div>
+                <template v-if="usePin">
+                    <input type="hidden" name="mode" value="pin" />
+                    <input type="hidden" name="password" :value="pin" />
+                    <InputOTP v-model="pin" :maxlength="6" autofocus>
+                        <InputOTPGroup>
+                            <InputOTPSlot v-for="i in 6" :key="i" :index="i - 1" />
+                        </InputOTPGroup>
+                    </InputOTP>
+                </template>
                 <PasswordInput
+                    v-else
                     id="password"
                     name="password"
                     required
@@ -81,7 +99,14 @@ defineProps<{
                     autocomplete="current-password"
                     placeholder="Password"
                 />
-                <InputError :message="errors.password" />
+                <InputError :message="errors.password || errors.email" />
+                <button
+                    type="button"
+                    class="justify-self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    @click="usePin = !usePin"
+                >
+                    {{ usePin ? 'Use password instead' : 'Use PIN instead' }}
+                </button>
             </div>
 
             <div class="flex items-center justify-between">

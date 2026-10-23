@@ -13,11 +13,12 @@ class VerifyCode extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "{$this->code} is your Whale Wallet code");
+        // "Use 123456 to ..." is the subject pattern Gmail recognises as a one-time code
+        return new Envelope(subject: "Use {$this->code} to verify your Whale Wallet account");
     }
 
     public function content(): Content
     {
-        return new Content(view: 'mail.verify-code');
+        return new Content(view: 'mail.verify-code', text: 'mail.verify-code-text');
     }
 }

@@ -5,6 +5,7 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/security';
 import type { Props as ManagePasskeysProps } from '@/components/ManagePasskeys.vue';
@@ -15,6 +16,7 @@ import ManageTwoFactor from '@/components/ManageTwoFactor.vue';
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    hasPin: boolean;
 } & ManagePasskeysProps &
     ManageTwoFactorProps;
 
@@ -104,6 +106,39 @@ defineOptions({
                     Save
                 </Button>
             </div>
+        </Form>
+    </div>
+
+    <div class="space-y-6">
+        <Heading
+            variant="small"
+            title="Login PIN"
+            :description="hasPin ? 'A PIN is set. You can log in with it instead of your password.' : 'Set a 6-digit PIN to log in faster. Your password still works.'"
+        />
+        <Form
+            v-bind="SecurityController.pin.form()"
+            :options="{ preserveScroll: true }"
+            reset-on-success
+            class="grid max-w-sm gap-4"
+            v-slot="{ errors, processing }"
+        >
+            <div class="grid gap-2">
+                <Label for="pin">New PIN</Label>
+                <Input id="pin" name="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6 digits" />
+                <InputError :message="errors.pin" />
+            </div>
+            <div class="grid gap-2">
+                <Label for="pin_confirmation">Confirm PIN</Label>
+                <Input id="pin_confirmation" name="pin_confirmation" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6 digits" />
+            </div>
+            <Button :disabled="processing">Save PIN</Button>
+        </Form>
+        <Form
+            v-if="hasPin"
+            v-bind="SecurityController.pin.form()"
+            :options="{ preserveScroll: true }"
+        >
+            <Button type="submit" variant="ghost" size="sm">Remove PIN</Button>
         </Form>
     </div>
 

@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,6 +41,7 @@ class SecurityController extends Controller
                     ->all()
                 : [],
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'hasPin' => (bool) $request->user()->pin,
         ];
 
         if (Features::canManageTwoFactorAuthentication()) {
@@ -48,6 +52,19 @@ class SecurityController extends Controller
         }
 
         return Inertia::render('settings/Security', $props);
+    }
+
+    /** Sets or removes the 6-digit login PIN (an empty pin removes it). */
+    public function pin(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['pin' => ['nullable', 'digits:6', 'confirmed']]);
+
+        $request->user()->forceFill(['pin' => ($data['pin'] ?? null) ? Hash::make($data['pin']) : null])->save();
+        Cache::forget("pin-fails:{$request->user()->id}");
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => ($data['pin'] ?? null) ? __('PIN saved.') : __('PIN removed.')]);
+
+        return back();
     }
 
     /**
