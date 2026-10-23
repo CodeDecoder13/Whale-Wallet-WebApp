@@ -29,7 +29,12 @@ class ForecastLoader
             $limits[$card->id] = max(0, $card->monthly_limit - $spent);
         }
 
+        // the chart follows the same safe-to-spend figure as the dashboard: spend that much a day and see where the balance lands
+        $days = (int) $today->diffInDays(ForecastService::nextPayday($today, $user->pay_dates ?? []));
+        $safe = $this->safePerDay($user, $days, $skipId);
+
         $result = $this->forecast->forecast([
+            'spend_per_day' => $safe,
             // side income on a cash/bank/e-wallet card is already in that balance; one received on a credit card (left out above) or on no card is still money in hand
             'balance' => (int) $cards->sum('balance') + (int) $user->incomeSources()->where('kind', 'side')->where('month', now()->format('Y-m'))
                 ->where(fn ($q) => $q->whereNull('card_id')->orWhereNotIn('card_id', $cards->modelKeys()))->sum('amount'),
@@ -50,10 +55,10 @@ class ForecastLoader
             'pod_monthly' => (int) $user->pods()->sum('monthly_amount'),
         ]);
 
-        // safe to spend: what is left of this month's income after spending, minus the bills still unpaid this month, spread to payday
-        return ['safe_per_day' => $this->safePerDay($user, $result['days'], $skipId)] + $result;
+        return ['safe_per_day' => $safe] + $result;
     }
 
+    /** Safe to spend: what is left of this month's income after spending, minus the bills still unpaid this month, spread to payday. */
     private function safePerDay(User $user, int $days, ?int $skipId): int
     {
         $month = $user->transactions()->where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth());

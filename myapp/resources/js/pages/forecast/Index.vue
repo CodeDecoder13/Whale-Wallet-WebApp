@@ -62,7 +62,7 @@ const tiles = computed(() => {
             value: formatPeso(at_payday),
             status: at_payday < 0 ? 'Running short' : 'You will make it',
             color: at_payday < 0 ? RED : GREEN,
-            hint: `On ${day(payday)}, ${days} ${days === 1 ? 'day' : 'days'} away, after bills and usual spending`,
+            hint: `On ${day(payday)}, ${days} ${days === 1 ? 'day' : 'days'} away, after bills and spending your safe amount each day`,
         },
         {
             title: 'Tightest day',
@@ -120,7 +120,7 @@ const tiles = computed(() => {
                 <div>
                     <h2 class="font-medium">Your money day by day</h2>
                     <p class="text-xs text-muted-foreground">
-                        Bills coming up, plus what you usually spend.
+                        Unpaid bills coming up, if you spend your safe amount each day.
                     </p>
                 </div>
                 <label class="grid gap-1 text-xs text-muted-foreground">

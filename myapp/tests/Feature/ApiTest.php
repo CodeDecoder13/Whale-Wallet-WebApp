@@ -164,7 +164,8 @@ class ApiTest extends TestCase
         $base = $this->as($user)->getJson('/api/v1/forecast')->assertOk()->assertJsonStructure(['payday', 'days', 'series' => [['date', 'balance']], 'lowest' => ['date', 'amount'], 'at_payday', 'safe_per_day']);
         $skip = $this->getJson('/api/v1/forecast?skip='.$icloud->id)->assertOk()->assertJsonPath('skipped', $icloud->id);
 
-        $this->assertSame($base->json('at_payday') + 7_900, $skip->json('at_payday'));
+        // the freed 7,900 raises the daily allowance the chart spends at, so it shows up as a higher safe_per_day
+        $this->assertGreaterThan($base->json('safe_per_day'), $skip->json('safe_per_day'));
         $this->getJson('/api/v1/forecast?skip=abc')->assertStatus(422);
     }
 

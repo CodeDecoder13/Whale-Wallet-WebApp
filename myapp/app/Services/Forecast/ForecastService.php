@@ -32,7 +32,7 @@ class ForecastService
      *     pod_monthly: int,
      * } $in  balance: cash on hand; pay_dates: days of the month; outflows: known bills by due date;
      *        spend: expense history of the last 30 days; card_limits: card id => limit left this month;
-     *        pod_monthly: total monthly pod contributions
+     *        pod_monthly: total monthly pod contributions; spend_per_day (optional): spend this much a day instead of the history average
      * @return array{payday: string, days: int, series: list<array{date: string, balance: int}>, lowest: array{date: string, amount: int}, at_payday: int, safe_per_day: int}
      */
     public function forecast(array $in): array
@@ -59,7 +59,7 @@ class ForecastService
         for ($i = 0; $i <= $days; $i++) {
             $date = $today->addDays($i)->toDateString();
             $due += $bills[$date] ?? 0;
-            $series[] = ['date' => $date, 'balance' => $balance - $due - $this->spentBy($i, $daily, $in['card_limits'])];
+            $series[] = ['date' => $date, 'balance' => $balance - $due - (isset($in['spend_per_day']) ? $in['spend_per_day'] * $i : $this->spentBy($i, $daily, $in['card_limits']))];
         }
 
         $lowest = $series[0];
