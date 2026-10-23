@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\TransactionSource;
 use Illuminate\Validation\Rule;
 
 class TransactionRequest extends PesoRequest
@@ -20,7 +21,7 @@ class TransactionRequest extends PesoRequest
             'occurred_at' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:500'],
             'reference' => ['nullable', 'string', 'max:80'],
-            'source' => ['required', 'in:manual,quick'],
+            'source' => ['required', Rule::enum(TransactionSource::class)],
         ];
     }
 }

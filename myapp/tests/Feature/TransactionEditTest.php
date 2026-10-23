@@ -89,6 +89,15 @@ class TransactionEditTest extends TestCase
         $this->assertSame(90_000, $new->fresh()->balance);
     }
 
+    public function test_chat_and_receipt_expenses_can_be_edited()
+    {
+        $card = Card::factory()->for($this->user)->create(['balance' => 100_000]);
+        $t = Transaction::factory()->for($this->user)->create(['card_id' => $card->id, 'amount' => 20_000, 'source' => 'chat']);
+
+        $this->put(route('transactions.update', $t), ['merchant' => 'Z', 'amount' => '200', 'card_id' => $card->id, 'occurred_at' => '2026-03-01', 'source' => 'chat'])->assertSessionHasNoErrors();
+        $this->assertSame('Z', $t->fresh()->merchant);
+    }
+
     public function test_transfers_cannot_be_edited()
     {
         $a = Card::factory()->for($this->user)->create(['balance' => 100_000]);
