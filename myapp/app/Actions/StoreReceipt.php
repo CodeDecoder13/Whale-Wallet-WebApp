@@ -17,7 +17,7 @@ class StoreReceipt
         $name = Str::ulid().'-'.Str::slug(substr(pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME), 0, 40)).'.'.$image->extension();
 
         $receipt = $user->receipts()->create(['path' => Storage::putFileAs("receipts/{$user->id}", $image, $name), 'purpose' => $purpose]);
-        ParseReceipt::dispatch($receipt->id);
+        ParseReceipt::dispatchAfterResponse($receipt->id); // runs in the web process once the reply is sent, so scanning needs no separate queue worker
 
         return $receipt;
     }
