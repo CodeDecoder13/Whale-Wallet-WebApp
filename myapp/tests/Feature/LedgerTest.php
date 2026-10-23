@@ -149,7 +149,7 @@ class LedgerTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
             ->where('summary.income', 3_500_000)
-            ->where('summary.fixed', 0) // nothing paid yet, so unpaid bills are not counted
+            ->where('summary.fixed', 1_915_600)->where('summary.paid_fixed', 0)
             ->where('summary.safe', 3_500_000)
             ->has('categories', 0));
     }
@@ -180,7 +180,7 @@ class LedgerTest extends TestCase
         Transaction::factory()->for($user)->create(['card_id' => $card->id, 'amount' => 100_000, 'occurred_at' => now(), 'recurring_item_id' => $bill->id]);
 
         $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
-            ->where('summary.fixed', 100_000)->where('summary.spent', 100_000)->where('summary.safe', 3_400_000));
+            ->where('summary.paid_fixed', 100_000)->where('summary.spent', 100_000)->where('summary.safe', 3_400_000));
     }
 
     public function test_new_user_without_cards_is_sent_to_onboarding_and_can_finish_it()
@@ -197,7 +197,7 @@ class LedgerTest extends TestCase
         ])->assertRedirect(route('dashboard'));
 
         $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
-            ->where('summary.income', 3_500_000)->where('summary.fixed', 0));
+            ->where('summary.income', 3_500_000)->where('summary.fixed', 800_000));
         $this->assertSame(500_000, $user->cards()->sole()->balance);
         $this->assertSame(0, $user->pods()->count());
     }
