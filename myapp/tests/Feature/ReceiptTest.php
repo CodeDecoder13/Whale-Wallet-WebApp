@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Contracts\AiProvider;
 use App\Jobs\ParseReceipt;
+use App\Models\Card;
 use App\Models\Receipt;
 use App\Models\Transaction;
 use App\Models\User;
@@ -194,6 +195,18 @@ class ReceiptTest extends TestCase
         $this->assertNotNull($receipt->fresh()->path);
     }
 
+    public function test_category_and_card_follow_what_the_user_chose_for_that_merchant_before()
+    {
+        $user = $this->demo();
+        $other = $user->cards()->skip(1)->first() ?? Card::factory()->for($user)->create();
+        $cat = $user->categories()->where('name', '!=', 'Food')->first();
+        Transaction::factory()->for($user)->create(['card_id' => $other->id, 'category_id' => $cat->id, 'merchant' => 'JOLLIBEE', 'amount' => 11100, 'occurred_at' => '2026-02-01 12:00:00']);
+
+        $draft = $this->parsed($user)->parsed_json;
+
+        $this->assertSame($cat->id, $draft['category_id']);
+    }
+
     public function test_duplicates_are_flagged_by_amount_and_merchant_within_48_hours()
     {
         $user = $this->demo();
@@ -229,6 +242,7 @@ class ReceiptTest extends TestCase
             'zero amount' => [['amount' => '0.00'], 'amount'],
             'negative amount' => [['amount' => '-50'], 'amount'],
             'no amount' => [['amount' => ''], 'amount'],
+            'absurdly large amount' => [['amount' => '2000000'], 'amount'],
             'future date' => [['occurred_at' => '2026-03-20 10:00'], 'date'],
             'over a year old' => [['occurred_at' => '2025-03-01 10:00'], 'date'],
             'no date' => [['occurred_at' => ''], 'date'],

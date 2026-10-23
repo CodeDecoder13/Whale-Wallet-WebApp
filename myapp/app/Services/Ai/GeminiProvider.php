@@ -103,7 +103,7 @@ TXT;
             'Allowed categories: '.json_encode($categories),
             attachments: [Image::fromPath($imagePath)],
             provider: Lab::Gemini,
-            model: config('services.gemini.model'),
+            model: config('services.gemini.receipt_model'),
         );
 
         return [

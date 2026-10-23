@@ -67,7 +67,7 @@ class EvalReceipts extends Command
 
         $this->table(['receipt', ...self::FIELDS, 'note'], $rows);
         $n = count($expected);
-        $this->line('Field accuracy ('.config('services.gemini.model').'): '.implode(', ', array_map(fn ($f) => "$f {$score[$f]}/$n", self::FIELDS)));
+        $this->line('Field accuracy ('.config('services.gemini.receipt_model').'): '.implode(', ', array_map(fn ($f) => "$f {$score[$f]}/$n", self::FIELDS)));
 
         return self::SUCCESS;
     }

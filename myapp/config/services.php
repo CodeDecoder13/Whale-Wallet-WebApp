@@ -31,6 +31,8 @@ return [
     // Key lives in config/ai.php (GEMINI_API_KEY). Free-tier-friendly Flash-Lite; GEMINI_MODEL overrides it.
     'gemini' => [
         'model' => env('GEMINI_MODEL') ?: 'gemini-3.5-flash-lite',
+        // receipts are read by the fuller Flash model: amounts and dates matter more than the few cents extra per scan
+        'receipt_model' => env('GEMINI_RECEIPT_MODEL') ?: 'gemini-3.5-flash',
     ],
 
     // true = answer receipts and chat from tests/Fixtures instead of calling Gemini (offline demos)

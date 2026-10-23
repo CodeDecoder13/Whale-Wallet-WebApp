@@ -62,6 +62,12 @@ class ParseReceipt implements ShouldQueue
             $app = mb_strtolower(trim($raw['payment_app']));
             $card = $app === '' ? null : $cards->first(fn ($c) => str_contains($app, mb_strtolower($c->name)) || str_contains(mb_strtolower($c->name), $app));
 
+            // what the user chose last time for this merchant beats the model's guess
+            $last = $draft['merchant'] === '' ? null : Transaction::withoutGlobalScopes()->where('user_id', $uid)->where('type', 'expense')
+                ->whereRaw('lower(merchant) = ?', [mb_strtolower($draft['merchant'])])->latest('occurred_at')->latest('id')->first(['category_id', 'card_id']);
+            $category = ($last?->category_id ? $categories->firstWhere('id', $last->category_id) : null) ?? $category;
+            $card ??= $last?->card_id ? $cards->firstWhere('id', $last->card_id) : null;
+
             $draft += [
                 'category_id' => $category?->id, 'category' => $category?->name,
                 'card_id' => $card?->id,
@@ -98,6 +104,10 @@ class ParseReceipt implements ShouldQueue
 
         if (! is_numeric($amount) || (int) round((float) $amount * 100) <= 0) {
             throw new UnexpectedValueException('Could not find a valid amount on this receipt. Add the expense manually.');
+        }
+
+        if ((int) round((float) $amount * 100) > 100_000_000) {
+            throw new UnexpectedValueException('That amount looks too large to be right. Add the expense manually.');
         }
 
         $currency = strtoupper(trim((string) $raw['currency']));
@@ -145,7 +155,18 @@ class ParseReceipt implements ShouldQueue
     private function downscale(Receipt $receipt): string
     {
         $disk = Storage::disk();
-        $src = @imagecreatefromstring((string) $disk->get($receipt->path));
+        $bytes = (string) $disk->get($receipt->path);
+        $info = @getimagesizefromstring($bytes);
+
+        // the browser already sent a JPEG of at most 1280px: hand it over as is instead of decoding and re-encoding it
+        if ($info && $info[2] === IMAGETYPE_JPEG && max($info[0], $info[1]) <= self::MAX_SIDE) {
+            $tmp = sys_get_temp_dir().'/'.basename($receipt->path);
+            file_put_contents($tmp, $bytes);
+
+            return $tmp;
+        }
+
+        $src = @imagecreatefromstring($bytes);
 
         if (! $src) {
             throw new UnexpectedValueException('That file could not be read as an image.');
