@@ -6,7 +6,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Ellipsis,
-    FileText,
     Pencil,
     Plus,
     ScanLine,
@@ -365,6 +364,9 @@ const sign = { expense: '-', income: '+', transfer: '' };
                         <Link :href="categoriesIndex().url">Categories</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem as-child>
+                        <a :href="report.url({ query: query() })" target="_blank" rel="noopener">View transactions</a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem as-child>
                         <a :href="exportMethod.url()" download>Export CSV</a>
                     </DropdownMenuItem>
                     <DropdownMenuItem as-child>
@@ -390,12 +392,6 @@ const sign = { expense: '-', income: '+', transfer: '' };
             <Button variant="outline" @click="scanOpen = true">
                 <ScanLine class="size-4" />
                 Scan receipt
-            </Button>
-            <Button variant="outline" as-child class="sm:ml-auto">
-                <Link :href="report.url({ query: query() })">
-                    <FileText class="size-4" />
-                    View transactions
-                </Link>
             </Button>
         </div>
 
