@@ -31,7 +31,14 @@ const monthLabel = today.toLocaleDateString('en-GB', {
 
 const { resolvedAppearance, updateAppearance } = useAppearance();
 const q = ref('');
-const search = () => router.get(index().url, q.value ? { q: q.value } : {});
+// already on Transactions: a visit to the same page would not remount it, so just raise the hash the page listens for
+const onAdd = (e: Event) => {
+    if (window.location.pathname === index().url) {
+        e.preventDefault();
+        window.location.hash = 'add-expense';
+    }
+};
+const search =() => router.get(index().url, q.value ? { q: q.value } : {});
 </script>
 
 <template>
@@ -66,6 +73,7 @@ const search = () => router.get(index().url, q.value ? { q: q.value } : {});
         </form>
         <Link
             :href="`${index().url}#add-expense`"
+            @click="onAdd"
             class="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-brand-deep"
         >
             <Plus class="size-4" />

@@ -201,6 +201,11 @@ async function discard(item: Item) {
     drop(item);
 }
 
+const cancelWaiting = () =>
+    items.value
+        .filter(pending)
+        .forEach((i) => discard(i).catch(() => drop(i)));
+
 const manual = () => {
     open.value = false;
     emit('manual');
@@ -232,7 +237,18 @@ const toggleKeep = (e: Event) =>
                 Reading {{ waiting }} receipt{{ waiting === 1 ? '' : 's' }}
             </span>
         </p>
-        <Button size="sm" @click="open = true">Review</Button>
+        <div class="flex items-center gap-1">
+            <Button size="sm" @click="open = true">Review</Button>
+            <button
+                v-if="waiting"
+                type="button"
+                class="grid size-8 place-items-center rounded-md hover:bg-accent"
+                aria-label="Cancel reading"
+                @click="cancelWaiting"
+            >
+                <X class="size-4" aria-hidden="true" />
+            </button>
+        </div>
     </div>
 
     <Dialog v-model:open="open">

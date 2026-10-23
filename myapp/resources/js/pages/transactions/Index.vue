@@ -614,11 +614,39 @@ const sign = { expense: '-', income: '+', transfer: '' };
                     class="grid gap-4 sm:grid-cols-2"
                     @submit.prevent="saveExpense"
                 >
+                    <div class="grid gap-2 sm:col-span-2">
+                        <Label for="category_id">Type of expense</Label>
+                        <div v-if="!addingCategory" class="flex gap-2">
+                            <SelectNative id="category_id" v-model="expense.category_id" class="flex-1">
+                                <option value="">Uncategorized</option>
+                                <option v-for="c in categories" :key="c.id" :value="String(c.id)">
+                                    {{ c.name }}
+                                </option>
+                            </SelectNative>
+                            <Button type="button" variant="outline" class="shrink-0" @click="addingCategory = true">
+                                <Plus class="size-4" /> Add type
+                            </Button>
+                        </div>
+                        <form v-else class="flex gap-2" @submit.prevent="addCategory">
+                            <Input
+                                v-model="newCategory"
+                                class="flex-1"
+                                maxlength="60"
+                                placeholder="New type, e.g. Food"
+                                aria-label="New type of expense"
+                                autofocus
+                            />
+                            <Button :disabled="!newCategory.trim()">Add</Button>
+                            <Button type="button" variant="ghost" @click="((addingCategory = false), (categoryError = ''))">Cancel</Button>
+                        </form>
+                        <InputError :message="categoryError || expense.errors.category_id" />
+                    </div>
                     <div class="grid gap-2">
-                        <Label for="merchant">Merchant</Label>
+                        <Label for="merchant">Name of expense</Label>
                         <Input
                             id="merchant"
                             v-model="expense.merchant"
+                            placeholder="e.g. Chicken meal, Meralco bill"
                             required
                         />
                         <InputError :message="expense.errors.merchant" />
@@ -664,33 +692,6 @@ const sign = { expense: '-', income: '+', transfer: '' };
                             </button>
                         </div>
                         <InputError :message="expense.errors.card_id" />
-                    </div>
-                    <div class="grid gap-2 sm:col-span-2">
-                        <Label for="category_id">Category</Label>
-                        <div v-if="!addingCategory" class="flex gap-2">
-                            <SelectNative id="category_id" v-model="expense.category_id" class="flex-1">
-                                <option value="">Uncategorized</option>
-                                <option v-for="c in categories" :key="c.id" :value="String(c.id)">
-                                    {{ c.name }}
-                                </option>
-                            </SelectNative>
-                            <Button type="button" variant="outline" class="shrink-0" @click="addingCategory = true">
-                                <Plus class="size-4" /> Add category
-                            </Button>
-                        </div>
-                        <form v-else class="flex gap-2" @submit.prevent="addCategory">
-                            <Input
-                                v-model="newCategory"
-                                class="flex-1"
-                                maxlength="60"
-                                placeholder="New category name"
-                                aria-label="New category name"
-                                autofocus
-                            />
-                            <Button :disabled="!newCategory.trim()">Add</Button>
-                            <Button type="button" variant="ghost" @click="((addingCategory = false), (categoryError = ''))">Cancel</Button>
-                        </form>
-                        <InputError :message="categoryError || expense.errors.category_id" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="occurred_at">Date</Label>

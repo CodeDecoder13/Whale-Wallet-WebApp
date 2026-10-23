@@ -23,7 +23,8 @@ TXT;
     private const RECEIPT = <<<'TXT'
 You read screenshots and photos of payment receipts from Philippine e-wallets and banks (GCash, Maya, BPI, BDO and similar).
 Extract the payment shown. Copy values exactly as printed; never guess. Use "" for anything not visible.
-amount: the total paid in pesos as a plain decimal string such as "1250.50" (no currency sign, no thousands separators).
+merchant: who was paid (store, biller or recipient name), not the app or bank used to pay.
+amount: the total paid in pesos as a plain decimal string such as "1250.50" (no currency sign, no thousands separators). Use the final total debited, including fees; not a balance, change or discount line.
 occurred_at: the payment date and time as ISO 8601 (YYYY-MM-DD HH:MM), "" if no date is visible.
 reference: the reference or transaction number. currency: ISO code, "PHP" for pesos.
 category: pick exactly one name from the allowed categories in the prompt, or "" if none fits.
