@@ -98,6 +98,16 @@ class TransactionEditTest extends TestCase
         $this->assertSame('Z', $t->fresh()->merchant);
     }
 
+    public function test_list_is_paged_by_the_requested_size_and_a_report_page_lists_everything()
+    {
+        $card = Card::factory()->for($this->user)->create();
+        Transaction::factory()->for($this->user)->count(9)->create(['card_id' => $card->id]);
+
+        $this->get(route('transactions.index', ['per_page' => 6]))->assertInertia(fn ($p) => $p
+            ->has('transactions.data', 6)->where('transactions.last_page', 2)->where('transactions.total', 9));
+        $this->get(route('transactions.index'))->assertInertia(fn ($p) => $p->has('transactions.data', 7));
+        $this->get(route('transactions.report'))->assertInertia(fn ($p) => $p->component('transactions/Report')->has('rows', 9));
+    }
     public function test_transfers_cannot_be_edited()
     {
         $a = Card::factory()->for($this->user)->create(['balance' => 100_000]);

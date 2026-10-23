@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::post('transactions/quick', [TransactionController::class, 'quick'])->name('transactions.quick');
     Route::post('transactions/transfer', [TransactionController::class, 'transfer'])->name('transactions.transfer');
+    Route::get('transactions/report', [TransactionController::class, 'report'])->name('transactions.report');
     Route::get('transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
     Route::get('transactions/export.md', [TransactionController::class, 'exportMarkdown'])->name('transactions.export-md');
     Route::put('transactions/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');

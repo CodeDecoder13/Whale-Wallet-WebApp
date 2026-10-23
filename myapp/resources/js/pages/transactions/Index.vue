@@ -6,6 +6,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Ellipsis,
+    FileText,
     Pencil,
     Plus,
     ScanLine,
@@ -13,7 +14,7 @@ import {
     Trash2,
     Zap,
 } from '@lucide/vue';
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import WhaleAside from '@/components/WhaleAside.vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
@@ -41,7 +42,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPeso, toPesos } from '@/lib/currency';
 import { index as categoriesIndex, store as categoriesStore } from '@/routes/categories';
-import { exportMd, exportMethod, index } from '@/routes/transactions';
+import { exportMd, exportMethod, index, report } from '@/routes/transactions';
 
 type Txn = {
     id: number;
@@ -69,6 +70,8 @@ const props = defineProps<{
         prev_page_url: string | null;
         next_page_url: string | null;
         current_page: number;
+        last_page: number;
+        per_page: number;
         total: number;
     };
     filters: {
@@ -113,12 +116,29 @@ const filter = reactive({
     category_id: props.filters.category_id ?? '',
 });
 
+// 6 rows on a short screen, 7 on a tall one, so the table fits without scrolling the page
+const perPage = window.innerHeight < 900 ? 6 : 7;
+const query = () => Object.fromEntries(Object.entries(filter).filter(([, v]) => v !== ''));
+
 function applyFilters() {
-    const query = Object.fromEntries(
-        Object.entries(filter).filter(([, v]) => v !== ''),
-    );
-    router.get(index().url, query, { preserveState: true, replace: true });
+    router.get(index().url, { ...query(), per_page: perPage }, { preserveState: true, replace: true });
 }
+
+function goto(page: number) {
+    router.get(index().url, { ...query(), page, per_page: perPage }, { preserveState: true, preserveScroll: true });
+}
+
+// 1 ... 4 5 6 ... 99 (0 stands for the gap)
+const pages = computed(() => {
+    const { current_page: c, last_page: l } = props.transactions;
+    const shown = [...new Set([1, c - 1, c, c + 1, l])].filter((p) => p >= 1 && p <= l).sort((a, b) => a - b);
+
+    return shown.flatMap((p, i) => (i && p - shown[i - 1] > 1 ? [0, p] : [p]));
+});
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const longDate = (d: string) => MONTHS[Number(d.slice(5, 7)) - 1] + ' ' + Number(d.slice(8, 10)) + ', ' + d.slice(0, 4);
+const pill = 'inline-block rounded-full border border-brand/25 bg-brand/10 px-2.5 py-0.5 text-xs font-medium text-brand';
 
 function clearFilters() {
     Object.assign(filter, {
@@ -245,6 +265,10 @@ function openFromUrl() {
 }
 
 onMounted(() => {
+    if (props.transactions.per_page !== perPage) {
+        goto(1);
+    }
+
     openFromUrl();
     window.addEventListener('hashchange', openFromUrl);
 });
@@ -273,11 +297,21 @@ function edit(t: Txn) {
     expenseOpen.value = true;
 }
 
-function remove(t: Txn) {
+function remove(t: Txn, done?: () => void) {
     if (confirm(`Delete ${t.merchant}? Its amount returns to the balance.`)) {
         router.delete(TransactionController.destroy.url(t.id), {
             preserveScroll: true,
+            onSuccess: done,
         });
+    }
+}
+
+// the delete button lives inside the edit dialog
+function removeEditing() {
+    const t = props.transactions.data.find((x) => x.id === editing.value);
+
+    if (t) {
+        remove(t, () => (expenseOpen.value = false));
     }
 }
 
@@ -352,6 +386,12 @@ const sign = { expense: '-', income: '+', transfer: '' };
                 <ScanLine class="size-4" />
                 Scan receipt
             </Button>
+            <Button variant="outline" as-child class="sm:ml-auto">
+                <Link :href="report.url({ query: query() })">
+                    <FileText class="size-4" />
+                    View transactions
+                </Link>
+            </Button>
         </div>
 
         <ReceiptsDialog
@@ -365,6 +405,17 @@ const sign = { expense: '-', income: '+', transfer: '' };
         />
 
         <div class="rounded-xl border bg-card p-5">
+            <div class="mb-4">
+                <h2 class="flex items-center gap-2 text-lg font-semibold">
+                    Transaction history
+                    <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-brand">
+                        {{ transactions.total }} total
+                    </span>
+                </h2>
+                <p class="text-sm text-muted-foreground">
+                    Here you will see everything you spent, moved and received.
+                </p>
+            </div>
             <form
                 class="flex flex-wrap items-center gap-2"
                 @submit.prevent="applyFilters"
@@ -425,45 +476,43 @@ const sign = { expense: '-', income: '+', transfer: '' };
                 </Button>
             </form>
 
-            <div class="mt-4 overflow-x-auto">
+            <div class="mt-4 overflow-x-auto rounded-xl border">
                 <table class="w-full text-left text-sm">
-                    <thead class="border-b text-xs text-muted-foreground">
+                    <thead class="border-b bg-muted/40 text-xs font-semibold text-foreground">
                         <tr>
-                            <th class="p-3 font-normal">Transaction</th>
-                            <th class="p-3 font-normal">Category</th>
-                            <th class="p-3 font-normal">Date</th>
-                            <th class="p-3 font-normal">Card</th>
-                            <th class="p-3 font-normal">Source</th>
-                            <th class="p-3 text-right font-normal">Amount</th>
-                            <th class="p-3">
-                                <span class="sr-only">Actions</span>
-                            </th>
+                            <th class="p-3.5">Transaction</th>
+                            <th class="p-3.5">Category</th>
+                            <th class="p-3.5">Date</th>
+                            <th class="p-3.5">Card</th>
+                            <th class="p-3.5">Source</th>
+                            <th class="p-3.5 text-right">Amount</th>
+                            <th class="p-3.5 text-center">Tools</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr
                             v-for="t in transactions.data"
                             :key="t.id"
-                            class="border-b last:border-0"
+                            class="border-b transition-colors last:border-0 hover:bg-accent/40"
                         >
-                            <td class="p-3">
+                            <td class="p-3.5">
                                 <div class="flex items-center gap-3">
                                     <span
                                         v-if="t.type === 'transfer'"
                                         class="flex shrink-0 items-center gap-1"
                                     >
-                                        <BrandLogo :name="ends(t)[0]" class="!size-8" />
+                                        <BrandLogo :name="ends(t)[0]" class="!size-9" />
                                         <ArrowRight class="size-3.5 text-muted-foreground" aria-hidden="true" />
-                                        <BrandLogo :name="ends(t)[1]" class="!size-8" />
+                                        <BrandLogo :name="ends(t)[1]" class="!size-9" />
                                     </span>
                                     <BrandLogo
                                         v-else
                                         :name="t.merchant ?? '?'"
                                         :logo="t.recurring_item?.logo"
-                                        class="!size-8"
+                                        class="!size-9"
                                     />
                                     <div>
-                                        <span class="font-medium">
+                                        <span class="font-semibold">
                                             {{ t.merchant }}
                                         </span>
                                         <Badge
@@ -488,52 +537,44 @@ const sign = { expense: '-', income: '+', transfer: '' };
                                     </div>
                                 </div>
                             </td>
-                            <td class="p-3">
-                                <span
-                                    v-if="t.category"
-                                    class="rounded-md bg-accent px-2 py-0.5 text-xs text-accent-foreground"
-                                >
+                            <td class="p-3.5">
+                                <span v-if="t.category" :class="pill">
                                     {{ t.category.name }}
                                 </span>
                                 <span v-else class="text-muted-foreground">
                                     -
                                 </span>
                             </td>
-                            <td
-                                class="p-3 whitespace-nowrap text-muted-foreground"
-                            >
-                                {{ t.occurred_at.slice(0, 10) }}
+                            <td class="p-3.5 whitespace-nowrap">
+                                {{ longDate(t.occurred_at) }}
                             </td>
-                            <td class="p-3 text-muted-foreground">
+                            <td class="p-3.5">
                                 {{ t.card.name }}
                             </td>
-                            <td
-                                class="p-3 whitespace-nowrap text-muted-foreground"
-                            >
-                                <span
-                                    class="mr-1.5 inline-block size-1.5 rounded-full bg-brand"
-                                />
-                                <span class="capitalize">{{ t.source }}</span>
+                            <td class="p-3.5 whitespace-nowrap">
+                                <span :class="[pill, 'capitalize']">{{ t.source }}</span>
                             </td>
                             <td
-                                class="p-3 text-right font-semibold whitespace-nowrap"
+                                class="p-3.5 text-right font-semibold whitespace-nowrap"
                             >
                                 {{ sign[t.type] }}{{ formatPeso(t.amount) }}
                             </td>
-                            <td class="p-3 whitespace-nowrap">
+                            <td class="p-3.5 text-center whitespace-nowrap">
                                 <button
                                     v-if="t.type === 'expense'"
                                     type="button"
                                     aria-label="Edit"
-                                    class="rounded-md p-1.5 hover:bg-accent"
+                                    class="inline-grid size-8 place-items-center rounded-lg border hover:bg-accent"
                                     @click="edit(t)"
                                 >
                                     <Pencil class="size-4" />
                                 </button>
+                                <!-- a transfer has no edit dialog, so it keeps a delete of its own -->
                                 <button
+                                    v-else
                                     type="button"
                                     aria-label="Delete"
-                                    class="rounded-md p-1.5 hover:bg-accent"
+                                    class="inline-grid size-8 place-items-center rounded-lg border hover:bg-accent"
                                     @click="remove(t)"
                                 >
                                     <Trash2 class="size-4" />
@@ -553,35 +594,43 @@ const sign = { expense: '-', income: '+', transfer: '' };
             </div>
 
             <div
-                class="mt-4 flex items-center justify-between text-xs text-muted-foreground"
+                class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground"
             >
+                <nav class="flex items-center gap-1" aria-label="Pages">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+                        :disabled="transactions.current_page <= 1"
+                        @click="goto(transactions.current_page - 1)"
+                    >
+                        <ChevronLeft class="size-4" /> Previous
+                    </button>
+                    <template v-for="(p, i) in pages" :key="i">
+                        <span v-if="p === 0" class="px-1">...</span>
+                        <button
+                            v-else
+                            type="button"
+                            class="grid size-8 place-items-center rounded-lg font-medium hover:bg-accent"
+                            :class="p === transactions.current_page && 'bg-accent text-brand'"
+                            :aria-current="p === transactions.current_page ? 'page' : undefined"
+                            @click="goto(p)"
+                        >
+                            {{ p }}
+                        </button>
+                    </template>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+                        :disabled="transactions.current_page >= transactions.last_page"
+                        @click="goto(transactions.current_page + 1)"
+                    >
+                        Next <ChevronRight class="size-4" />
+                    </button>
+                </nav>
                 <span>
                     Showing {{ transactions.data.length }} of
-                    {{ transactions.total }} transactions
+                    {{ transactions.total }} results
                 </span>
-                <div class="flex items-center gap-2">
-                    <Link
-                        v-if="transactions.prev_page_url"
-                        :href="transactions.prev_page_url"
-                        aria-label="Previous page"
-                        class="rounded-md p-1.5 hover:bg-accent"
-                    >
-                        <ChevronLeft class="size-4" />
-                    </Link>
-                    <span
-                        class="rounded-md bg-primary px-2.5 py-1 font-medium text-primary-foreground"
-                    >
-                        {{ transactions.current_page }}
-                    </span>
-                    <Link
-                        v-if="transactions.next_page_url"
-                        :href="transactions.next_page_url"
-                        aria-label="Next page"
-                        class="rounded-md p-1.5 hover:bg-accent"
-                    >
-                        <ChevronRight class="size-4" />
-                    </Link>
-                </div>
             </div>
         </div>
 
@@ -720,6 +769,16 @@ const sign = { expense: '-', income: '+', transfer: '' };
                         >
                             Add a card first.
                         </p>
+                        <Button
+                            v-if="editing"
+                            type="button"
+                            variant="destructive"
+                            class="sm:mr-auto"
+                            @click="removeEditing"
+                        >
+                            <Trash2 class="size-4" />
+                            Delete
+                        </Button>
                         <Button
                             type="button"
                             variant="ghost"

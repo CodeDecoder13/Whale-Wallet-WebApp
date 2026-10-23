@@ -31,7 +31,7 @@ class TransactionController extends Controller
         $transactions = Transaction::with(['card:id,name', 'category:id,name', 'recurringItem:id,logo'])
             ->filter($f)
             ->latest('occurred_at')->latest('id')
-            ->paginate(20)->withQueryString();
+            ->paginate((int) ($request->validated('per_page') ?? 7))->withQueryString();
 
         return Inertia::render('transactions/Index', [
             'transactions' => $transactions,
@@ -44,6 +44,24 @@ class TransactionController extends Controller
             'consented' => (bool) $request->user()->ai_consent_at,
             'keepReceipts' => $request->user()->keep_receipts,
             'receipts' => Receipt::where('purpose', 'expense')->where('status', '!=', 'confirmed')->latest('id')->limit(10)->get()->map->toClient()->values(),
+        ]);
+    }
+
+    /** A printable, document-style list of everything the current filters match; the browser saves it as a PDF. */
+    public function report(TransactionFilterRequest $request): Response
+    {
+        $rows = Transaction::with(['card:id,name', 'category:id,name'])
+            ->filter($request->safe()->except('per_page'))
+            ->latest('occurred_at')->latest('id')->limit(1000)->get();
+
+        return Inertia::render('transactions/Report', [
+            'rows' => $rows->map(fn ($t) => [
+                'id' => $t->id, 'type' => $t->type->value, 'merchant' => $t->merchant, 'amount' => $t->amount, 'occurred_at' => $t->occurred_at->toDateString(),
+                'card' => $t->card->name, 'category' => $t->category?->name, 'source' => $t->source->value, 'reference' => $t->reference,
+            ]),
+            'name' => $request->user()->name,
+            'generated' => now()->toDateString(),
+            'filters' => (object) $request->safe()->except('per_page'),
         ]);
     }
 
