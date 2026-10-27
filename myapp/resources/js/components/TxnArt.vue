@@ -6,7 +6,7 @@ defineProps<{ art: string }>();
 
 <template>
     <svg viewBox="0 0 160 110" class="pointer-events-none absolute right-0 bottom-0 h-full max-h-44 text-[var(--vibe)]" aria-hidden="true">
-        <g fill="currentColor" opacity="0.32">
+        <g class="art" fill="currentColor" opacity="0.32">
             <template v-if="art === 'coffee'">
                 <path d="M70 52h62v26a30 30 0 0 1-30 30h-2a30 30 0 0 1-30-30z" />
                 <path d="M132 60h8a14 14 0 0 1 0 28h-10v-8h8a6 6 0 0 0 0-12h-6z" />
@@ -86,3 +86,19 @@ defineProps<{ art: string }>();
         </g>
     </svg>
 </template>
+
+<style scoped>
+/* a slow bob and tilt so the drawing feels alive; transform only, and still for people who ask for less motion */
+.art {
+    animation: art-float 4.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+@keyframes art-float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-5px) rotate(1.5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .art { animation: none; }
+}
+</style>

@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AccountResetController from '@/actions/App/Http/Controllers/Settings/AccountResetController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -259,6 +260,11 @@ function savePayday() {
         </div>
         <Button :disabled="digest.processing">Save digest</Button>
     </form>
+
+    <div id="appearance" class="space-y-4">
+        <Heading variant="small" title="Appearance" description="Light, dark, or follow your device. Saved on this device." />
+        <AppearanceTabs />
+    </div>
 
     <div id="reset" class="space-y-4">
         <Heading

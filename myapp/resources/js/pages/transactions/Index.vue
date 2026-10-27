@@ -800,8 +800,19 @@ const sign = { expense: '-', income: '+', transfer: '' };
         <Dialog v-model:open="viewOpen">
             <DialogContent v-if="viewing" class="gap-0 overflow-hidden p-0 sm:max-w-md">
                 <!-- tinted in the category colour, with a big soft drawing of the category in the corner -->
-                <div class="relative min-h-72 p-6 pr-10" :style="viewStyle">
+                <div class="relative min-h-72 p-6 pr-10 pt-7" :style="viewStyle">
                 <TxnArt :art="viewLook.key" />
+                <!-- beside the dialog's own close button -->
+                <Button
+                    v-if="viewing.type === 'expense'"
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="absolute top-3.5 right-12 z-10 bg-background/70 backdrop-blur-sm active:scale-[0.97]"
+                    @click="editFromView"
+                >
+                    <Pencil class="size-3.5" /> Edit
+                </Button>
                 <div class="relative grid gap-4">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-3">
@@ -827,11 +838,6 @@ const sign = { expense: '-', income: '+', transfer: '' };
                 </dl>
                 </div>
                 </div>
-                <DialogFooter v-if="viewing.type === 'expense'" class="p-4">
-                    <Button type="button" variant="outline" @click="editFromView">
-                        <Pencil class="size-4" /> Edit
-                    </Button>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
 

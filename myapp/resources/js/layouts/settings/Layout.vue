@@ -3,7 +3,6 @@ import { Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
-import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import { index as tokens } from '@/routes/tokens';
@@ -26,17 +25,13 @@ const sidebarNavItems: NavItem[] = [
         title: 'Your data',
         href: '/settings/data',
     },
-    {
-        title: 'Appearance',
-        href: editAppearance(),
-    },
 ];
 
 const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
 
 <template>
-    <div class="mx-auto w-full max-w-6xl px-4 py-6">
+    <div class="mx-auto w-full max-w-screen-2xl px-4 py-6">
         <Heading
             title="Account"
             description="Your profile and how you sign in"
@@ -60,7 +55,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 
         <!-- every block a page renders becomes its own card; a lone block spans both columns -->
         <section
-            class="grid items-start gap-6 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2 [&>*:not(.sr-only)]:mt-0! [&>*:not(.sr-only)]:rounded-2xl [&>*:not(.sr-only)]:border [&>*:not(.sr-only)]:bg-card [&>*:not(.sr-only)]:p-6 [&>*:not(.sr-only)]:shadow-sm"
+            class="grid items-start gap-6 lg:grid-cols-2 xl:grid-cols-3 lg:[&>*:only-child]:col-span-full [&>*:not(.sr-only)]:mt-0! [&>*:not(.sr-only)]:rounded-2xl [&>*:not(.sr-only)]:border [&>*:not(.sr-only)]:bg-card [&>*:not(.sr-only)]:p-6 [&>*:not(.sr-only)]:shadow-sm"
         >
             <slot />
         </section>
