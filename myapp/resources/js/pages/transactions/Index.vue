@@ -15,6 +15,8 @@ import {
 } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import BrandLogo from '@/components/BrandLogo.vue';
+import CategoryIcon from '@/components/CategoryIcon.vue';
+import { findBrand } from '@/lib/brandLogos';
 import WhaleAside from '@/components/WhaleAside.vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
 import InputError from '@/components/InputError.vue';
@@ -474,6 +476,11 @@ const sign = { expense: '-', income: '+', transfer: '' };
                                         <ArrowRight class="size-3.5 text-muted-foreground" aria-hidden="true" />
                                         <BrandLogo :name="ends(t)[1]" class="!size-9" />
                                     </span>
+                                    <CategoryIcon
+                                        v-else-if="!t.recurring_item?.logo && !findBrand(t.merchant ?? '')"
+                                        :category="t.category?.name"
+                                        :merchant="t.merchant"
+                                    />
                                     <BrandLogo
                                         v-else
                                         :name="t.merchant ?? '?'"
