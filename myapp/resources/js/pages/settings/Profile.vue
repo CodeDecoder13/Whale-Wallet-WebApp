@@ -71,6 +71,13 @@ function saveDigest() {
     digest.patch(ProfileController.digest.url(), { preserveScroll: true });
 }
 
+// sends today's digest to this user now; a mail failure comes back as an error under the button
+const digestTest = useForm({ digest_test: '' }); // only here so its error has a typed home
+
+function sendTest() {
+    digestTest.post(ProfileController.digestTest.url(), { preserveScroll: true });
+}
+
 // reset to a new account: the PIN and a code emailed to the user must both be right
 const codeSent = ref(false);
 const reset = useForm({ pin: '', code: '' });
@@ -258,7 +265,14 @@ function savePayday() {
                 Tips need the AI notice accepted. Open Whale Chat or Tips once and tap I agree.
             </p>
         </div>
-        <Button :disabled="digest.processing">Save digest</Button>
+        <div class="flex flex-wrap items-center gap-2">
+            <Button :disabled="digest.processing">Save digest</Button>
+            <Button type="button" variant="outline" :disabled="digestTest.processing" @click="sendTest">
+                {{ digestTest.processing ? 'Sending...' : 'Send me a test email' }}
+            </Button>
+        </div>
+        <p class="text-xs text-muted-foreground">The test goes to {{ user.email }} with today's tips, so you can see what the digest looks like.</p>
+        <InputError :message="digestTest.errors.digest_test" />
     </form>
 
     <div id="appearance" class="space-y-4">

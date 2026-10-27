@@ -15,6 +15,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('settings/avatar', [ProfileController::class, 'avatar'])->name('profile.avatar');
     Route::patch('settings/digest', [ProfileController::class, 'digest'])->name('profile.digest');
+    Route::post('settings/digest/test', [ProfileController::class, 'digestTest'])->middleware('throttle:3,1')->name('profile.digest-test');
     Route::patch('settings/payday', [ProfileController::class, 'payday'])->name('profile.payday');
 });
 

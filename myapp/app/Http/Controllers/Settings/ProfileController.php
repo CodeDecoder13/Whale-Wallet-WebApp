@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\GenerateRecommendations;
 use App\Http\Controllers\Controller;
+use App\Mail\DailyDigest as DigestMail;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -75,6 +79,27 @@ class ProfileController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Daily digest updated.')]);
 
         return to_route('profile.edit');
+    }
+
+    /** Sends the digest to this user right now, with today's tips (made first if there are none), so they can see it works. */
+    public function digestTest(Request $request, GenerateRecommendations $generate): RedirectResponse
+    {
+        $user = $request->user();
+
+        try {
+            $tips = $user->recommendations()->whereNull('dismissed_at')->latest('id')->limit(5)->get();
+            $tips->isEmpty() && $tips = $generate->handle($user);
+            // sent now, not after the response, so a mail problem shows up here instead of vanishing
+            Mail::to($user)->send(new DigestMail($user, $tips));
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['digest_test' => __('Could not send the test: :why', ['why' => $e->getMessage()])]);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Test digest sent to :email.', ['email' => $user->email])]);
+
+        return back();
     }
 
     /** Days of the month income arrives; the forecast counts down to the next one. */

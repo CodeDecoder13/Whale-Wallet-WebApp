@@ -26,6 +26,14 @@ class DailyDigestTest extends TestCase
         Mail::fake();
     }
 
+    public function test_the_test_button_sends_the_digest_to_the_user_now_and_does_not_mark_it_sent_today()
+    {
+        $this->actingAs($this->user)->post(route('profile.digest-test'))->assertSessionHasNoErrors();
+
+        Mail::assertSent(DailyDigest::class, fn ($m) => $m->hasTo($this->user->email) && $m->tips->count() >= 3);
+        $this->assertNull($this->user->fresh()->digest_sent_on);
+    }
+
     public function test_the_default_is_nine_am_philippine_time_and_it_goes_out_once_a_day()
     {
         $this->assertSame('09:00', $this->user->fresh()->digest_time);
