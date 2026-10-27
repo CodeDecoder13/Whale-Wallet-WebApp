@@ -6,9 +6,13 @@ const props = defineProps<{ category?: string | null; merchant?: string | null }
 
 // first match wins: [pattern, emoji, tile colour]
 const looks: [RegExp, string, string][] = [
-    [/laundry|wash(?!room)|clean/, '🧺', 'bg-sky-100 dark:bg-sky-500/20'],
+    [/laundry/, '🧺', 'bg-sky-100 dark:bg-sky-500/20'],
+    [/car ?wash/, '🚗🫧', 'bg-cyan-100 dark:bg-cyan-500/20'],
+    [/credit|debit|\batm\b|\bcards?\b/, '💳', 'bg-blue-100 dark:bg-blue-500/20'],
+    [/motor|moto|scooter|\bbike\b/, '🏍️', 'bg-zinc-200 dark:bg-zinc-500/20'],
+    [/coffee|cafe|café|latte|milk ?tea/, '☕', 'bg-amber-100 dark:bg-amber-600/20'],
     [/grocer|market|supermarket/, '🛒', 'bg-lime-100 dark:bg-lime-500/20'],
-    [/food|lunch|dinner|breakfast|meal|snack|coffee|drink|restaurant|eat/, '🍔', 'bg-orange-100 dark:bg-orange-500/20'],
+    [/food|lunch|dinner|breakfast|meal|snack|drink|restaurant|eat/, '🍽️', 'bg-orange-100 dark:bg-orange-500/20'],
     [/car|gas|fuel|parking|toll|vehicle/, '🚗', 'bg-red-100 dark:bg-red-500/20'],
     [/transport|grab|taxi|jeep|bus|fare|commute/, '🚌', 'bg-yellow-100 dark:bg-yellow-500/20'],
     [/bill|electric|water|internet|rent|utilit|load/, '💡', 'bg-amber-100 dark:bg-amber-500/20'],
@@ -23,12 +27,12 @@ const looks: [RegExp, string, string][] = [
 const look = computed(() => {
     const text = `${props.category ?? ''} ${props.merchant ?? ''}`.toLowerCase();
 
-    return looks.find(([re]) => re.test(text)) ?? [null, '💸', 'bg-slate-100 dark:bg-slate-500/20'];
+    return looks.find(([re]) => re.test(text)) ?? [/./, '💸', 'bg-slate-100 dark:bg-slate-500/20'];
 });
 </script>
 
 <template>
-    <span class="flex size-9 shrink-0 items-center justify-center rounded-xl text-lg leading-none" :class="look[2]" aria-hidden="true">
+    <span class="flex size-9 shrink-0 items-center justify-center rounded-xl leading-none" :class="[look[2], look[1].length > 3 ? 'text-xs' : 'text-lg']" aria-hidden="true">
         {{ look[1] }}
     </span>
 </template>
