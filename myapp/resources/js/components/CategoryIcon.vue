@@ -27,7 +27,7 @@ const looks: [RegExp, string, string][] = [
 const look = computed(() => {
     const text = `${props.category ?? ''} ${props.merchant ?? ''}`.toLowerCase();
 
-    return looks.find(([re]) => re.test(text)) ?? [/./, '💸', 'bg-slate-100 dark:bg-slate-500/20'];
+    return looks.find(([re]) => re.test(text)) ?? ([/./, '💸', 'bg-slate-100 dark:bg-slate-500/20'] as [RegExp, string, string]);
 });
 </script>
 
