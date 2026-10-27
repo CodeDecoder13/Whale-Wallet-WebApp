@@ -5,6 +5,7 @@ import {
     ArrowRight,
     ChevronLeft,
     ChevronRight,
+    Eye,
     Pencil,
     FileText,
     Plus,
@@ -200,6 +201,14 @@ function addCategory() {
 
 const transfer = useForm({ from: '', to: '', amount: '' });
 const editing = ref<number | null>(null);
+// read-only details for one row (the eye button)
+const viewing = ref<Txn | null>(null);
+const viewOpen = computed({ get: () => viewing.value !== null, set: (v) => !v && (viewing.value = null) });
+function editFromView() {
+    const t = viewing.value;
+    viewing.value = null;
+    if (t) edit(t);
+}
 
 // A parsed quick entry arrives as a draft; the expense dialog opens filled in for the user to confirm.
 watch(
@@ -537,6 +546,14 @@ const sign = { expense: '-', income: '+', transfer: '' };
                             </td>
                             <td class="p-3.5 text-center whitespace-nowrap">
                                 <button
+                                    type="button"
+                                    aria-label="View"
+                                    class="mr-1.5 inline-grid size-8 place-items-center rounded-lg border hover:bg-accent active:scale-[0.97]"
+                                    @click="viewing = t"
+                                >
+                                    <Eye class="size-4" />
+                                </button>
+                                <button
                                     v-if="t.type === 'expense'"
                                     type="button"
                                     aria-label="Edit"
@@ -768,6 +785,38 @@ const sign = { expense: '-', income: '+', transfer: '' };
                     </DialogFooter>
                 </form>
                 </div>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="viewOpen">
+            <DialogContent v-if="viewing" class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-3">
+                        <CategoryIcon :category="viewing.category?.name" :merchant="viewing.merchant" />
+                        {{ viewing.merchant }}
+                    </DialogTitle>
+                    <DialogDescription class="capitalize">{{ viewing.type }}</DialogDescription>
+                </DialogHeader>
+                <div class="text-3xl font-semibold tracking-tight">{{ sign[viewing.type] }}{{ formatPeso(viewing.amount) }}</div>
+                <dl class="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-2 text-sm">
+                    <dt class="text-muted-foreground">Date</dt>
+                    <dd>{{ longDate(viewing.occurred_at) }}</dd>
+                    <dt class="text-muted-foreground">Category</dt>
+                    <dd>{{ viewing.category?.name ?? '-' }}</dd>
+                    <dt class="text-muted-foreground">Card</dt>
+                    <dd>{{ viewing.card.name }}</dd>
+                    <dt class="text-muted-foreground">Source</dt>
+                    <dd class="capitalize">{{ viewing.source }}</dd>
+                    <dt class="text-muted-foreground">Reference</dt>
+                    <dd>{{ viewing.reference ?? '-' }}</dd>
+                    <dt class="text-muted-foreground">Note</dt>
+                    <dd>{{ viewing.note ?? '-' }}</dd>
+                </dl>
+                <DialogFooter v-if="viewing.type === 'expense'">
+                    <Button type="button" variant="outline" @click="editFromView">
+                        <Pencil class="size-4" /> Edit
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
 
