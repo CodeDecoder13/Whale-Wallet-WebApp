@@ -35,7 +35,7 @@ class SubscriptionController extends Controller
                 'payments' => ($payments[$i->id] ?? collect())->take(10)->map(fn ($t) => [
                     'id' => $t->id, 'amount' => $t->amount, 'card' => $t->card->name, 'paid_on' => $t->occurred_at->toDateString(),
                 ])->values(),
-                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'logo', 'card_id', 'cancel_reason']),
+                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'total_amount', 'logo', 'card_id', 'cancel_reason']),
                 'cancelled' => $i->cancelled_at !== null,
                 'hidden' => $i->hidden_at !== null,
                 'kind' => $i->kind->value,
@@ -113,12 +113,12 @@ class SubscriptionController extends Controller
         return back();
     }
 
-    /** Loans pay monthly for a fixed count; anything else repeats with no end. */
+    /** A loan is entered as its total and paid monthly (total / count, rounded up); anything else repeats with no end. */
     private function shape(array $data): array
     {
         return $data['kind'] === 'debt'
-            ? [...$data, 'cadence' => 'monthly']
-            : [...$data, 'installments' => null];
+            ? [...$data, 'cadence' => 'monthly', 'total_amount' => $data['amount'], 'amount' => (int) ceil($data['amount'] / $data['installments'])]
+            : [...$data, 'installments' => null, 'total_amount' => null];
     }
 
     private function find(int $id): RecurringItem

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\TransactionType;
+use App\Http\Controllers\DashboardController;
 use App\Models\Card;
 use App\Models\Pod;
 use App\Models\Transaction;
@@ -208,6 +209,25 @@ class LedgerTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
             ->where('summary.paid_fixed', 100_000)->where('summary.spent', 100_000)->where('summary.safe', 3_400_000));
+    }
+
+    public function test_a_loan_is_entered_as_a_total_and_net_worth_owes_what_is_left_not_total_x_months()
+    {
+        $user = User::factory()->create();
+        $card = Card::factory()->for($user)->create(['type' => 'bank', 'balance' => 5_000_000]);
+        $this->actingAs($user)->post(route('subscriptions.store'), [
+            'name' => 'Car', 'amount' => '12000', 'kind' => 'debt', 'installments' => '18', 'cadence' => 'monthly', 'next_due_on' => today()->toDateString(),
+        ])->assertSessionHasNoErrors();
+
+        $loan = $user->recurringItems()->sole();
+        $this->assertSame([1_200_000, 66_667, 18], [$loan->total_amount, $loan->amount, $loan->installments]);
+        $this->assertSame(1_200_000, DashboardController::netWorth()['debts']);
+
+        $this->post(route('subscriptions.pay', $loan->id), ['card_id' => $card->id, 'amount' => '666.67', 'paid_on' => today()->toDateString()])->assertSessionHasNoErrors();
+        $this->assertSame(1_133_333, DashboardController::netWorth()['debts']);
+
+        $this->post(route('subscriptions.store'), ['name' => 'Car2', 'amount' => '100', 'kind' => 'debt', 'installments' => '361', 'next_due_on' => today()->toDateString()])
+            ->assertSessionHasErrors('installments');
     }
 
     public function test_new_user_without_cards_is_sent_to_onboarding_and_can_finish_it()

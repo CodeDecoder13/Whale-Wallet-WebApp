@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 class SubscriptionRequest extends PesoRequest
 {
-    protected array $pesos = ['amount'];
+    protected array $pesos = ['amount']; // for a loan this is the total owed
 
     public function rules(): array
     {
@@ -15,8 +15,8 @@ class SubscriptionRequest extends PesoRequest
             'next_due_on' => ['required', 'date'],
             'kind' => ['required', 'in:bill,subscription,debt'],
             'logo' => ['nullable', 'string', 'max:150000', 'starts_with:data:image/png;base64,,data:image/jpeg;base64,,data:image/webp;base64,'],
-            // a loan is paid off in 1, 2 or 3 payments, or over 6 or 12 months
-            'installments' => ['nullable', 'required_if:kind,debt', 'in:1,2,3,6,12'],
+            // a loan is paid off in any number of monthly payments, 1 to 360
+            'installments' => ['nullable', 'required_if:kind,debt', 'integer', 'between:1,360'],
         ];
     }
 }

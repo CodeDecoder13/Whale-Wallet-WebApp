@@ -146,7 +146,7 @@ class SubscriptionTest extends TestCase
         $loan = ['name' => 'Phone', 'amount' => '1000', 'cadence' => 'weekly', 'next_due_on' => '2026-03-10', 'kind' => 'debt'];
 
         $this->post(route('subscriptions.store'), $loan)->assertSessionHasErrors('installments');
-        $this->post(route('subscriptions.store'), [...$loan, 'installments' => 5])->assertSessionHasErrors('installments');
+        $this->post(route('subscriptions.store'), [...$loan, 'installments' => 361])->assertSessionHasErrors('installments');
         $this->post(route('subscriptions.store'), [...$loan, 'installments' => 3])->assertRedirect();
 
         $item = RecurringItem::sole();

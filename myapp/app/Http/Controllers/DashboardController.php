@@ -22,7 +22,7 @@ class DashboardController extends Controller
 {
     /**
      * Centavos. Assets: cash, bank and e-wallet balances plus savings pods. Debts: loans still to pay
-     * (payments left x amount) and what is owed on credit cards (a credit card balance goes negative as you spend).
+     * (what is left to pay on each) and what is owed on credit cards (a credit card balance goes negative as you spend).
      *
      * @return array{assets: int, debts: int, total: int}
      */
@@ -31,7 +31,7 @@ class DashboardController extends Controller
         $cards = Card::get(['type', 'balance']);
         $credit = (int) $cards->where('type', CardType::Credit)->sum('balance');
         $loans = (int) RecurringItem::where('kind', RecurringKind::Debt)->whereNull('hidden_at')->whereNotNull('installments')->get()
-            ->sum(fn ($i) => $i->amount * $i->paymentsLeft());
+            ->sum(fn ($i) => $i->remaining());
 
         $assets = (int) $cards->where('type', '!=', CardType::Credit)->sum('balance') + (int) Pod::sum('saved_amount') + max(0, $credit);
         $debts = $loans + max(0, -$credit);

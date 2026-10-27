@@ -29,6 +29,7 @@ type Item = {
     kind: Kind;
     next_due_on: string | null;
     installments: number | null;
+    total_amount: number | null;
     card_id: number | null;
     last_paid: string | null;
     cancelled: boolean;
@@ -89,7 +90,7 @@ const detail = (s: Item) =>
         : s.installments === null
           ? 'monthly'
           : s.left
-            ? `${s.left} of ${s.installments} payments left`
+            ? `${s.left} of ${s.installments} payments left` + (s.total_amount ? ` · ${formatPeso(s.total_amount)} total` : '')
             : 'completed';
 // No built-in logo for this name: offer an upload. The browser shrinks it to 128px so it stays tiny.
 const needsLogo = computed(() => form.name.trim() && !findBrand(form.name));
@@ -155,14 +156,23 @@ const kinds: { value: Kind; label: string }[] = [
     { value: 'debt', label: 'Loan' },
 ];
 const label = (k: Kind) => (k === 'debt' ? 'loan' : k);
-// a loan is paid off in 1, 2 or 3 payments, or over 6 or 12 months
+// quick picks; Custom lets the user type any number of months
 const terms = [
     { value: '1', label: 'Pay once' },
     { value: '2', label: '2 payments' },
     { value: '3', label: '3 payments' },
     { value: '6', label: '6 months' },
     { value: '12', label: '12 months' },
+    { value: 'custom', label: 'Custom' },
 ];
+const custom = ref(false);
+const term = computed({
+    get: () => (custom.value ? 'custom' : form.installments),
+    set: (v: string) => {
+        custom.value = v === 'custom';
+        form.installments = custom.value ? '' : v;
+    },
+});
 
 const cadences = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
 const blank = {
@@ -182,7 +192,8 @@ function edit(s: Item) {
     editing.value = s.id;
     form.defaults({
         name: s.name,
-        amount: toPesos(s.amount),
+        // a loan is edited by its total; older loans without one show what is left
+        amount: toPesos(s.kind === 'debt' ? (s.total_amount ?? s.amount * (s.installments ?? 1)) : s.amount),
         cadence: s.cadence,
         next_due_on: s.next_due_on ?? '',
         kind: s.kind,
@@ -190,6 +201,7 @@ function edit(s: Item) {
         logo: s.logo,
     });
     form.reset();
+    custom.value = !!s.installments && !terms.some((t) => t.value === String(s.installments));
     panel.value = 'edit';
 }
 
@@ -232,6 +244,7 @@ function add() {
         kind: tab.value === 'all' || tab.value === 'archived' ? 'bill' : tab.value,
     });
     form.reset();
+    custom.value = false;
     panel.value = 'edit';
 }
 
@@ -678,16 +691,29 @@ const dueDate = (d: string | null) =>
                             <InputError :message="form.errors.name" />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="amount">Amount per charge (PHP)</Label>
+                            <Label for="amount">{{ form.kind === 'debt' ? 'Total loan amount (PHP)' : 'Amount per charge (PHP)' }}</Label>
                             <Input id="amount" v-model="form.amount" type="number" step="0.01" min="0.01" required />
                             <InputError :message="form.errors.amount" />
                         </div>
                         <div v-if="form.kind === 'debt'" class="grid gap-2">
                             <Label for="installments">Pay it off in</Label>
-                            <SelectNative id="installments" v-model="form.installments" required>
+                            <SelectNative id="installments" v-model="term" required>
                                 <option value="" disabled>Choose</option>
                                 <option v-for="t in terms" :key="t.value" :value="t.value">{{ t.label }}</option>
                             </SelectNative>
+                            <Input
+                                v-if="custom"
+                                v-model="form.installments"
+                                type="number"
+                                min="1"
+                                max="360"
+                                step="1"
+                                placeholder="Enter number of months"
+                                required
+                            />
+                            <p v-if="form.kind === 'debt' && Number(form.amount) > 0 && Number(form.installments) > 0" class="text-xs text-muted-foreground">
+                                About {{ formatPeso(Math.ceil((Number(form.amount) * 100) / Number(form.installments))) }} a month
+                            </p>
                             <InputError :message="form.errors.installments" />
                         </div>
                         <div v-else class="grid gap-2">
