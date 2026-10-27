@@ -33,6 +33,17 @@ class ImportUserData
 {
     private const MAX_ROWS = 20000;
 
+    /** Clears the signed-in user's money data (cards, bills, loans, pods, categories, transactions, income); the user scope keeps it to them. */
+    public static function wipe(): void
+    {
+        Transaction::query()->delete();
+        IncomeSource::get()->each->forget(); // also deletes salary proof images
+        RecurringItem::query()->delete();
+        Pod::query()->delete();
+        Card::query()->delete();
+        Category::query()->delete();
+    }
+
     /** @return array<string, int> what was added, and "skipped" for rows that were already there */
     public function handle(User $user, array $data, bool $replace = false): array
     {
@@ -46,12 +57,7 @@ class ImportUserData
         DB::transaction(function () use ($user, $d, $replace, &$new, &$map, $id) {
             // replace: this account becomes an exact copy of the file, so what is here is cleared first (same transaction: a failure keeps it all)
             if ($replace) {
-                Transaction::query()->delete();
-                IncomeSource::get()->each->forget(); // also deletes salary proof images
-                RecurringItem::query()->delete();
-                Pod::query()->delete();
-                Card::query()->delete();
-                Category::query()->delete();
+                self::wipe();
             }
 
             // categories first (a parent may come after its child in the file, so parents are linked in a second pass)

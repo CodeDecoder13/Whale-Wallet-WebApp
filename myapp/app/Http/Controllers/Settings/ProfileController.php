@@ -24,6 +24,7 @@ class ProfileController extends Controller
             'status' => $request->session()->get('status'),
             'pay_dates' => $request->user()->pay_dates ?? [],
             'digest' => $request->user()->only(['digest_enabled', 'digest_time']),
+            'hasPin' => (bool) $request->user()->pin,
             'consented' => (bool) $request->user()->ai_consent_at,
         ]);
     }

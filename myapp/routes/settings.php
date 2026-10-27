@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\AccountResetController;
 use App\Http\Controllers\Settings\DataController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -19,6 +20,8 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('settings/reset/code', [AccountResetController::class, 'code'])->middleware('throttle:3,1')->name('account-reset.code');
+    Route::post('settings/reset', [AccountResetController::class, 'reset'])->middleware('throttle:6,1')->name('account-reset.store');
 
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)

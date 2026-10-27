@@ -9,12 +9,12 @@ use Illuminate\Mail\Mailables\Envelope;
 /** The 6-digit code that verifies a new account's email address. */
 class VerifyCode extends Mailable
 {
-    public function __construct(public string $name, public string $code) {}
+    public function __construct(public string $name, public string $code, public bool $reset = false) {}
 
     public function envelope(): Envelope
     {
         // "Use 123456 to ..." is the subject pattern Gmail recognises as a one-time code
-        return new Envelope(subject: "Use {$this->code} to verify your Whale Wallet account");
+        return new Envelope(subject: "Use {$this->code} to ".($this->reset ? 'reset your Whale Wallet account' : 'verify your Whale Wallet account'));
     }
 
     public function content(): Content

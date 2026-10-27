@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Form, Head, useForm, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import AccountResetController from '@/actions/App/Http/Controllers/Settings/AccountResetController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
@@ -34,6 +35,7 @@ const props = defineProps<{
     pay_dates: number[];
     digest: { digest_enabled: boolean; digest_time: string };
     consented: boolean;
+    hasPin: boolean;
 }>();
 
 // square-crop would be nicer, but a 128px JPEG keeps auth.user small on every page
@@ -66,6 +68,23 @@ const digest = useForm({
 
 function saveDigest() {
     digest.patch(ProfileController.digest.url(), { preserveScroll: true });
+}
+
+// reset to a new account: the PIN and a code emailed to the user must both be right
+const codeSent = ref(false);
+const reset = useForm({ pin: '', code: '' });
+
+function sendResetCode() {
+    reset.post(AccountResetController.code.url(), {
+        preserveScroll: true,
+        onSuccess: () => (codeSent.value = true),
+    });
+}
+
+function resetAccount() {
+    if (confirm('Reset this account to new? Your cards, bills, loans, pods, transactions, income, receipts and chats are deleted for good.')) {
+        reset.post(AccountResetController.reset.url());
+    }
 }
 
 function savePayday() {
@@ -240,6 +259,39 @@ function savePayday() {
         </div>
         <Button :disabled="digest.processing">Save digest</Button>
     </form>
+
+    <div id="reset" class="space-y-4">
+        <Heading
+            variant="small"
+            title="Reset to a new account"
+            description="Deletes your cards, bills, loans, pods, transactions, income, receipts and chats and starts you over. Your login stays. It needs your 6-digit PIN and a code we email you."
+        />
+        <p v-if="!hasPin" class="text-sm text-muted-foreground">
+            Set a login PIN first in
+            <Link href="/settings/security" class="font-medium text-foreground underline underline-offset-4">Security</Link>.
+        </p>
+        <template v-else>
+            <Button v-if="!codeSent" type="button" variant="outline" :disabled="reset.processing" @click="sendResetCode">
+                Email me a code
+            </Button>
+            <form v-else class="grid gap-4" @submit.prevent="resetAccount">
+                <div class="grid gap-2">
+                    <Label for="reset-pin">Your PIN</Label>
+                    <Input id="reset-pin" v-model="reset.pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" required />
+                    <InputError :message="reset.errors.pin" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="reset-code">Code from your email</Label>
+                    <Input id="reset-code" v-model="reset.code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required />
+                    <InputError :message="reset.errors.code" />
+                </div>
+                <div class="flex gap-2">
+                    <Button variant="destructive" :disabled="reset.processing || reset.pin.length !== 6 || reset.code.length !== 6">Reset account</Button>
+                    <Button type="button" variant="ghost" :disabled="reset.processing" @click="sendResetCode">Send a new code</Button>
+                </div>
+            </form>
+        </template>
+    </div>
 
     <DeleteUser />
 </template>
