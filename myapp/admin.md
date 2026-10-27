@@ -8,9 +8,9 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | --- | --- | --- |
 | 0 | Foundation | **DONE** |
 | 1 | Gate (PIN + emailed code, 2 hours) | **DONE** |
-| 2 | Overview + Users | next |
-| 3 | Loans, subs, activity feed | todo |
-| 4 | Transactions, receipts, conversations | todo |
+| 2 | Overview + Users | **DONE** |
+| 3 | Loans, subs, activity feed | **DONE** |
+| 4 | Transactions, receipts, conversations | next |
 | 5 | Support chat | todo |
 | 6 | Actions + audit + privacy text | todo |
 | 7 | Login alerts | todo |
@@ -29,15 +29,33 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Admin code email (same blue design, wording "open the admin area")
 - [x] Tests: `tests/Feature/AdminGateTest.php` (404, redirect to gate, both PIN and code, lockout, one-time code, 2-hour expiry, suspended admin, `admin:make`)
 
-### To run once on production (after the push deploys)
-```
-railway ssh   # or the Railway shell for the web service
-php artisan migrate --force
-php artisan admin:make boyparamio@gmail.com --name="Rhuzzel Paramio"   # asks for the PIN
-```
-(The deploy may already run migrations; check. The `admin:make` command must be run by you because it asks for the PIN.)
+### Phase 2: Overview + Users
+- [x] Overview: users (total, new today/7/30 days, verified %, PIN, 2FA), active 24 h / 7 days, money data counts, receipts and AI (7 days), health panel
+- [x] Users list: search by name or email, filters (verified, not verified, inactive 30 days, suspended), last active, counts of cards / transactions / loans / subs, paged at 25
+- [x] User page: account flags, counts, sessions, loans and subscriptions, recent activity; each open is written to `admin_audit`
+- [x] Tests: `tests/Feature/AdminPagesTest.php`
 
-### Phases 2 to 8
+### Phase 3: Loans, subs, activity feed
+- [x] Loans & subs page: every user's loans (total, remaining, left, next due, late), subscriptions and bills; totals (owed, late payments, subscription cost per month); most used subscriptions
+- [x] Activity feed: `activity_logs` written for login, registered, verified, password reset, failed login, receipt scanned, loan / subscription / bill added, account reset, digest sent or failed
+- [x] Feed page with event filter; pruned after 90 days by a daily scheduled job
+- [x] Health panel on the Overview (digests today, digest failures, failed jobs, contact messages, stuck receipts)
+
+### Creating the first admin (no default account in the code)
+There is **no built-in admin and no default PIN**. An admin exists only after someone runs the seeder on purpose:
+
+```
+ADMIN_EMAIL=you@example.com ADMIN_NAME="Your Name" ADMIN_PIN=<6 digits> php artisan db:seed --class=AdminSeeder
+```
+
+- `database/seeders/AdminSeeder.php` is **not** called by `DatabaseSeeder`, so demo, test and local seeding never creates an admin.
+- It does nothing unless `ADMIN_EMAIL` and `ADMIN_PIN` are set, and it rejects easy PINs (000000, 123456, 654321, 121212...).
+- The PIN is stored hashed and never written to git. A new account gets a random password; use **Forgot password** to set yours.
+- Running it again for the same email only refreshes the PIN and keeps the owner role.
+- On Railway: add the three variables to the web service, run the seeder once from its shell, then **delete the three variables**.
+- `php artisan admin:make email --name=` does the same with a hidden PIN prompt (no variables needed).
+
+### Phases 4 to 8
 Each phase below gets its own checklist here when it starts.
 
 ---

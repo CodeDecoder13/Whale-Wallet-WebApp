@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Actions\ImportUserData;
 use App\Http\Controllers\Controller;
 use App\Mail\VerifyCode;
+use App\Models\ActivityLog;
 use App\Models\Category;
 use App\Models\Receipt;
 use App\Models\Recommendation;
@@ -67,6 +68,8 @@ class AccountResetController extends Controller
             app(DataController::class)->clearChat($request);
             Category::seedFor($user);
         });
+
+        ActivityLog::record('account_reset', $user->id);
 
         // no cards left, so the dashboard sends them through onboarding again
         return to_route('dashboard');

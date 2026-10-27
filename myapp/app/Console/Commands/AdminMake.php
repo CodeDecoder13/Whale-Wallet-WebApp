@@ -39,6 +39,13 @@ class AdminMake extends Command
             return 1;
         }
 
+        // the first ones anyone would try: 000000, 111111, 123456, 654321, 121212
+        if (count(array_unique(str_split($pin))) === 1 || str_contains('0123456789', $pin) || str_contains('9876543210', $pin) || preg_match('/^(\d\d)\1\1$/', $pin)) {
+            $this->error('That PIN is too easy to guess. Pick another 6 digits.');
+
+            return 1;
+        }
+
         if (! $user) {
             $user = new User(['name' => $this->option('name'), 'email' => $this->argument('email'), 'password' => Hash::make(str()->random(40))]);
             $user->save();

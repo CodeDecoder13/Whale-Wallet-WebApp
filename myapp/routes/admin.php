@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\GateController;
+use App\Http\Controllers\Admin\LoanController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\HomeController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,5 +15,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'admin']
 
     Route::middleware('admin.gate')->group(function () {
         Route::get('/', HomeController::class)->name('home');
+        Route::get('users', [UserController::class, 'index'])->name('users');
+        Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
+        Route::get('loans', [LoanController::class, 'index'])->name('loans');
+        Route::get('activity', [ActivityController::class, 'index'])->name('activity');
     });
 });

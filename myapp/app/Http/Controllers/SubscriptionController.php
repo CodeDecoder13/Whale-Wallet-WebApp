@@ -6,6 +6,7 @@ use App\Enums\RecurringKind;
 use App\Actions\PayRecurring;
 use App\Http\Requests\PayRequest;
 use App\Http\Requests\SubscriptionRequest;
+use App\Models\ActivityLog;
 use App\Models\Card;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Date;
@@ -53,7 +54,8 @@ class SubscriptionController extends Controller
 
     public function store(SubscriptionRequest $request): RedirectResponse
     {
-        RecurringItem::create($this->shape($request->validated()));
+        $item = RecurringItem::create($this->shape($request->validated()));
+        ActivityLog::record($item->kind->value.'_added', $request->user()->id, ['name' => $item->name]);
 
         return back();
     }

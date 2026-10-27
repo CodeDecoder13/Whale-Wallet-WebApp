@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Actions\GenerateRecommendations;
 use App\Mail\DailyDigest as DigestMail;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -47,11 +48,13 @@ class DailyDigest
                 if ($user->digest_enabled && $user->hasVerifiedEmail()) {
                     Mail::to($user)->send(new DigestMail($user, $tips));
                     $out['emailed']++;
+                    ActivityLog::record('digest_sent', $user->id);
                 }
 
                 $user->forceFill(['digest_sent_on' => $now->toDateString()])->save();
             } catch (Throwable $e) {
                 report($e);
+                ActivityLog::record('digest_failed', $user->id, ['error' => \Illuminate\Support\Str::limit($e->getMessage(), 160)]);
                 Cache::put("digest:failed:{$user->id}", true, now()->addHour());
             } finally {
                 Auth::forgetUser();

@@ -98,6 +98,26 @@ class AdminGateTest extends TestCase
         $this->actingAs($noPin)->post(route('admin.gate.code'))->assertSessionHasErrors('pin');
     }
 
+    public function test_the_seeder_needs_its_environment_creates_nothing_by_default_and_is_not_part_of_database_seeder()
+    {
+        $this->seed(\Database\Seeders\AdminSeeder::class); // no ADMIN_* set: nothing happens
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->assertSame(0, User::whereNotNull('admin_role')->count());
+
+        putenv('ADMIN_EMAIL=owner@example.com');
+        putenv('ADMIN_NAME=Owner One');
+        putenv('ADMIN_PIN=739205');
+        $this->seed(\Database\Seeders\AdminSeeder::class);
+        foreach (['ADMIN_EMAIL', 'ADMIN_NAME', 'ADMIN_PIN'] as $k) {
+            putenv($k);
+        }
+
+        $owner = User::firstWhere('email', 'owner@example.com');
+        $this->assertSame(['owner', 'Owner One'], [$owner->admin_role, $owner->name]);
+        $this->assertTrue(Hash::check('739205', $owner->pin));
+        $this->assertNotNull($owner->email_verified_at);
+    }
+
     public function test_a_suspended_admin_is_locked_out_and_the_command_makes_an_owner_without_storing_the_pin_in_git()
     {
         $admin = $this->admin();
@@ -106,11 +126,15 @@ class AdminGateTest extends TestCase
 
         $user = User::factory()->create(['email' => 'boss@example.com']);
         putenv('ADMIN_PIN=123456');
+        $this->assertSame(1, Artisan::call('admin:make', ['email' => 'boss@example.com'])); // too easy to guess
+        $this->assertNull($user->fresh()->admin_role);
+
+        putenv('ADMIN_PIN=739205');
         Artisan::call('admin:make', ['email' => 'boss@example.com']);
         putenv('ADMIN_PIN');
 
         $this->assertSame('owner', $user->fresh()->admin_role);
-        $this->assertTrue(Hash::check('123456', $user->fresh()->pin));
+        $this->assertTrue(Hash::check('739205', $user->fresh()->pin));
         $this->assertFalse(in_array('admin_role', (new User)->getFillable(), true));
     }
 }

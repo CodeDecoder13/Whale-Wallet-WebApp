@@ -6,7 +6,13 @@ use App\Contracts\AiProvider;
 use App\Services\Ai\FakeAiProvider;
 use App\Services\Ai\GeminiProvider;
 use Carbon\CarbonImmutable;
+use App\Models\ActivityLog;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Support\Str;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Queue\Events\JobFailed;
@@ -47,6 +53,13 @@ class AppServiceProvider extends ServiceProvider
 
         // every sign-in gets the welcome-back window on its next dashboard view
         Event::listen(Login::class, fn () => session()->put('welcome', true));
+
+        // the admin activity feed: one line per sign-in, sign-up, verification, reset and failed login
+        Event::listen(Login::class, fn (Login $e) => ActivityLog::record('login', $e->user->getAuthIdentifier(), ['device' => Str::limit((string) request()?->userAgent(), 120)]));
+        Event::listen(Registered::class, fn (Registered $e) => ActivityLog::record('registered', $e->user->getAuthIdentifier()));
+        Event::listen(Verified::class, fn (Verified $e) => ActivityLog::record('verified', $e->user->getAuthIdentifier()));
+        Event::listen(PasswordReset::class, fn (PasswordReset $e) => ActivityLog::record('password_reset', $e->user->getAuthIdentifier()));
+        Event::listen(Failed::class, fn (Failed $e) => ActivityLog::record('login_failed', $e->user?->getAuthIdentifier(), ['email' => $e->credentials['email'] ?? null]));
 
         // ponytail: failed jobs go to the log at critical level; point LOG_STACK at slack/sentry for real alerts
         Queue::failing(fn (JobFailed $e) => Log::critical('Queue job failed', ['job' => $e->job->resolveName(), 'error' => $e->exception->getMessage()]));

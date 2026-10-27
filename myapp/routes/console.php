@@ -68,3 +68,6 @@ Artisan::command('digest:send', function (\App\Services\DailyDigest $digest) {
     $this->info("Refreshed tips for {$r['refreshed']} users, emailed {$r['emailed']}.");
 })->purpose('Refresh Whale tips and send the daily digest to users whose time has come');
 Schedule::command('digest:send')->everyFiveMinutes()->withoutOverlapping();
+
+// the admin activity feed keeps 90 days
+Schedule::call(fn () => \App\Models\ActivityLog::where('created_at', '<', now()->subDays(90))->delete())->daily()->name('activity:prune');

@@ -132,7 +132,7 @@ class RecurringItem extends Model
         // ponytail: one sum per loan, fold into a grouped query if someone holds dozens
         return $this->total_amount === null
             ? $this->amount * $this->paymentsLeft()
-            : max(0, $this->total_amount - (int) Transaction::where('recurring_item_id', $this->id)->sum('amount'));
+            : max(0, $this->total_amount - (int) Transaction::withoutGlobalScopes()->where('recurring_item_id', $this->id)->sum('amount'));
     }
 
     protected function casts(): array

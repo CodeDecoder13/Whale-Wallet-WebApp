@@ -5,7 +5,12 @@ import AppLogo from '@/components/AppLogo.vue';
 import { dashboard } from '@/routes';
 
 // one row of tabs per admin area; phases add to this list as they ship
-const tabs = [{ title: 'Overview', href: '/admin' }];
+const tabs = [
+    { title: 'Overview', href: '/admin' },
+    { title: 'Users', href: '/admin/users' },
+    { title: 'Loans & subs', href: '/admin/loans' },
+    { title: 'Activity', href: '/admin/activity' },
+];
 
 const page = usePage();
 const here = computed(() => page.url.split('?')[0]);
