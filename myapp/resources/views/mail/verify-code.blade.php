@@ -19,15 +19,15 @@
     </tr>
     <tr>
         <td style="padding:28px;text-align:center;">
-            <div style="font-size:22px;font-weight:700;">{{ ($reset ?? false) ? 'Hi' : 'Welcome' }}, {{ explode(' ', $name)[0] }}</div>
-            <div style="font-size:15px;line-height:1.6;color:#4a5f7a;margin-top:6px;">{{ ($reset ?? false) ? 'Enter this code, with your PIN, to reset your account to new. Everything in it will be deleted.' : 'Enter this code to confirm your email and open your dashboard.' }}</div>
+            <div style="font-size:22px;font-weight:700;">{{ $copy['hello'] }}, {{ explode(' ', $name)[0] }}</div>
+            <div style="font-size:15px;line-height:1.6;color:#4a5f7a;margin-top:6px;">{{ $copy['intro'] }}</div>
             <div style="margin:20px 0 4px;font-size:13px;color:#4a5f7a;">Code requested</div>
             <table role="presentation" cellpadding="0" cellspacing="6" align="center" style="margin:0 auto;background:#e3f2fd;border-radius:12px;padding:8px;"><tr>
                 @foreach (str_split($code) as $digit)
                 <td width="40" height="52" align="center" style="background:#ffffff;border-radius:8px;font-family:'SFMono-Regular',Consolas,'Courier New',monospace;font-size:28px;font-weight:700;color:#1565c0;">{{ $digit }}</td>
                 @endforeach
             </tr></table>
-            <div style="font-size:13px;color:#6b7f99;margin-top:10px;">It works for 10 minutes. {{ ($reset ?? false) ? 'If you did not ask for this, ignore this email and change your password.' : 'If you did not sign up, ignore this email.' }}</div>
+            <div style="font-size:13px;color:#6b7f99;margin-top:10px;">It works for 10 minutes. {{ $copy['foot'] }}</div>
         </td>
     </tr>
 </table>

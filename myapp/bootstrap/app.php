@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\ForceJson;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireAdminGate;
 use App\Http\Middleware\RequireAiConsent;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -25,7 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        $middleware->alias(['ai.consent' => RequireAiConsent::class]);
+        $middleware->alias([
+            'ai.consent' => RequireAiConsent::class,
+            'admin' => EnsureAdmin::class,
+            'admin.gate' => RequireAdminGate::class,
+        ]);
         $middleware->api(prepend: [ForceJson::class]);
 
         $middleware->web(append: [

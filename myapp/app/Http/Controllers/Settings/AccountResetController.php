@@ -31,7 +31,7 @@ class AccountResetController extends Controller
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         Cache::put("reset-otp:{$user->id}", Hash::make($code), now()->addMinutes(10));
         Cache::forget("reset-tries:{$user->id}");
-        dispatch(fn () => Mail::to($user)->send(new VerifyCode($user->name, $code, reset: true)))->afterResponse();
+        dispatch(fn () => Mail::to($user)->send(new VerifyCode($user->name, $code, 'reset')))->afterResponse();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('We emailed you a code.')]);
 
