@@ -114,6 +114,17 @@ class AdminGateTest extends TestCase
 
         $owner = User::firstWhere('email', 'owner@example.com');
         $this->assertSame(['owner', 'Owner One'], [$owner->admin_role, $owner->name]);
+
+        // an ADMIN_PASSWORD becomes the password; a weak one is refused where the app's rules are strict (production)
+        putenv('ADMIN_PIN=739205');
+        putenv('ADMIN_PASSWORD=Chosen-Pass-93!x');
+        Artisan::call('admin:make', ['email' => 'owner@example.com']);
+        $this->assertTrue(Hash::check('Chosen-Pass-93!x', $owner->fresh()->password));
+        \Illuminate\Validation\Rules\Password::defaults(fn () => \Illuminate\Validation\Rules\Password::min(12)->mixedCase()->numbers()->symbols());
+        putenv('ADMIN_PASSWORD=Short-Pw1!'); // 10 characters
+        $this->assertSame(1, Artisan::call('admin:make', ['email' => 'owner@example.com']));
+        putenv('ADMIN_PASSWORD');
+        putenv('ADMIN_PIN');
         $this->assertTrue(Hash::check('739205', $owner->pin));
         $this->assertNotNull($owner->email_verified_at);
     }

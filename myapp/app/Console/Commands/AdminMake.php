@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 
 use function Laravel\Prompts\password;
 
@@ -46,10 +48,20 @@ class AdminMake extends Command
             return 1;
         }
 
+        // optional ADMIN_PASSWORD: held to the same rules as any user password (12+ characters, mixed, not breached in production)
+        $password = getenv('ADMIN_PASSWORD') ?: null;
+        if ($password && Validator::make(['password' => $password], ['password' => ['string', Password::default()]])->fails()) {
+            $this->error('ADMIN_PASSWORD is too weak for this environment (production needs 12+ characters with upper and lower case, a number and a symbol, and not a known breached password).');
+
+            return 1;
+        }
+
         if (! $user) {
-            $user = new User(['name' => $this->option('name'), 'email' => $this->argument('email'), 'password' => Hash::make(str()->random(40))]);
+            $user = new User(['name' => $this->option('name'), 'email' => $this->argument('email'), 'password' => Hash::make($password ?? str()->random(40))]);
             $user->save();
-            $this->warn('New account: use "Forgot password" on the login page to set its password.');
+            $password || $this->warn('New account: use "Forgot password" on the login page to set its password.');
+        } elseif ($password) {
+            $user->forceFill(['password' => Hash::make($password)]);
         }
 
         // admin_role and pin are not mass-assignable on purpose, so they are set here and nowhere in a request

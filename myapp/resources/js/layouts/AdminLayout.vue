@@ -8,6 +8,9 @@ import { dashboard } from '@/routes';
 const tabs = [
     { title: 'Overview', href: '/admin' },
     { title: 'Users', href: '/admin/users' },
+    { title: 'Transactions', href: '/admin/transactions' },
+    { title: 'Receipts', href: '/admin/receipts' },
+    { title: 'Conversations', href: '/admin/chats' },
     { title: 'Loans & subs', href: '/admin/loans' },
     { title: 'Activity', href: '/admin/activity' },
 ];

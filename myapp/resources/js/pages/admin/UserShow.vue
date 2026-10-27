@@ -29,6 +29,11 @@ const label = (e: string) => e.replaceAll('_', ' ');
 
     <Link href="/admin/users" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to users</Link>
     <Heading :title="profile.name" :description="profile.email" class="mt-2" />
+    <div class="mt-3 flex flex-wrap gap-2 text-sm">
+        <Link :href="`/admin/transactions?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Transactions</Link>
+        <Link :href="`/admin/receipts?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Receipts</Link>
+        <Link :href="`/admin/chats?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Conversations</Link>
+    </div>
 
     <div class="mt-6 grid items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <section class="rounded-2xl border bg-card p-5 shadow-sm">

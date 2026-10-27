@@ -10,8 +10,8 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 1 | Gate (PIN + emailed code, 2 hours) | **DONE** |
 | 2 | Overview + Users | **DONE** |
 | 3 | Loans, subs, activity feed | **DONE** |
-| 4 | Transactions, receipts, conversations | next |
-| 5 | Support chat | todo |
+| 4 | Transactions, receipts, conversations | **DONE** |
+| 5 | Support chat | next |
 | 6 | Actions + audit + privacy text | todo |
 | 7 | Login alerts | todo |
 | 8 | Admin management | todo |
@@ -41,12 +41,20 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Feed page with event filter; pruned after 90 days by a daily scheduled job
 - [x] Health panel on the Overview (digests today, digest failures, failed jobs, contact messages, stuck receipts)
 
+### Phase 4: Transactions, receipts, conversations
+- [x] Transactions: every user's expenses, income and transfers; filters (search, user, type, source, category, dates, amount range); totals per type; CSV export (formula-safe, capped at 20,000 rows, audited)
+- [x] Receipts: list with status / stuck filters; detail with the image beside what the AI read and the transaction it became; the image only through the gated, audited `/admin/receipts/{id}/image` route
+- [x] Conversations: all Whale Chat threads, search by message text, read-only thread view with the AI's drafts; threads a user deleted stay hidden
+- [x] Every view of these pages and every export or image open is written to `admin_audit`; all of it is owner-only (a support admin gets 404)
+- [x] Tests: `tests/Feature/AdminDataTest.php`
+
 ### Creating the first admin (no default account in the code)
-There is **no built-in admin and no default PIN**. An admin exists only after someone runs the seeder on purpose:
+There is **no built-in admin and no default PIN or password in the code**, because the code is in git. An admin exists only after someone runs the seeder on purpose, with the values taken from environment variables (Railway variables), never from a file:
 
 ```
-ADMIN_EMAIL=you@example.com ADMIN_NAME="Your Name" ADMIN_PIN=<6 digits> php artisan db:seed --class=AdminSeeder
+ADMIN_EMAIL=you@example.com ADMIN_NAME="Your Name" ADMIN_PIN=<6 digits> ADMIN_PASSWORD=<password, optional> php artisan db:seed --class=AdminSeeder
 ```
+- `ADMIN_PASSWORD` is optional. If set it must pass the app's password rules (in production: 12+ characters, upper and lower case, number, symbol, not breached). Without it a new account gets a random password and you use "Forgot password".
 
 - `database/seeders/AdminSeeder.php` is **not** called by `DatabaseSeeder`, so demo, test and local seeding never creates an admin.
 - It does nothing unless `ADMIN_EMAIL` and `ADMIN_PIN` are set, and it rejects easy PINs (000000, 123456, 654321, 121212...).

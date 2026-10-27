@@ -9,10 +9,11 @@ use Illuminate\Support\Facades\Artisan;
  * Creates the first admin (owner) from environment variables, with no default account or PIN in the code.
  * It is NOT called by DatabaseSeeder, so demo and test seeding never makes an admin. Run it on purpose:
  *
- *   ADMIN_EMAIL=you@example.com ADMIN_NAME="Your Name" ADMIN_PIN=<6 digits> php artisan db:seed --class=AdminSeeder
+ *   ADMIN_EMAIL=you@example.com ADMIN_NAME="Your Name" ADMIN_PIN=<6 digits> ADMIN_PASSWORD=<password> php artisan db:seed --class=AdminSeeder
  *
- * Then remove the three variables. A new account gets a random password: use "Forgot password" to set yours.
- * Running it again for the same email only refreshes the PIN and the owner role.
+ * The values come from the environment (Railway variables) and never from this file, because this file is in git.
+ * Then remove the variables. Without ADMIN_PASSWORD a new account gets a random password: use "Forgot password".
+ * Running it again for the same email refreshes the PIN and the owner role (and the password, if ADMIN_PASSWORD is set).
  */
 class AdminSeeder extends Seeder
 {
