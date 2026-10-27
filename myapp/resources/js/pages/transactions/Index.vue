@@ -17,6 +17,8 @@ import {
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import CategoryIcon from '@/components/CategoryIcon.vue';
+import TxnArt from '@/components/TxnArt.vue';
+import { categoryLook } from '@/lib/categoryLook';
 import { findBrand } from '@/lib/brandLogos';
 import WhaleAside from '@/components/WhaleAside.vue';
 import TransactionController from '@/actions/App/Http/Controllers/TransactionController';
@@ -204,6 +206,13 @@ const editing = ref<number | null>(null);
 // read-only details for one row (the eye button)
 const viewing = ref<Txn | null>(null);
 const viewOpen = computed({ get: () => viewing.value !== null, set: (v) => !v && (viewing.value = null) });
+const viewLook = computed(() => categoryLook(viewing.value?.category?.name, viewing.value?.merchant));
+// --vibe is the category colour; --hole is the tinted background the drawing's cut-outs must match
+const viewStyle = computed(() => ({
+    '--vibe': viewLook.value.hex,
+    '--hole': `color-mix(in srgb, ${viewLook.value.hex} 12%, var(--card))`,
+    background: 'var(--hole)',
+}));
 function editFromView() {
     const t = viewing.value;
     viewing.value = null;
@@ -789,7 +798,11 @@ const sign = { expense: '-', income: '+', transfer: '' };
         </Dialog>
 
         <Dialog v-model:open="viewOpen">
-            <DialogContent v-if="viewing" class="sm:max-w-md">
+            <DialogContent v-if="viewing" class="gap-0 overflow-hidden p-0 sm:max-w-md">
+                <!-- tinted in the category colour, with a big soft drawing of the category in the corner -->
+                <div class="relative min-h-72 p-6 pr-10" :style="viewStyle">
+                <TxnArt :art="viewLook.key" />
+                <div class="relative grid gap-4">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-3">
                         <CategoryIcon :category="viewing.category?.name" :merchant="viewing.merchant" />
@@ -812,7 +825,9 @@ const sign = { expense: '-', income: '+', transfer: '' };
                     <dt class="text-muted-foreground">Note</dt>
                     <dd>{{ viewing.note ?? '-' }}</dd>
                 </dl>
-                <DialogFooter v-if="viewing.type === 'expense'">
+                </div>
+                </div>
+                <DialogFooter v-if="viewing.type === 'expense'" class="p-4">
                     <Button type="button" variant="outline" @click="editFromView">
                         <Pencil class="size-4" /> Edit
                     </Button>
