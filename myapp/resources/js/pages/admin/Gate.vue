@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import GateController from '@/actions/App/Http/Controllers/Admin/GateController';
+import { adminUrl } from '@/lib/adminUrl'; // plain paths, not generated ones: the same build serves /admin/gate locally and /gate on the admin host
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ const code = ref('');
     </p>
 
     <template v-else>
-        <Form v-bind="GateController.code.form()" class="flex items-center justify-between gap-3 text-sm" #default="{ processing, errors }">
+        <Form :action="adminUrl('/gate/code')" method="post" class="flex items-center justify-between gap-3 text-sm" #default="{ processing, errors }">
             <span class="text-muted-foreground">
                 {{ codeSent ? `Code sent to ${email}.` : `We will email a code to ${email}.` }}
             </span>
@@ -42,7 +42,8 @@ const code = ref('');
 
         <Form
             v-if="codeSent"
-            v-bind="GateController.verify.form()"
+            :action="adminUrl('/gate')"
+            method="post"
             reset-on-error
             class="grid gap-5"
             @error="((pin = ''), (code = ''))"

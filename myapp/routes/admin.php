@@ -10,8 +10,12 @@ use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
-// /admin: 404 for anyone who is not an admin; the gate (PIN + emailed code) opens it for 2 hours
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(function () {
+// The admin: 404 for anyone who is not an admin; the gate (PIN + emailed code) opens it for 2 hours.
+// On its own host (ADMIN_DOMAIN) the paths start at / ; without one they sit under /admin on the main host.
+// This file is loaded first in web.php: a host route must be registered before the main site's routes with the same path ('/', 'transactions').
+$admin = ($domain = config('app.admin_domain')) ? Route::domain($domain) : Route::prefix('admin');
+
+$admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('gate', [GateController::class, 'show'])->name('gate');
     Route::post('gate/code', [GateController::class, 'code'])->middleware('throttle:3,1')->name('gate.code');
     Route::post('gate', [GateController::class, 'verify'])->middleware('throttle:6,1')->name('gate.verify');

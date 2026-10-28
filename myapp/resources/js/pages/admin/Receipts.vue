@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminPager from '@/components/AdminPager.vue';
 import Heading from '@/components/Heading.vue';
@@ -16,8 +17,8 @@ const props = defineProps<{
     filters: { user?: string; status?: string; stuck?: string };
 }>();
 
-const pick = (status: string) => router.get('/admin/receipts', { status: status || undefined, user: props.filters.user }, { preserveState: true, replace: true });
-const stuck = () => router.get('/admin/receipts', { stuck: 1 }, { replace: true });
+const pick = (status: string) => router.get(adminUrl('/receipts'), { status: status || undefined, user: props.filters.user }, { preserveState: true, replace: true });
+const stuck = () => router.get(adminUrl('/receipts'), { stuck: 1 }, { replace: true });
 const tone = (s: string) => (s === 'failed' ? 'bg-destructive/10 text-destructive' : s === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground');
 </script>
 
@@ -44,11 +45,11 @@ const tone = (s: string) => (s === 'failed' ? 'bg-destructive/10 text-destructiv
             <tbody>
                 <tr v-for="r in receipts.data" :key="r.id" class="border-b last:border-0 hover:bg-accent/40">
                     <td class="p-3.5 whitespace-nowrap">{{ ago(r.at) }}</td>
-                    <td class="p-3.5"><Link v-if="r.user" :href="`/admin/users/${r.user.id}`" class="hover:underline">{{ r.user.name }}</Link></td>
+                    <td class="p-3.5"><Link v-if="r.user" :href="`${adminBase()}/users/${r.user.id}`" class="hover:underline">{{ r.user.name }}</Link></td>
                     <td class="p-3.5"><span class="rounded-full px-2 py-0.5 text-xs font-semibold capitalize" :class="tone(r.status)">{{ r.status }}</span><div v-if="r.error" class="mt-1 max-w-xs truncate text-xs text-muted-foreground">{{ r.error }}</div></td>
                     <td class="p-3.5">{{ r.merchant ?? '-' }}<span v-if="r.amount !== null"> · {{ formatPeso(r.amount) }}</span></td>
                     <td class="p-3.5">{{ r.has_image ? 'kept' : 'deleted' }}</td>
-                    <td class="p-3.5 text-right"><Link :href="`/admin/receipts/${r.id}`" class="font-medium underline underline-offset-4">Open</Link></td>
+                    <td class="p-3.5 text-right"><Link :href="`${adminBase()}/receipts/${r.id}`" class="font-medium underline underline-offset-4">Open</Link></td>
                 </tr>
                 <tr v-if="!receipts.data.length"><td colspan="6" class="p-6 text-center text-muted-foreground">No receipts.</td></tr>
             </tbody>

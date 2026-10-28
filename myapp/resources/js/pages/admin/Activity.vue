@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link, router } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import SelectNative from '@/components/SelectNative.vue';
@@ -16,7 +17,7 @@ const label = (e: string) => e.replaceAll('_', ' ');
 const detail = (m: Record<string, unknown> | null) => (m ? Object.values(m).filter(Boolean).join(' · ') : '');
 
 function pick(event: string) {
-    router.get('/admin/activity', { event: event || undefined }, { preserveState: true, replace: true });
+    router.get(adminUrl('/activity'), { event: event || undefined }, { preserveState: true, replace: true });
 }
 </script>
 
@@ -41,7 +42,7 @@ function pick(event: string) {
                 <tr v-for="a in events.data" :key="a.id" class="border-b last:border-0 hover:bg-accent/40">
                     <td class="p-3.5 whitespace-nowrap" :title="a.at">{{ ago(a.at) }}</td>
                     <td class="p-3.5 font-medium capitalize">{{ label(a.event) }}</td>
-                    <td class="p-3.5"><Link v-if="a.user" :href="`/admin/users/${a.user.id}`" class="hover:underline">{{ a.user.name }}</Link><span v-else class="text-muted-foreground">-</span></td>
+                    <td class="p-3.5"><Link v-if="a.user" :href="`${adminBase()}/users/${a.user.id}`" class="hover:underline">{{ a.user.name }}</Link><span v-else class="text-muted-foreground">-</span></td>
                     <td class="max-w-xs truncate p-3.5 text-muted-foreground">{{ detail(a.meta) }}</td>
                     <td class="p-3.5 whitespace-nowrap text-muted-foreground">{{ a.ip ?? '-' }}</td>
                 </tr>

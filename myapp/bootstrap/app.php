@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AdminHostOnly;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\ForceJson;
 use App\Http\Middleware\HandleAppearance;
@@ -33,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.gate' => RequireAdminGate::class,
         ]);
         $middleware->api(prepend: [ForceJson::class]);
+
+        $middleware->web(prepend: [AdminHostOnly::class]);
 
         $middleware->web(append: [
             HandleAppearance::class,

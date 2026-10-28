@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminUrl } from '@/lib/adminUrl';
 import { Head, Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { ago } from '@/lib/ago';
@@ -13,7 +14,7 @@ defineProps<{
 <template>
     <Head title="Conversation" />
 
-    <Link href="/admin/chats" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to conversations</Link>
+    <Link :href="adminUrl('/chats')" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to conversations</Link>
     <Heading :title="thread.title || `Chat #${thread.id}`" :description="`${thread.user?.name ?? 'Unknown'}. Read-only.`" class="mt-2" />
 
     <ol class="mx-auto mt-6 grid max-w-3xl gap-3">

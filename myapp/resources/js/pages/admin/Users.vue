@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import Heading from '@/components/Heading.vue';
@@ -20,7 +21,7 @@ const filters = [
 ];
 
 function go(filter = props.filters.filter) {
-    router.get('/admin/users', { q: q.value || undefined, filter: filter || undefined }, { preserveState: true, replace: true });
+    router.get(adminUrl('/users'), { q: q.value || undefined, filter: filter || undefined }, { preserveState: true, replace: true });
 }
 </script>
 
@@ -57,7 +58,7 @@ function go(filter = props.filters.filter) {
             <tbody>
                 <tr v-for="u in users.data" :key="u.id" class="border-b last:border-0 hover:bg-accent/40">
                     <td class="p-3.5">
-                        <Link :href="`/admin/users/${u.id}`" class="font-semibold hover:underline">{{ u.name }}</Link>
+                        <Link :href="`${adminBase()}/users/${u.id}`" class="font-semibold hover:underline">{{ u.name }}</Link>
                         <div class="text-xs text-muted-foreground">{{ u.email }}</div>
                     </td>
                     <td class="p-3.5 whitespace-nowrap">{{ u.joined }}</td>

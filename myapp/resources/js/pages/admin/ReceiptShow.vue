@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { formatPeso } from '@/lib/currency';
@@ -18,13 +19,13 @@ const show = (v: unknown) => (typeof v === 'object' && v !== null ? JSON.stringi
 <template>
     <Head title="Receipt" />
 
-    <Link href="/admin/receipts" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to receipts</Link>
+    <Link :href="adminUrl('/receipts')" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to receipts</Link>
     <Heading :title="`Receipt #${receipt.id}`" :description="`${receipt.user?.name ?? 'Unknown'} · ${receipt.status}`" class="mt-2" />
 
     <div class="mt-6 grid items-start gap-6 lg:grid-cols-2">
         <section class="rounded-2xl border bg-card p-4 shadow-sm">
             <h2 class="mb-3 text-sm font-semibold">Image</h2>
-            <img v-if="receipt.has_image" :src="`/admin/receipts/${receipt.id}/image`" alt="Scanned receipt" class="max-h-[70svh] w-full rounded-lg object-contain" />
+            <img v-if="receipt.has_image" :src="`${adminBase()}/receipts/${receipt.id}/image`" alt="Scanned receipt" class="max-h-[70svh] w-full rounded-lg object-contain" />
             <p v-else class="text-sm text-muted-foreground">The image was deleted after it was confirmed.</p>
         </section>
 

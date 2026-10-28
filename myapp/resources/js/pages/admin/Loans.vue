@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase } from '@/lib/adminUrl';
 import { Head, Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { formatPeso } from '@/lib/currency';
@@ -36,7 +37,7 @@ const loans = () => props.kind === 'debt';
         <Link
             v-for="t in tabs"
             :key="t.value"
-            :href="`/admin/loans?kind=${t.value}`"
+            :href="`${adminBase()}/loans?kind=${t.value}`"
             class="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors duration-150 ease-out"
             :class="kind === t.value ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-accent'"
         >
@@ -58,7 +59,7 @@ const loans = () => props.kind === 'debt';
                 <tbody>
                     <tr v-for="r in items.data" :key="r.id" class="border-b last:border-0 hover:bg-accent/40">
                         <td class="p-3.5 font-semibold">{{ r.name }}</td>
-                        <td class="p-3.5"><Link v-if="r.user" :href="`/admin/users/${r.user.id}`" class="hover:underline">{{ r.user.name }}</Link></td>
+                        <td class="p-3.5"><Link v-if="r.user" :href="`${adminBase()}/users/${r.user.id}`" class="hover:underline">{{ r.user.name }}</Link></td>
                         <td class="p-3.5 text-right">{{ formatPeso(r.amount) }}</td>
                         <template v-if="loans()">
                             <td class="p-3.5 text-right">{{ r.total ? formatPeso(r.total) : '-' }}</td>

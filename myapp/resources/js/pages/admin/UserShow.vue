@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
 import { ago } from '@/lib/ago';
@@ -27,12 +28,12 @@ const label = (e: string) => e.replaceAll('_', ' ');
 <template>
     <Head title="User" />
 
-    <Link href="/admin/users" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to users</Link>
+    <Link :href="adminUrl('/users')" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Back to users</Link>
     <Heading :title="profile.name" :description="profile.email" class="mt-2" />
     <div class="mt-3 flex flex-wrap gap-2 text-sm">
-        <Link :href="`/admin/transactions?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Transactions</Link>
-        <Link :href="`/admin/receipts?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Receipts</Link>
-        <Link :href="`/admin/chats?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Conversations</Link>
+        <Link :href="`${adminBase()}/transactions?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Transactions</Link>
+        <Link :href="`${adminBase()}/receipts?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Receipts</Link>
+        <Link :href="`${adminBase()}/chats?user=${profile.id}`" class="rounded-full border bg-card px-3 py-1.5 hover:bg-accent">Conversations</Link>
     </div>
 
     <div class="mt-6 grid items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">

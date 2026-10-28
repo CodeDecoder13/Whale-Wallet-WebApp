@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import AdminPager from '@/components/AdminPager.vue';
@@ -14,7 +15,7 @@ const props = defineProps<{
 }>();
 
 const q = ref(props.filters.q ?? '');
-const search = () => router.get('/admin/chats', { q: q.value || undefined, user: props.filters.user }, { preserveState: true, replace: true });
+const search = () => router.get(adminUrl('/chats'), { q: q.value || undefined, user: props.filters.user }, { preserveState: true, replace: true });
 </script>
 
 <template>
@@ -33,8 +34,8 @@ const search = () => router.get('/admin/chats', { q: q.value || undefined, user:
             </thead>
             <tbody>
                 <tr v-for="t in threads.data" :key="t.id" class="border-b last:border-0 hover:bg-accent/40">
-                    <td class="p-3.5"><Link :href="`/admin/chats/${t.id}`" class="font-semibold hover:underline">{{ t.title || `Chat #${t.id}` }}</Link></td>
-                    <td class="p-3.5"><Link v-if="t.user" :href="`/admin/users/${t.user.id}`" class="hover:underline">{{ t.user.name }}</Link></td>
+                    <td class="p-3.5"><Link :href="`${adminBase()}/chats/${t.id}`" class="font-semibold hover:underline">{{ t.title || `Chat #${t.id}` }}</Link></td>
+                    <td class="p-3.5"><Link v-if="t.user" :href="`${adminBase()}/users/${t.user.id}`" class="hover:underline">{{ t.user.name }}</Link></td>
                     <td class="p-3.5 text-right">{{ t.messages }}</td>
                     <td class="p-3.5 whitespace-nowrap">{{ ago(t.last_at) }}</td>
                 </tr>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { adminBase, adminUrl } from '@/lib/adminUrl';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 import AdminPager from '@/components/AdminPager.vue';
@@ -25,9 +26,9 @@ const props = defineProps<{
 
 const f = reactive<F>({ ...props.filters });
 const clean = () => Object.fromEntries(Object.entries(f).filter(([, v]) => v));
-const apply = () => router.get('/admin/transactions', clean(), { preserveState: true, replace: true });
-const clear = () => router.get('/admin/transactions', {}, { replace: true });
-const exportUrl = () => `/admin/transactions/export?${new URLSearchParams(clean() as Record<string, string>)}`;
+const apply = () => router.get(adminUrl('/transactions'), clean(), { preserveState: true, replace: true });
+const clear = () => router.get(adminUrl('/transactions'), {}, { replace: true });
+const exportUrl = () => `${adminBase()}/transactions/export?${new URLSearchParams(clean() as Record<string, string>)}`;
 const sign: Record<string, string> = { expense: '-', income: '+', transfer: '' };
 </script>
 
@@ -76,7 +77,7 @@ const sign: Record<string, string> = { expense: '-', income: '+', transfer: '' }
             <tbody>
                 <tr v-for="r in rows.data" :key="r.id" class="border-b last:border-0 hover:bg-accent/40">
                     <td class="p-3.5 whitespace-nowrap">{{ r.date }}</td>
-                    <td class="p-3.5"><Link v-if="r.user" :href="`/admin/users/${r.user.id}`" class="hover:underline">{{ r.user.name }}</Link></td>
+                    <td class="p-3.5"><Link v-if="r.user" :href="`${adminBase()}/users/${r.user.id}`" class="hover:underline">{{ r.user.name }}</Link></td>
                     <td class="p-3.5">
                         <span class="font-semibold">{{ r.merchant ?? '-' }}</span>
                         <span v-if="r.type === 'transfer'" class="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs">transfer</span>

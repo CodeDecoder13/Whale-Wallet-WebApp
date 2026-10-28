@@ -54,6 +54,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // e.g. admin.whale-wallet.cloud. When set, the admin lives on that host only and /admin on the main site is a 404;
+    // when empty (local, tests) the admin is served at /admin on the main host.
+    'admin_domain' => env('ADMIN_DOMAIN'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

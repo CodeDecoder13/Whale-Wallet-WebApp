@@ -1,4 +1,4 @@
-# Admin plan: whale-wallet.cloud/admin
+# Admin plan: admin.whale-wallet.cloud
 
 ## Progress tracker
 
@@ -11,6 +11,7 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 2 | Overview + Users | **DONE** |
 | 3 | Loans, subs, activity feed | **DONE** |
 | 4 | Transactions, receipts, conversations | **DONE** |
+| 4b | Admin on its own host, `admin.whale-wallet.cloud` | **DONE** (needs the DNS record and `ADMIN_DOMAIN`, see below) |
 | 5 | Support chat | next |
 | 6 | Actions + audit + privacy text | todo |
 | 7 | Login alerts | todo |
@@ -86,11 +87,29 @@ One private place to run Whale Wallet as it grows: who signed up, who is active,
 | Routes | `routes/web.php`, `settings.php`. Middleware: `auth`, `verified`, `ai.consent`. | Add an `/admin` group with its own middleware. |
 | Mail | Mailtrap SMTP on the web service. The scheduler service still needs the `MAIL_*` variables. | The admin OTP email works from the web service. |
 
-## Access: `/admin` on the same domain
+## Access: its own host, `admin.whale-wallet.cloud`
 
-- Path, not a subdomain: `whale-wallet.cloud/admin`. Same app, same session, no new DNS or Railway service.
-- No link to it anywhere in the public site or the user menu. `robots.txt` disallows `/admin`, and every admin page sends `X-Robots-Tag: noindex`.
+Decision (changed from a `/admin` path): the admin runs on a separate host name, which is safer.
+
+- **Same app, same database, one extra domain.** Set `ADMIN_DOMAIN=admin.whale-wallet.cloud` and the admin routes answer on that host only. On the main site `/admin` becomes a plain 404.
+- **Separate sign-in.** The session cookie is host-only (`SESSION_DOMAIN` is empty), so being signed in on whale-wallet.cloud does not sign you in on the admin host. An admin signs in there with email and password (or PIN), then passes the PIN + emailed-code gate. A stolen or leaked normal-site session can never open the admin.
+- **Only the admin is served there.** The admin host answers the admin pages and the sign-in pages (`/login`, `/logout`, password reset, two-factor). Anything else (`/dashboard`, `/register`, settings...) redirects back to the admin home, so it is not a second copy of the user app and nobody can sign up there.
+- **Not indexed.** Every response on the admin host, including the sign-in page, carries `X-Robots-Tag: noindex, nofollow`.
+- **Local and tests** have no `ADMIN_DOMAIN`, so the admin stays at `/admin` on localhost.
 - A non-admin, or anyone not signed in, gets a plain **404** (not 403), so the page does not confirm it exists.
+
+### Phase 4b: Admin host
+- [x] `ADMIN_DOMAIN` config; admin routes registered on that host (loaded before the main routes, because `/` and `/transactions` exist on both hosts)
+- [x] `AdminHostOnly` middleware: admin host serves admin and sign-in pages only, noindex header on every response
+- [x] Front end builds every admin link from the current base (`adminUrl`), so one build works at `/admin` locally and at `/` on the admin host
+- [x] Tests: `tests/Feature/AdminDomainTest.php` (host and path, main host has no admin, guest sent to login on the admin host, user app not served there, gate and 404 for normal users)
+
+### Turning it on (you do this once; I cannot touch DNS)
+1. **DNS** (where whale-wallet.cloud is managed): add a record for `admin` as Railway tells you in step 2, normally a CNAME `admin` pointing to the value Railway shows (plus a TXT verification record if it asks).
+2. **Railway** > Whale-Wallet-WebApp > Settings > Networking > **Custom Domain** > `admin.whale-wallet.cloud`. Wait until the certificate is issued (a few minutes).
+3. **Railway variable** on the web service: `ADMIN_DOMAIN=admin.whale-wallet.cloud`. It redeploys.
+4. Open `https://admin.whale-wallet.cloud`, sign in, pass the gate.
+5. The scheduler service does not need `ADMIN_DOMAIN` (it serves no pages).
 
 ### Sign-in: password, then PIN, then emailed code
 

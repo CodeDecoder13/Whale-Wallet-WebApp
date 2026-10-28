@@ -16,6 +16,9 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
+// first, so the admin host's '/' and 'transactions' win over the main site's on that host
+require __DIR__.'/admin.php';
+
 Route::inertia('/', 'Welcome')->name('home');
 
 // public site: one entry per page, so the sitemap and the footer stay in step with the routes
@@ -104,4 +107,3 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
-require __DIR__.'/admin.php';
