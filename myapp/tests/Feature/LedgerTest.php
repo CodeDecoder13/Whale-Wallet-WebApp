@@ -248,4 +248,24 @@ class LedgerTest extends TestCase
         $this->assertSame(500_000, $user->cards()->sole()->balance);
         $this->assertSame(0, $user->pods()->count());
     }
+
+    public function test_not_paid_yet_this_month_starts_income_next_month()
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('onboarding.store'), [
+            'income' => '35000',
+            'paid_this_month' => false,
+            'pay_dates' => [22],
+            'bills' => [['name' => 'Rent', 'amount' => '8000', 'day' => 1]],
+            'card' => ['name' => 'GCash', 'type' => 'ewallet', 'balance' => '0'],
+        ])->assertRedirect(route('dashboard'));
+
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
+            ->where('summary.income', 0)->where('summary.next_income', 3_500_000)->where('summary.safe', 0));
+
+        $this->travelTo(now()->addMonth()->startOfMonth()->addDay());
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
+            ->where('summary.income', 3_500_000)->where('summary.next_income', null));
+    }
 }

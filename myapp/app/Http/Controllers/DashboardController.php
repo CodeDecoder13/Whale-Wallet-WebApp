@@ -61,7 +61,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'net_worth' => self::netWorth(),
             // fixed = every bill, subscription and loan (feeds safe to spend); paid ones are already inside spent, so left to spend = income - spent
-            'summary' => [...$summary, 'paid_fixed' => $paidFixed, 'spent' => $spent, 'safe' => $summary['income'] - $spent],
+            'summary' => [...$summary, 'next_income' => $budget->nextIncome($request->user()), 'paid_fixed' => $paidFixed, 'spent' => $spent, 'safe' => $summary['income'] - $spent],
             'week' => $week,
             'income_entries' => IncomeSource::where('month', now()->format('Y-m'))->orderBy('id')->get()
                 ->map(fn ($e) => [...$e->only(['id', 'name', 'kind', 'amount', 'reference']), 'received_on' => $e->received_on?->toDateString()]),

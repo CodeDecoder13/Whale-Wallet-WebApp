@@ -18,6 +18,8 @@ class SaveOnboarding
             $user->forceFill([
                 'pay_dates' => array_map('intval', $data['pay_dates']),
                 'pay_cycle' => count($data['pay_dates']) > 1 ? 'semi_monthly' : 'monthly',
+                // "not paid yet this month": the salary counts from next month, so left to spend starts at 0
+                'income_from' => ($data['paid_this_month'] ?? true) ? null : now()->startOfMonth()->addMonth()->format('Y-m'),
             ])->save();
             $user->incomeSources()->create(['name' => 'Income', 'amount' => $data['income']]);
 

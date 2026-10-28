@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import ForecastChart from '@/components/ForecastChart.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
+import HelpTip from '@/components/HelpTip.vue';
 import IncomeDialog from '@/components/IncomeDialog.vue';
 import Mascot from '@/components/Mascot.vue';
 import WelcomeBackDialog from '@/components/WelcomeBackDialog.vue';
@@ -25,6 +26,7 @@ const props = defineProps<{
         income: number;
         fixed: number;
         paid_fixed: number;
+        next_income: number | null; // salary still to come when not paid yet this month
         spent: number;
         safe: number;
     };
@@ -90,6 +92,7 @@ type Tile = {
     amount: number;
     status: string;
     hint: string;
+    help: string; // plain-words tooltip on the "?"
     bars?: number[]; // 0 to 1, drawn as columns
     fill?: number; // 0 to 1, drawn as a single bar
     pace?: number; // 0 to 1, a tick on that bar
@@ -124,22 +127,29 @@ const tiles = computed<Tile[]>(() => {
     return [
         {
             key: 'income', title: 'Income', icon: Wallet, color: received ? GREEN : BLUE, amount: income,
-            status: received ? 'Received' : 'Expected', hint: received ? 'Received this month' : 'Expected this month',
+            status: received ? 'Received' : props.summary.next_income !== null ? 'Expected next cycle' : 'Expected',
+            hint: received ? 'Received this month' : props.summary.next_income !== null ? `${formatPeso(props.summary.next_income)} expected on your next pay` : 'Expected this month',
+            help: 'Your pay for this month. It shows as Expected until you log it with + Add income. If you were not paid yet when you signed up, it starts counting next month.',
             fill: received ? 1 : 0,
         },
         {
             key: 'fixed', title: 'Fixed expenses', icon: Receipt, color: fixedTone[1], amount: fixed,
-            status: fixedTone[0], hint: `${formatPeso(props.summary.paid_fixed)} paid · ${pctOfIncome(fixed).toFixed(1)}% of income`, fill: unit(fixed / (income || 1)), pace: 0.5,
+            status: fixedTone[0],
+            help: 'Every bill, subscription and loan payment you owe in a month. The bar shows how much of your income they take.',
+            hint: `${formatPeso(props.summary.paid_fixed)} paid · ${pctOfIncome(fixed).toFixed(1)}% of income`, fill: unit(fixed / (income || 1)), pace: 0.5,
         },
         {
             key: 'safe', title: 'Left to spend', icon: PiggyBank, color: safeTone[1], amount: safe,
             status: safeTone[0],
+            help: 'Your income this month, minus what you spent and the bills still unpaid. It is 0 until your pay counts.',
             hint: props.forecast.safe_per_day > 0 ? `About ${formatPeso(props.forecast.safe_per_day)} a day until payday` : 'Income minus what you spent',
             fill: unit(safe / (income || 1)),
         },
         {
             key: 'spent', title: 'Spent this month', icon: ShoppingCart, color: spentTone[1], amount: spent,
-            status: spentTone[0], hint: `${pctOfIncome(spent).toFixed(1)}% of income`,
+            status: spentTone[0],
+            help: 'Everything you logged as an expense this month. Bills you paid are included. The small bars show the last 7 days.',
+            hint: `${pctOfIncome(spent).toFixed(1)}% of income`,
             fill: unit(spent / (income || 1)),
             bars: props.week.map((w) => w.amount / weekMax.value),
         },
@@ -213,7 +223,10 @@ const dueDate = (d: string) =>
                     class="grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.7fr)]"
                 >
                     <div class="order-2 lg:order-1">
-                        <div class="text-xs text-white/60">Safe to spend today</div>
+                        <div class="flex items-center gap-1.5 text-xs text-white/60">
+                            Safe to spend today
+                            <HelpTip text="How much you can spend each day until payday and still pay your bills. It is your income left after spending and unpaid bills, split over the days to payday." />
+                        </div>
                         <div class="mt-1 text-3xl font-semibold tracking-tight">
                             {{ formatPeso(forecast.safe_per_day) }}
                         </div>
@@ -230,6 +243,7 @@ const dueDate = (d: string) =>
                         <div class="flex items-center gap-2 text-sm font-medium lg:justify-end">
                             <span class="size-2 rounded-full bg-brand-light" />
                             Net worth
+                            <HelpTip text="Everything you have minus everything you owe, today. It counts your whole remaining loan balance, not just this month's payments, so it can start negative. It goes up as you add cash and savings, and as you pay your loans down." />
                         </div>
                         <div
                             class="mt-1 text-5xl font-bold tracking-tight md:text-6xl"
@@ -237,14 +251,19 @@ const dueDate = (d: string) =>
                         >
                             {{ formatPeso(net_worth.total) }}
                         </div>
-                        <p class="mt-2 text-xs text-white/60">
-                            Assets {{ formatPeso(net_worth.assets) }} · Debts
-                            {{ formatPeso(net_worth.debts) }}
+                        <p class="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-white/60 lg:justify-end">
+                            Assets {{ formatPeso(net_worth.assets) }}
+                            <HelpTip text="What you own: the balances on your cash, bank and e-wallet cards, your savings pods, and any credit left in credit cards. Add your real balances in Cards to raise it." />
+                            · Debts {{ formatPeso(net_worth.debts) }}
+                            <HelpTip text="What you owe: the full remaining amount on every active loan (payments left × amount), plus credit card balances you owe. Bills and subscriptions are not debt. Each loan payment you make lowers it." />
                         </p>
                     </div>
 
                     <div class="order-3 lg:order-2 lg:text-center">
-                        <div class="text-xs text-white/60">Payday in</div>
+                        <div class="flex items-center gap-1.5 text-xs text-white/60 lg:justify-center">
+                            Payday in
+                            <HelpTip text="Days until your next pay. Change your pay days in Settings if this is wrong." />
+                        </div>
                         <div class="mt-1 text-3xl font-semibold tracking-tight">
                             {{ forecast.days }}
                             {{ forecast.days === 1 ? 'day' : 'days' }}
@@ -265,7 +284,10 @@ const dueDate = (d: string) =>
                     <div
                         class="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-white/60"
                     >
-                        <span>Projected balance until payday</span>
+                        <span class="flex items-center gap-1.5">
+                            Projected balance until payday
+                            <HelpTip text="Your cash day by day until payday: today's card balances, minus bills as they fall due, minus your safe-to-spend each day. Below 0 means bills outrun your cash." />
+                        </span>
                         <span>
                             Lowest
                             <span
@@ -309,6 +331,7 @@ const dueDate = (d: string) =>
                     <span class="flex min-w-0 items-center gap-2 text-sm font-medium">
                         <component :is="t.icon" class="size-4 shrink-0" :style="{ color: t.color }" />
                         <span class="truncate">{{ t.title }}</span>
+                        <HelpTip :text="t.help" />
                     </span>
                     <span class="hidden shrink-0 text-xs text-muted-foreground sm:inline">This month</span>
                 </div>
@@ -409,7 +432,10 @@ const dueDate = (d: string) =>
 
         <div class="grid gap-4 lg:grid-cols-2">
             <section class="rounded-xl border bg-card p-6">
-                <h2 class="font-medium">Where each peso goes</h2>
+                <h2 class="flex items-center gap-1.5 font-medium">
+                    Where each peso goes
+                    <HelpTip text="Splits this month's income into fixed bills, what you spent, and what is left over." />
+                </h2>
                 <p class="mb-5 text-xs text-muted-foreground">
                     Monthly income allocation
                 </p>
@@ -448,7 +474,10 @@ const dueDate = (d: string) =>
             </section>
 
             <section class="rounded-xl border bg-card p-6">
-                <h2 class="font-medium">Spending by category</h2>
+                <h2 class="flex items-center gap-1.5 font-medium">
+                    Spending by category
+                    <HelpTip text="Your expenses this month grouped by category, so you can see where the money went." />
+                </h2>
                 <p class="mb-5 text-xs text-muted-foreground">
                     Where your spending goes
                 </p>
@@ -496,7 +525,10 @@ const dueDate = (d: string) =>
         </div>
 
         <section class="rounded-xl border bg-card p-6">
-            <h2 class="font-medium">Upcoming bills</h2>
+            <h2 class="flex items-center gap-1.5 font-medium">
+                Upcoming bills
+                <HelpTip text="Bills, subscriptions and loan payments that are overdue or due in the next 14 days. Overdue ones are not counted in the forecast until you pay them." />
+            </h2>
             <p class="mb-3 text-xs text-muted-foreground">
                 Overdue and due in the next 14 days
             </p>
@@ -534,7 +566,10 @@ const dueDate = (d: string) =>
 
         <section class="rounded-xl border bg-card p-6">
             <div class="flex items-center justify-between">
-                <h2 class="font-medium">Whale tips</h2>
+                <h2 class="flex items-center gap-1.5 font-medium">
+                    Whale tips
+                    <HelpTip text="Short, personal suggestions from Whale based on your own numbers." />
+                </h2>
                 <Link
                     :href="tipsPage()"
                     class="text-xs font-medium text-brand-deep dark:text-brand-light"

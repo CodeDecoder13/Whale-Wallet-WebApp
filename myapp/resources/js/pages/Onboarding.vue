@@ -18,6 +18,7 @@ const last = steps.length - 1;
 
 const form = useForm({
     income: '',
+    paid_this_month: true,
     pay_date_1: '15',
     pay_date_2: '30',
     bills: [] as { name: string; amount: string; day: string }[],
@@ -27,6 +28,7 @@ const form = useForm({
 
 form.transform((d) => ({
     income: d.income,
+    paid_this_month: d.paid_this_month,
     pay_dates: [d.pay_date_1, d.pay_date_2].filter(Boolean),
     bills: d.bills,
     card: d.card,
@@ -90,6 +92,20 @@ function next() {
                         />
                     </div>
                 </div>
+                <fieldset class="grid gap-2">
+                    <legend class="mb-1 text-sm font-medium">Have you been paid this month?</legend>
+                    <label class="flex items-start gap-2 text-sm">
+                        <input v-model="form.paid_this_month" type="radio" :value="true" class="mt-1" />
+                        <span>Yes, I already got my pay this month.</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-sm">
+                        <input v-model="form.paid_this_month" type="radio" :value="false" class="mt-1" />
+                        <span>Not yet. My next pay is next month.</span>
+                    </label>
+                    <p v-if="!form.paid_this_month" class="text-xs text-muted-foreground">
+                        Left to spend will be ₱0 until then, and your income shows as expected for your next pay cycle.
+                    </p>
+                </fieldset>
             </template>
 
             <template v-else-if="step === 1">

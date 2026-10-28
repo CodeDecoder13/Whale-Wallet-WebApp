@@ -41,7 +41,7 @@ Contract for the mobile app. Everything here is live on production unless marked
 | PATCH | `/me/digest` | `digest_enabled` = bool, `digest_time` = `HH:MM` in Philippine time (default `09:00`) | `{data: user}` |
 | PUT | `/me/password` | `current_password, password, password_confirmation` | 204 |
 | DELETE | `/me` | `password` | 204 (deletes the account) |
-| POST | `/onboarding` | `income, pay_dates[], bills[{name,amount,day}], card{name,type,balance,color?}, pod?{name,target_amount}` | 201 (409 if already onboarded) |
+| POST | `/onboarding` | `income, paid_this_month? (false = salary starts next month), pay_dates[], bills[{name,amount,day}], card{name,type,balance,color?}, pod?{name,target_amount}` | 201 (409 if already onboarded) |
 | GET | `/export` | – | All the user's data as JSON |
 | GET | `/export/transactions.csv` | – | CSV download |
 | DELETE | `/chat` | – | 204 (wipes chat history) |

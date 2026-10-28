@@ -34,6 +34,7 @@ class OnboardingRequest extends FormRequest
     {
         return [
             'income' => ['required', 'integer', 'min:1'],
+            'paid_this_month' => ['nullable', 'boolean'],
             'pay_dates' => ['required', 'array', 'min:1', 'max:2'],
             'pay_dates.*' => ['integer', 'between:1,31'],
             'bills' => ['nullable', 'array', 'max:30'],
