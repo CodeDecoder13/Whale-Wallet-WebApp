@@ -13,8 +13,8 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 4 | Transactions, receipts, conversations | **DONE** |
 | 4b | Admin on its own host, `admin.whale-wallet.cloud` | **DONE** (needs the DNS record and `ADMIN_DOMAIN`, see below) |
 | 5 | Support chat | **DONE** |
-| 6 | Actions + audit + privacy text | next |
-| 7 | Login alerts | todo |
+| 6 | Actions + audit + privacy text | **DONE** |
+| 7 | Login alerts | next |
 | 8 | Admin management | todo |
 
 ### Phase 0: Foundation
@@ -57,6 +57,14 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Roles: owners and support admins both open the inbox; a support admin sees only Support (no users, transactions, receipts, conversations, loans) and lands there after the gate
 - [x] Audit: opening a chat and every reply or close is logged; the user only ever sees their own thread
 - [x] Tests: `tests/Feature/SupportChatTest.php`
+
+### Phase 6: Actions, audit, privacy text
+- [x] Account actions on the user page (owner only): suspend / unsuspend, sign out everywhere, resend verification code; never on an admin account, never on money data
+- [x] Suspending deletes the user's sessions and API tokens, blocks web sign-in (says "suspended" only after the right password), blocks mobile API login, and signs out any session that survives on its next request
+- [x] Audit log page (`/audit`, owner only): who did or opened what and when, filter by action, admin or user; no route edits or deletes a row
+- [x] Privacy Policy: new section 6 "Who at Whale Wallet can see your data" (staff access, separate admin site with password + PIN + emailed code, every access logged, cannot edit or sign in as you, 90-day activity record); Security page, privacy changes log (28 October 2026) and the in-app AI notice updated
+- [x] Tests: `tests/Feature/AdminActionsTest.php`
+- [ ] **Still to do by you:** tell existing users. The in-app AI notice only shows to people who have not accepted it yet, so send a short email or in-app message about the privacy change before or when you start using the admin on real data.
 
 ### Creating the first admin (no default account in the code)
 There is **no built-in admin and no default PIN or password in the code**, because the code is in git. An admin exists only after someone runs the seeder on purpose, with the values taken from environment variables (Railway variables), never from a file:

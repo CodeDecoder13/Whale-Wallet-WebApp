@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
@@ -56,8 +57,17 @@ class FortifyServiceProvider extends ServiceProvider
                 return null;
             }
 
+            // said only after the password or PIN is right, so it does not reveal which emails have accounts
+            $allow = function (User $u) {
+                if ($u->suspended_at) {
+                    throw ValidationException::withMessages(['email' => __('This account is suspended. Contact support if you think this is a mistake.')]);
+                }
+
+                return $u;
+            };
+
             if ($request->input('mode') !== 'pin') {
-                return Hash::check($secret, $user->password) ? $user : null;
+                return Hash::check($secret, $user->password) ? $allow($user) : null;
             }
 
             // a 6-digit PIN is guessable, so five misses block it for 15 minutes (the password still works)
@@ -74,8 +84,9 @@ class FortifyServiceProvider extends ServiceProvider
 
             Cache::forget($key);
 
-            return $user;
-        });    }
+            return $allow($user);
+        });
+    }
 
     /**
      * Configure Fortify views.

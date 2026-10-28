@@ -6,7 +6,7 @@ import Doc from '@/components/public/Doc.vue';
     <Doc
         title="Privacy Policy"
         description="How Whale Wallet collects, uses, shares and protects your personal data."
-        updated="21 October 2026"
+        updated="28 October 2026"
     >
         <p class="rounded-lg border bg-muted/40 p-3 text-sm">
             Draft notice: this policy has not been reviewed by a lawyer yet and
@@ -33,7 +33,7 @@ import Doc from '@/components/public/Doc.vue';
             balances, bills, loans, savings goals, income, categories and
             transactions), account numbers you choose to add (stored encrypted),
             receipt images and proofs you upload, your chat messages with Whale,
-            your AI consent record, device tokens for notifications (mobile
+            your AI consent record, your messages to our support team, device tokens for notifications (mobile
             app), messages you send through the contact form, and technical data
             such as IP address, browser details and session information.
         </p>
@@ -65,7 +65,31 @@ import Doc from '@/components/public/Doc.vue';
             <a href="/privacy/processors">who handles your data</a>.
         </p>
 
-        <h2>6. How long we keep it</h2>
+        <h2>6. Who at Whale Wallet can see your data</h2>
+        <p>
+            Our staff can see your account details, your transactions, loans,
+            subscriptions and cards, your receipts and receipt images, your
+            Whale Chat conversations, and your messages to our support team.
+            We use this only to help you, to fix problems, and to keep the
+            service and other users safe. We do not read your data for any
+            other reason.
+        </p>
+        <p>
+            Access is limited to named administrators. They sign in on a
+            separate admin site with a password, a 6-digit PIN and a code sent
+            to their email. Every time an administrator opens a user's data,
+            exports it, or acts on an account, we record who did it and when,
+            and that record cannot be edited. An administrator can suspend an
+            account or sign it out, but cannot change your transactions,
+            receipts or chats, and cannot sign in as you.
+        </p>
+        <p>
+            We also keep a record of what happens in your account (for example
+            sign-ins, receipt scans, loans or subscriptions added, and support
+            messages) for 90 days, to help us support you and spot misuse.
+        </p>
+
+        <h2>7. How long we keep it</h2>
         <p>
             Until you delete it or your account. Receipt images are deleted
             after you confirm unless you choose to keep them. Salary proofs stay
@@ -75,7 +99,7 @@ import Doc from '@/components/public/Doc.vue';
             long as needed to follow up.
         </p>
 
-        <h2>7. Security</h2>
+        <h2>8. Security</h2>
         <p>
             Account numbers are stored encrypted, accounts can use two-factor
             authentication and passkeys, each user's data is separated from
@@ -84,7 +108,7 @@ import Doc from '@/components/public/Doc.vue';
             <a href="/privacy/security">Security</a>.
         </p>
 
-        <h2>8. Your rights</h2>
+        <h2>9. Your rights</h2>
         <p>
             Under the Data Privacy Act of 2012 (Republic Act No. 10173) you have
             the right to be informed, to access, to correct, to object, to erase
@@ -93,10 +117,10 @@ import Doc from '@/components/public/Doc.vue';
             data and delete your account in Settings, or contact us.
         </p>
 
-        <h2>9. Children</h2>
+        <h2>10. Children</h2>
         <p>Whale Wallet is not for anyone under 18.</p>
 
-        <h2>10. Changes</h2>
+        <h2>11. Changes</h2>
         <p>
             We will post changes here and in the
             <a href="/privacy/changes">privacy changes log</a> and update the
@@ -104,7 +128,7 @@ import Doc from '@/components/public/Doc.vue';
             email.
         </p>
 
-        <h2>11. Contact and data protection contact</h2>
+        <h2>12. Contact and data protection contact</h2>
         <p>
             Rhuzzel Paramio,
             <a href="mailto:support@whalewallet.cloud"

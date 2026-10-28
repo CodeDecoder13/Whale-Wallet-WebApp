@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { adminBase, adminUrl } from '@/lib/adminUrl';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
+import { Button } from '@/components/ui/button';
 import { ago } from '@/lib/ago';
 import { formatPeso } from '@/lib/currency';
 
@@ -10,7 +11,7 @@ type Item = {
     left: number | null; next_due_on: string | null; overdue: boolean; status: string;
 };
 
-defineProps<{
+const props = defineProps<{
     profile: {
         id: number; name: string; email: string; joined: string; verified: boolean; suspended: boolean; admin_role: string | null;
         has_pin: boolean; has_2fa: boolean; ai_consent: boolean; digest_enabled: boolean; digest_time: string; pay_dates: number[];
@@ -22,6 +23,15 @@ defineProps<{
 }>();
 
 const yes = (v: boolean) => (v ? 'Yes' : 'No');
+
+// account actions: none of them touch the user's money data, and all are written to the audit log
+function act(what: 'suspend' | 'unsuspend' | 'sign-out' | 'resend-code', ask?: string) {
+    if (ask && !confirm(ask)) {
+        return;
+    }
+
+    router.post(adminUrl(`/users/${props.profile.id}/${what}`), {}, { preserveScroll: true });
+}
 const label = (e: string) => e.replaceAll('_', ' ');
 </script>
 
@@ -49,6 +59,18 @@ const label = (e: string) => e.replaceAll('_', ' ');
                 <dt class="text-muted-foreground">Daily digest</dt><dd class="font-medium">{{ profile.digest_enabled ? `on, ${profile.digest_time}` : 'off' }}</dd>
                 <dt class="text-muted-foreground">Payday</dt><dd class="font-medium">{{ profile.pay_dates.join(' and ') || 'not set' }}</dd>
             </dl>
+        </section>
+
+        <section class="rounded-2xl border bg-card p-5 shadow-sm">
+            <h2 class="text-sm font-semibold">Actions</h2>
+            <p v-if="profile.admin_role" class="mt-3 text-sm text-muted-foreground">This is an admin account. Admins are managed from Admin management.</p>
+            <div v-else class="mt-3 grid gap-2">
+                <Button v-if="!profile.suspended" variant="destructive" size="sm" @click="act('suspend', `Suspend ${profile.name}? They are signed out everywhere and cannot sign in until you unsuspend them. Their data is not changed.`)">Suspend account</Button>
+                <Button v-else variant="outline" size="sm" @click="act('unsuspend')">Unsuspend account</Button>
+                <Button variant="outline" size="sm" @click="act('sign-out', `Sign ${profile.name} out of every browser and app?`)">Sign out everywhere</Button>
+                <Button v-if="!profile.verified" variant="outline" size="sm" @click="act('resend-code')">Resend verification code</Button>
+                <Link :href="`${adminBase()}/audit?user=${profile.id}`" class="mt-1 text-sm text-muted-foreground underline underline-offset-4">Audit log for this user</Link>
+            </div>
         </section>
 
         <section class="rounded-2xl border bg-card p-5 shadow-sm">

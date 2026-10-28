@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ActivityController;
+use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\ChatController;
 use App\Http\Controllers\Admin\GateController;
 use App\Http\Controllers\Admin\HomeController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\ReceiptController;
 use App\Http\Controllers\Admin\SupportController;
 use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\Admin\UserActionController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +37,12 @@ $admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(functio
         Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
         Route::get('loans', [LoanController::class, 'index'])->name('loans');
         Route::get('activity', [ActivityController::class, 'index'])->name('activity');
+        Route::get('audit', [AuditController::class, 'index'])->name('audit');
+
+        Route::post('users/{user}/suspend', [UserActionController::class, 'suspend'])->name('users.suspend');
+        Route::post('users/{user}/unsuspend', [UserActionController::class, 'unsuspend'])->name('users.unsuspend');
+        Route::post('users/{user}/sign-out', [UserActionController::class, 'signOut'])->name('users.sign-out');
+        Route::post('users/{user}/resend-code', [UserActionController::class, 'resendCode'])->middleware('throttle:6,1')->name('users.resend-code');
 
         Route::get('transactions', [TransactionController::class, 'index'])->name('transactions');
         Route::get('transactions/export', [TransactionController::class, 'export'])->middleware('throttle:6,1')->name('transactions.export');

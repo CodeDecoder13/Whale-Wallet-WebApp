@@ -28,7 +28,10 @@ const agree = () =>
             aggregated numbers (totals, percentages and your forecast). Receipt
             images and chat messages are sent as you upload or type them, so
             they can include merchants and amounts. Nothing is saved until you
-            confirm it.
+            confirm it. Our support staff can see your chats, receipts and
+            transactions when needed to help you or keep the service safe, and
+            every access is logged (see the
+            <a href="/privacy-policy" class="underline underline-offset-4">Privacy Policy</a>).
         </p>
         <Button class="mt-4" :disabled="busy" @click="agree">I agree</Button>
     </section>

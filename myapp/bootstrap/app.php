@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AdminHostOnly;
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureNotSuspended;
 use App\Http\Middleware\ForceJson;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [ForceJson::class]);
 
         $middleware->web(prepend: [AdminHostOnly::class]);
+        $middleware->web(append: [EnsureNotSuspended::class]);
 
         $middleware->web(append: [
             HandleAppearance::class,

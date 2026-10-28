@@ -133,7 +133,7 @@ class AdminGateTest extends TestCase
     {
         $admin = $this->admin();
         $admin->forceFill(['suspended_at' => now()])->save();
-        $this->actingAs($admin)->get('/admin/gate')->assertNotFound();
+        $this->actingAs($admin->fresh())->get('/admin/gate')->assertRedirect('/login'); // signed out with the suspended message
 
         $user = User::factory()->create(['email' => 'boss@example.com']);
         putenv('ADMIN_PIN=123456');

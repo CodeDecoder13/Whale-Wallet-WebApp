@@ -18,6 +18,16 @@ class AdminAudit extends Model
         return ['meta' => 'array', 'created_at' => 'datetime'];
     }
 
+    public function admin()
+    {
+        return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    public function target()
+    {
+        return $this->belongsTo(User::class, 'target_user_id');
+    }
+
     public static function record(User $admin, string $action, ?User $target = null, array $meta = []): void
     {
         static::create([

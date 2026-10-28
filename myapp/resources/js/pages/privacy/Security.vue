@@ -6,7 +6,7 @@ import Doc from '@/components/public/Doc.vue';
     <Doc
         title="Security"
         description="What protects your account, and the honest limits."
-        updated="21 October 2026"
+        updated="28 October 2026"
     >
         <h2>What we do</h2>
         <ul>
@@ -14,6 +14,13 @@ import Doc from '@/components/public/Doc.vue';
             <li>Passwords are stored hashed, never in plain text.</li>
             <li>Sign in with two-factor authentication or a passkey.</li>
             <li>Each person's data is separated from everyone else's.</li>
+            <li>
+                Our staff can open your data only to help you or keep the
+                service safe. They use a separate admin site, a password, a
+                PIN and an emailed code, and every access is logged where it
+                cannot be edited. See the
+                <a href="/privacy-policy">Privacy Policy</a>, section 6.
+            </li>
             <li>Sign-in attempts are rate limited.</li>
             <li>Mobile and API access tokens can be revoked in Settings.</li>
             <li>

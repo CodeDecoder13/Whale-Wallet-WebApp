@@ -22,6 +22,8 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => __('auth.failed')]);
         }
 
+        abort_if($user->suspended_at, 403, 'This account is suspended. Contact support if you think this is a mistake.');
+
         // ponytail: the 2FA challenge is a web flow; add a code step here when the mobile app needs it
         if ($user->two_factor_confirmed_at) {
             abort(403, 'Two-factor authentication (2FA) is on for this account, and mobile login does not support it yet. Turn it off in the web app to sign in on mobile.');
