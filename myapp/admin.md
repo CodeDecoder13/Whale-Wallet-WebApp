@@ -16,7 +16,7 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 6 | Actions + audit + privacy text | **DONE** |
 | 6b | Release notes (email + popup) | **DONE** |
 | 7 | Login alerts | **DONE** |
-| 8 | Admin management | next |
+| 8 | Admin management | **DONE** |
 
 ### Phase 0: Foundation
 - [x] Migration: `users.admin_role`, `users.suspended_at`, tables `activity_logs`, `admin_audit`
@@ -85,6 +85,21 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Sent after the response (no worker), each owner in its own try/catch: a mail problem never blocks or slows a sign-in
 - [x] Tests: `tests/Feature/LoginAlertTest.php`
 - [ ] Note: a "remember me" cookie that restores an expired session also counts as a sign-in; with many users, switch to **New devices only** to keep the volume down (and watch the Mailtrap plan limit)
+
+### Phase 8: Admin management
+- [x] Owner-only **Admins** tab: every admin with role, last time they opened the admin (`users.last_admin_gate_at`, set when they pass the gate) and their login-alert setting
+- [x] **Add an admin** by the email of an existing account, with the role **Support** (support chat only) or **Owner** (everything, including this page). Refused with a clear reason if there is no such account, the email is not verified, the account is suspended, they are already an admin, or they have no login PIN (they are told to set one in Settings > Security first)
+- [x] Change a role or remove an admin; the role is read from the database on every request, so removed access ends at once, and the person keeps their normal account
+- [x] **Safeguard:** nobody can change or remove their own role, so there is always at least one owner (the one making the change)
+- [x] Every add, change and removal is written to the audit log and emailed to the person and to all owners
+- [x] Tests: `tests/Feature/AdminManagementTest.php`
+
+### Everything in this plan is built
+Phases 0 to 8 and 4b, plus release notes. What is left is on you, not in the code:
+- [ ] Add `MAIL_*` to the whale-scheduler service (daily digest and release-note batches)
+- [ ] Create your admin with the seeder, then delete the four `ADMIN_*` variables
+- [ ] Tell existing users about the privacy change (see Phase 6)
+- [ ] Have a lawyer review the Privacy Policy (it still carries the draft banner)
 
 ### Creating the first admin (no default account in the code)
 There is **no built-in admin and no default PIN or password in the code**, because the code is in git. An admin exists only after someone runs the seeder on purpose, with the values taken from environment variables (Railway variables), never from a file:

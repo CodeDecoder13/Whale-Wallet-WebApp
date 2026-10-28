@@ -76,6 +76,7 @@ class GateController extends Controller
         Cache::forget("admin-otp:{$user->id}");
         Cache::forget($tries);
         $request->session()->put('admin_gate', [$user->id, now()->timestamp]);
+        $user->forceFill(['last_admin_gate_at' => now()])->save();
 
         return redirect()->intended($this->landing($request));
     }

@@ -25,6 +25,7 @@ const tabs = computed(() => [
               { title: 'Loans & subs', href: adminUrl('/loans') },
               { title: 'Activity', href: adminUrl('/activity') },
               { title: 'Release notes', href: adminUrl('/release-notes') },
+              { title: 'Admins', href: adminUrl('/admins') },
               { title: 'Audit', href: adminUrl('/audit') },
           ]
         : []),

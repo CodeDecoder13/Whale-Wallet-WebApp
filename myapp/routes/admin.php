@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ActivityController;
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\ChatController;
 use App\Http\Controllers\Admin\GateController;
@@ -40,6 +41,11 @@ $admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(functio
         Route::get('loans', [LoanController::class, 'index'])->name('loans');
         Route::get('activity', [ActivityController::class, 'index'])->name('activity');
         Route::get('audit', [AuditController::class, 'index'])->name('audit');
+
+        Route::get('admins', [AdminController::class, 'index'])->name('admins');
+        Route::post('admins', [AdminController::class, 'store'])->middleware('throttle:10,1')->name('admins.store');
+        Route::put('admins/{user}', [AdminController::class, 'update'])->whereNumber('user')->name('admins.update');
+        Route::delete('admins/{user}', [AdminController::class, 'destroy'])->whereNumber('user')->name('admins.destroy');
         Route::post('login-alerts', [LoginAlertSettingController::class, 'update'])->name('login-alerts');
 
         Route::get('release-notes', [ReleaseNoteController::class, 'index'])->name('release-notes');
