@@ -12,6 +12,7 @@ use App\Models\RecurringItem;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\DailyDigest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,7 +23,7 @@ use Inertia\Response;
  */
 class HomeController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
         $users = User::query();
         $total = (clone $users)->count();
@@ -38,6 +39,7 @@ class HomeController extends Controller
         $today = now(DailyDigest::TZ)->toDateString();
 
         return Inertia::render('admin/Home', [
+            'loginAlerts' => $request->user()->login_alerts,
             'users' => [
                 'total' => $total,
                 'today' => (clone $users)->where('created_at', '>=', now()->startOfDay())->count(),

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
+import { adminUrl } from '@/lib/adminUrl';
 
-defineProps<{
+const props = defineProps<{
+    loginAlerts: string;
     users: { total: number; today: number; week: number; month: number; verified_pct: number; with_pin: number; with_2fa: number; active_day: number; active_week: number };
     money: { cards: number; transactions_month: number; loans: number; subscriptions: number };
     ai: { receipts_week: number; receipts_failed: number; receipts_stuck: number; tips_week: number };
@@ -10,6 +12,13 @@ defineProps<{
 }>();
 
 const n = (v: number) => v.toLocaleString('en-US');
+
+const alertChoices = [
+    { value: 'all', label: 'Every sign-in' },
+    { value: 'new', label: 'New devices only' },
+    { value: 'off', label: 'Off' },
+];
+const setAlerts = (login_alerts: string) => router.post(adminUrl('/login-alerts'), { login_alerts }, { preserveScroll: true });
 </script>
 
 <template>
@@ -58,6 +67,25 @@ const n = (v: number) => v.toLocaleString('en-US');
                 <dt class="text-muted-foreground">Stuck right now</dt><dd class="font-medium" :class="ai.receipts_stuck > 0 && 'text-destructive'">{{ ai.receipts_stuck }}</dd>
                 <dt class="text-muted-foreground">Tips made</dt><dd class="font-medium">{{ ai.tips_week }}</dd>
             </dl>
+        </section>
+
+        <section class="rounded-2xl border bg-card p-5 shadow-sm lg:col-span-2 xl:col-span-4">
+            <h2 class="text-sm font-semibold">Login alerts</h2>
+            <p class="mt-1 text-sm text-muted-foreground">An email to you when a user signs in, with the time, device and IP.</p>
+            <div class="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Login alerts">
+                <button
+                    v-for="c in alertChoices"
+                    :key="c.value"
+                    type="button"
+                    role="radio"
+                    :aria-checked="props.loginAlerts === c.value"
+                    class="rounded-full border px-4 py-1.5 text-sm transition-colors duration-150 ease-out active:scale-[0.97]"
+                    :class="props.loginAlerts === c.value ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-accent'"
+                    @click="setAlerts(c.value)"
+                >
+                    {{ c.label }}
+                </button>
+            </div>
         </section>
 
         <section class="rounded-2xl border bg-card p-5 shadow-sm lg:col-span-2 xl:col-span-4">

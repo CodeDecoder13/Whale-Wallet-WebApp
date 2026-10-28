@@ -15,8 +15,8 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 5 | Support chat | **DONE** |
 | 6 | Actions + audit + privacy text | **DONE** |
 | 6b | Release notes (email + popup) | **DONE** |
-| 7 | Login alerts | next |
-| 8 | Admin management | todo |
+| 7 | Login alerts | **DONE** |
+| 8 | Admin management | next |
 
 ### Phase 0: Foundation
 - [x] Migration: `users.admin_role`, `users.suspended_at`, tables `activity_logs`, `admin_audit`
@@ -75,6 +75,16 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Popup: the newest published note the user has not dismissed, once, with "Got it"; dismissing also dismisses older ones; not shown for notes older than 30 days or published before the user joined; never on the admin host
 - [x] Tests: `tests/Feature/ReleaseNotesTest.php`
 - [ ] Needs `MAIL_*` on the **whale-scheduler** service to finish large sends in the background (the first batch goes from the web service either way)
+
+### Phase 7: Login alerts
+- [x] An email to every owner when a user signs in (password, PIN or passkey, since all fire Laravel's `Login` event): who, email, time in Philippine time, device ("Chrome on Windows"), IP, a **New device** tag, and a button to open the user in the admin
+- [x] "New device" = a browser and OS this user has not signed in from before (`login_devices`); the IP is shown but a new IP alone is not "new", because phone IPs change all day
+- [x] Setting on the admin overview, per owner: **Every sign-in** (default), **New devices only**, **Off** (`users.login_alerts`); changes are audited
+- [x] Left out: admins' own sign-ins, support admins, suspended owners
+- [x] A reload or second tab from the same browser and address within 10 minutes is one alert
+- [x] Sent after the response (no worker), each owner in its own try/catch: a mail problem never blocks or slows a sign-in
+- [x] Tests: `tests/Feature/LoginAlertTest.php`
+- [ ] Note: a "remember me" cookie that restores an expired session also counts as a sign-in; with many users, switch to **New devices only** to keep the volume down (and watch the Mailtrap plan limit)
 
 ### Creating the first admin (no default account in the code)
 There is **no built-in admin and no default PIN or password in the code**, because the code is in git. An admin exists only after someone runs the seeder on purpose, with the values taken from environment variables (Railway variables), never from a file:

@@ -7,6 +7,7 @@ use App\Services\Ai\FakeAiProvider;
 use App\Services\Ai\GeminiProvider;
 use Carbon\CarbonImmutable;
 use App\Models\ActivityLog;
+use App\Services\LoginAlert;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\PasswordReset;
@@ -56,6 +57,14 @@ class AppServiceProvider extends ServiceProvider
 
         // the admin activity feed: one line per sign-in, sign-up, verification, reset and failed login
         Event::listen(Login::class, fn (Login $e) => ActivityLog::record('login', $e->user->getAuthIdentifier(), ['device' => Str::limit((string) request()?->userAgent(), 120)]));
+        // the owners get an email for it, unless they turned login alerts off (a failure here never reaches the user)
+        Event::listen(Login::class, function (Login $e) {
+            try {
+                app(LoginAlert::class)->handle($e->user, request());
+            } catch (\Throwable $ex) {
+                report($ex);
+            }
+        });
         Event::listen(Registered::class, fn (Registered $e) => ActivityLog::record('registered', $e->user->getAuthIdentifier()));
         Event::listen(Verified::class, fn (Verified $e) => ActivityLog::record('verified', $e->user->getAuthIdentifier()));
         Event::listen(PasswordReset::class, fn (PasswordReset $e) => ActivityLog::record('password_reset', $e->user->getAuthIdentifier()));

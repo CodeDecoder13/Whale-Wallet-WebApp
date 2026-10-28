@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ChatController;
 use App\Http\Controllers\Admin\GateController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\LoanController;
+use App\Http\Controllers\Admin\LoginAlertSettingController;
 use App\Http\Controllers\Admin\ReceiptController;
 use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\SupportController;
@@ -39,6 +40,7 @@ $admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(functio
         Route::get('loans', [LoanController::class, 'index'])->name('loans');
         Route::get('activity', [ActivityController::class, 'index'])->name('activity');
         Route::get('audit', [AuditController::class, 'index'])->name('audit');
+        Route::post('login-alerts', [LoginAlertSettingController::class, 'update'])->name('login-alerts');
 
         Route::get('release-notes', [ReleaseNoteController::class, 'index'])->name('release-notes');
         Route::get('release-notes/create', [ReleaseNoteController::class, 'create'])->name('release-notes.create');
