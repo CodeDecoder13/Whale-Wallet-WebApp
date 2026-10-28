@@ -11,6 +11,6 @@ What's new in Whale Wallet: {{ $note->title }}{{ $note->version ? " ({$note->ver
 
 @endif
 @endforeach
-Open Whale Wallet: {{ url('/dashboard') }}
+Open Whale Wallet: {{ rtrim(config('app.url'), '/') }}/dashboard
 
 Unsubscribe from product updates: {{ $unsubscribe }}

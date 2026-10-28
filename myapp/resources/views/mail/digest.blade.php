@@ -15,7 +15,7 @@
         <td bgcolor="#0b2545" style="background:#0b2545;background-image:linear-gradient(135deg,#0b2545 0%,#1565c0 100%);padding:28px 28px 24px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
                 <td width="84" valign="middle">
-                    <img src="{{ url('/mascot/happy.png') }}" width="72" height="72" alt="Whale" style="display:block;width:72px;height:72px;border-radius:36px;border:3px solid rgba(255,255,255,0.35);background:#eaf2ff;">
+                    <img src="{{ rtrim(config('app.url'), '/') }}/mascot/happy.png" width="72" height="72" alt="Whale" style="display:block;width:72px;height:72px;border-radius:36px;border:3px solid rgba(255,255,255,0.35);background:#eaf2ff;">
                 </td>
                 <td valign="middle" style="padding-left:6px;">
                     <div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Whale Wallet</div>
@@ -47,7 +47,7 @@
 
     <tr>
         <td align="center" style="padding:22px 28px 30px;">
-            <a href="{{ url('/dashboard') }}" style="display:inline-block;background:#1e88e5;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:13px 28px;border-radius:10px;">Open Whale Wallet</a>
+            <a href="{{ rtrim(config('app.url'), '/') }}/dashboard" style="display:inline-block;background:#1e88e5;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:13px 28px;border-radius:10px;">Open Whale Wallet</a>
         </td>
     </tr>
 

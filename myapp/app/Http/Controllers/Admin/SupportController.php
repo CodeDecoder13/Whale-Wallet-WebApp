@@ -81,7 +81,7 @@ class SupportController extends Controller
         // email the user only if they are not in the app right now, and at most once per 10 minutes
         $here = DB::table('sessions')->where('user_id', $t->user_id)->where('last_activity', '>=', now()->subMinutes(10)->timestamp)->exists();
         if ($t->user && ! $here && Cache::add("support-mail-user:{$t->user_id}", true, now()->addMinutes(10))) {
-            $notice = new SupportNotice($t->user->name, 'Whale Wallet support replied', $body !== '' ? $body : 'Sent you a file.', route('support.index', ['ticket' => $t->id]), 'Open the chat');
+            $notice = new SupportNotice($t->user->name, 'Whale Wallet support replied', $body !== '' ? $body : 'Sent you a file.', rtrim(config('app.url'), '/').route('support.index', ['ticket' => $t->id], false), 'Open the chat');
             dispatch(fn () => Mail::to($t->user)->send($notice))->afterResponse();
         }
 

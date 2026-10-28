@@ -84,7 +84,7 @@ class AdminController extends Controller
         // the role is read from the database on every admin request, so their access ends with this request
         $user->forceFill(['admin_role' => null, 'last_admin_gate_at' => null])->save();
         AdminAudit::record($request->user(), 'removed_admin', $user);
-        $this->tell($request->user(), $user, "{$user->name} is no longer an admin", "{$request->user()->name} removed {$user->name} ({$user->email}) as an admin.", 'Your Whale Wallet admin access was removed. Your normal account is not affected.', url('/dashboard'), 'Open Whale Wallet');
+        $this->tell($request->user(), $user, "{$user->name} is no longer an admin", "{$request->user()->name} removed {$user->name} ({$user->email}) as an admin.", 'Your Whale Wallet admin access was removed. Your normal account is not affected.', rtrim(config('app.url'), '/').'/dashboard', 'Open Whale Wallet');
 
         return back();
     }

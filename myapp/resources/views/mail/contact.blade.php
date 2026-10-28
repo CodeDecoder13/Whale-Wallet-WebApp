@@ -12,7 +12,7 @@
     <tr>
         <td bgcolor="#0b2545" style="background:#0b2545;background-image:linear-gradient(135deg,#0b2545 0%,#1565c0 100%);padding:24px 28px;">
             <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-                <td><img src="{{ url('/mascot/happy.png') }}" width="56" height="56" alt="Whale" style="display:block;width:56px;height:56px;border-radius:28px;border:3px solid rgba(255,255,255,0.35);background:#eaf2ff;"></td>
+                <td><img src="{{ rtrim(config('app.url'), '/') }}/mascot/happy.png" width="56" height="56" alt="Whale" style="display:block;width:56px;height:56px;border-radius:28px;border:3px solid rgba(255,255,255,0.35);background:#eaf2ff;"></td>
                 <td style="padding-left:12px;font-size:20px;font-weight:700;color:#ffffff;">Whale Wallet</td>
             </tr></table>
         </td>
