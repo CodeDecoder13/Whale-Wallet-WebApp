@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailOtpController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\IncomeController;
+use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PodController;
 use App\Http\Controllers\ReceiptController;
@@ -49,6 +50,9 @@ Route::get('/sitemap.xml', fn () => response(
     .'</urlset>',
     200, ['Content-Type' => 'application/xml'],
 ));
+
+// the unsubscribe link in release note emails: signed, so it needs no sign-in and cannot be forged for another user
+Route::get('unsubscribe/{user}', [NoticeController::class, 'unsubscribe'])->middleware('signed')->name('release.unsubscribe');
 
 Route::post('email/otp', EmailOtpController::class)->middleware(['auth', 'throttle:10,1'])->name('verification.otp');
 
@@ -105,6 +109,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('chat/drafts/{message}/confirm', [ChatController::class, 'confirm'])->name('chat.confirm');
 
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    Route::post('notices/{note}/seen', [NoticeController::class, 'seen'])->whereNumber('note')->name('notice.seen');
 
     Route::get('support', [SupportController::class, 'index'])->name('support.index');
     Route::post('support/messages', [SupportController::class, 'store'])->middleware('throttle:20,1')->name('support.store');

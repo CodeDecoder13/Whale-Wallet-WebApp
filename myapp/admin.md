@@ -14,6 +14,7 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 4b | Admin on its own host, `admin.whale-wallet.cloud` | **DONE** (needs the DNS record and `ADMIN_DOMAIN`, see below) |
 | 5 | Support chat | **DONE** |
 | 6 | Actions + audit + privacy text | **DONE** |
+| 6b | Release notes (email + popup) | **DONE** |
 | 7 | Login alerts | next |
 | 8 | Admin management | todo |
 
@@ -65,6 +66,15 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Privacy Policy: new section 6 "Who at Whale Wallet can see your data" (staff access, separate admin site with password + PIN + emailed code, every access logged, cannot edit or sign in as you, 90-day activity record); Security page, privacy changes log (28 October 2026) and the in-app AI notice updated
 - [x] Tests: `tests/Feature/AdminActionsTest.php`
 - [ ] **Still to do by you:** tell existing users. The in-app AI notice only shows to people who have not accepted it yet, so send a short email or in-app message about the privacy change before or when you start using the admin on real data.
+
+### Phase 6b: Release notes
+- [x] Admin CRUD (owner only, tab "Release notes"): title, optional version, plain-text body (blank line = paragraph, `- ` = bullet, never HTML), "email it" and "show popup" switches, live preview, save draft, edit, delete, audited
+- [x] "Send me a test": the exact email, to the signed-in admin only
+- [x] Publish (once): emails every verified, not suspended, not unsubscribed user, and shows the popup
+- [x] Email: blue design with the mascot, legal footer and a signed one-click Unsubscribe (`users.release_emails`); sent in resumable batches, one row per user in `release_note_user` so nobody gets it twice and a bad address is not retried forever; starts right after the publish response and the scheduler (`release:send`, every minute) finishes the rest
+- [x] Popup: the newest published note the user has not dismissed, once, with "Got it"; dismissing also dismisses older ones; not shown for notes older than 30 days or published before the user joined; never on the admin host
+- [x] Tests: `tests/Feature/ReleaseNotesTest.php`
+- [ ] Needs `MAIL_*` on the **whale-scheduler** service to finish large sends in the background (the first batch goes from the web service either way)
 
 ### Creating the first admin (no default account in the code)
 There is **no built-in admin and no default PIN or password in the code**, because the code is in git. An admin exists only after someone runs the seeder on purpose, with the values taken from environment variables (Railway variables), never from a file:

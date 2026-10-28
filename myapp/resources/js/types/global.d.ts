@@ -21,6 +21,12 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             whaleDue: number;
+            releaseNotice: {
+                id: number;
+                title: string;
+                version: string | null;
+                blocks: ({ type: 'p'; text: string } | { type: 'ul'; items: string[] })[];
+            } | null;
             supportUnread: number;
             adminSupportUnread: number;
             [key: string]: unknown;

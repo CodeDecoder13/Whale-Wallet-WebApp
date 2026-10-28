@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\GateController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\ReceiptController;
+use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\SupportController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserActionController;
@@ -38,6 +39,15 @@ $admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(functio
         Route::get('loans', [LoanController::class, 'index'])->name('loans');
         Route::get('activity', [ActivityController::class, 'index'])->name('activity');
         Route::get('audit', [AuditController::class, 'index'])->name('audit');
+
+        Route::get('release-notes', [ReleaseNoteController::class, 'index'])->name('release-notes');
+        Route::get('release-notes/create', [ReleaseNoteController::class, 'create'])->name('release-notes.create');
+        Route::post('release-notes', [ReleaseNoteController::class, 'store'])->name('release-notes.store');
+        Route::get('release-notes/{note}/edit', [ReleaseNoteController::class, 'edit'])->whereNumber('note')->name('release-notes.edit');
+        Route::put('release-notes/{note}', [ReleaseNoteController::class, 'update'])->whereNumber('note')->name('release-notes.update');
+        Route::delete('release-notes/{note}', [ReleaseNoteController::class, 'destroy'])->whereNumber('note')->name('release-notes.destroy');
+        Route::post('release-notes/{note}/publish', [ReleaseNoteController::class, 'publish'])->whereNumber('note')->name('release-notes.publish');
+        Route::post('release-notes/{note}/test', [ReleaseNoteController::class, 'test'])->whereNumber('note')->middleware('throttle:6,1')->name('release-notes.test');
 
         Route::post('users/{user}/suspend', [UserActionController::class, 'suspend'])->name('users.suspend');
         Route::post('users/{user}/unsuspend', [UserActionController::class, 'unsuspend'])->name('users.unsuspend');

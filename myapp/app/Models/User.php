@@ -126,6 +126,8 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'ai_consent_at' => 'datetime',
             'keep_receipts' => 'boolean',
             'digest_enabled' => 'boolean',
+            'release_emails' => 'boolean',
+            'suspended_at' => 'datetime',
             'digest_sent_on' => 'date',
             'pay_dates' => 'array',
         ];
