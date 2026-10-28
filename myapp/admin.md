@@ -111,6 +111,7 @@ Decision (changed from a `/admin` path): the admin runs on a separate host name,
 - [x] `ADMIN_DOMAIN` config; admin routes registered on that host (loaded before the main routes, because `/` and `/transactions` exist on both hosts)
 - [x] `AdminHostOnly` middleware: admin host serves admin and sign-in pages only, noindex header on every response
 - [x] Front end builds every admin link from the current base (`adminUrl`), so one build works at `/admin` locally and at `/` on the admin host
+- [x] Own sign-in page on the admin host (`admin/Login`): no sign-up, no marketing, no "remember me"; only accounts with an admin role can sign in there (anyone else fails like a wrong password); the public login page stays on the main site
 - [x] Tests: `tests/Feature/AdminDomainTest.php` (host and path, main host has no admin, guest sent to login on the admin host, user app not served there, gate and 404 for normal users)
 
 ### Turning it on (you do this once; I cannot touch DNS)

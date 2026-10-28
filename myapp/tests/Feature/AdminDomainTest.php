@@ -71,6 +71,25 @@ class AdminDomainTest extends TestCase
         $this->get($this->onAdmin('/settings/profile'))->assertRedirect('/');
     }
 
+    public function test_the_admin_host_has_its_own_login_page_that_only_admins_can_use()
+    {
+        $this->get($this->onAdmin('/login'))->assertInertia(fn ($p) => $p->component('admin/Login'));
+        $this->get('http://localhost/login')->assertInertia(fn ($p) => $p->component('auth/Login'));
+
+        $normal = User::factory()->create();
+        $this->post($this->onAdmin('/login'), ['email' => $normal->email, 'password' => 'password'])->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $admin = $this->admin();
+        $this->post($this->onAdmin('/login'), ['email' => $admin->email, 'password' => 'password'])->assertRedirect();
+        $this->assertAuthenticatedAs($admin);
+
+        // the same normal user still signs in on the main site
+        auth()->logout();
+        $this->post('http://localhost/login', ['email' => $normal->email, 'password' => 'password'])->assertRedirect();
+        $this->assertAuthenticatedAs($normal);
+    }
+
     public function test_the_gate_works_on_the_admin_host_and_a_normal_user_gets_a_404_there()
     {
         $admin = $this->admin();

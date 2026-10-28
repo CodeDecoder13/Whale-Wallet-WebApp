@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Middleware\AdminHostOnly;
 use Illuminate\Cache\RateLimiting\Limit;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -50,7 +51,8 @@ class FortifyServiceProvider extends ServiceProvider
             $user = User::where('email', $request->input('email'))->first();
             $secret = (string) $request->input('password');
 
-            if (! $user) {
+            // the admin host signs in admins only; anyone else fails exactly like a wrong password, so it never says who is an admin
+            if (! $user || (AdminHostOnly::isAdminHost($request) && ! $user->admin_role)) {
                 return null;
             }
 
@@ -80,7 +82,8 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureViews(): void
     {
-        Fortify::loginView(fn (Request $request) => Inertia::render('auth/Login', [
+        // the admin host has its own sign-in page, not the public one
+        Fortify::loginView(fn (Request $request) => Inertia::render(AdminHostOnly::isAdminHost($request) ? 'admin/Login' : 'auth/Login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
         ]));
