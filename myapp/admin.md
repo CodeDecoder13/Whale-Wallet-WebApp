@@ -12,8 +12,8 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 | 3 | Loans, subs, activity feed | **DONE** |
 | 4 | Transactions, receipts, conversations | **DONE** |
 | 4b | Admin on its own host, `admin.whale-wallet.cloud` | **DONE** (needs the DNS record and `ADMIN_DOMAIN`, see below) |
-| 5 | Support chat | next |
-| 6 | Actions + audit + privacy text | todo |
+| 5 | Support chat | **DONE** |
+| 6 | Actions + audit + privacy text | next |
 | 7 | Login alerts | todo |
 | 8 | Admin management | todo |
 
@@ -48,6 +48,15 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Conversations: all Whale Chat threads, search by message text, read-only thread view with the AI's drafts; threads a user deleted stay hidden
 - [x] Every view of these pages and every export or image open is written to `admin_audit`; all of it is owner-only (a support admin gets 404)
 - [x] Tests: `tests/Feature/AdminDataTest.php`
+
+### Phase 5: Support chat
+- [x] Tables `support_threads` (one per user, open or closed, unread counts) and `support_messages` (text, "seen" time)
+- [x] User side: **Support** in the sidebar with an unread badge; messenger page with bubbles, "Seen", Enter to send, 1,000 characters, 20 messages a minute; refreshes every 4 seconds; a closed chat reopens when the user writes
+- [x] Admin side: inbox with Open / Unread / Closed filters, list on the left and the chat on the right, reply, Close / Reopen, link to the user's page (owners); refreshes every 5 seconds; unread badge on the Support tab
+- [x] Emails (blue design, legal footer): the admins get one email per chat per 10 minutes for new user messages; the user gets one email per 10 minutes for a reply, only when they are not in the app
+- [x] Roles: owners and support admins both open the inbox; a support admin sees only Support (no users, transactions, receipts, conversations, loans) and lands there after the gate
+- [x] Audit: opening a chat and every reply or close is logged; the user only ever sees their own thread
+- [x] Tests: `tests/Feature/SupportChatTest.php`
 
 ### Creating the first admin (no default account in the code)
 There is **no built-in admin and no default PIN or password in the code**, because the code is in git. An admin exists only after someone runs the seeder on purpose, with the values taken from environment variables (Railway variables), never from a file:

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\RecurringItem;
+use App\Models\SupportThread;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -47,6 +48,9 @@ class HandleInertiaRequests extends Middleware
                 ? RecurringItem::active()->where('next_due_on', '<=', today()->endOfDay())
                     ->where(fn ($q) => $q->whereNull('installments')->orWhere('installments', '>', 0))->count()
                 : 0,
+            // support chat badges: admin replies the user has not opened, and (for admins) user messages nobody has opened
+            'supportUnread' => fn () => $request->user() ? (int) SupportThread::sum('user_unread') : 0,
+            'adminSupportUnread' => fn () => $request->user()?->admin_role ? (int) SupportThread::withoutGlobalScopes()->sum('admin_unread') : 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

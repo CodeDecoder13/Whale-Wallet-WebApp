@@ -1,0 +1,5 @@
+{{ $headline }}
+
+{{ $preview }}
+
+{{ $cta }}: {{ $url }}

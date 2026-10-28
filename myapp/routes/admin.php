@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\GateController;
 use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\ReceiptController;
+use App\Http\Controllers\Admin\SupportController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,13 @@ $admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(functio
     Route::get('gate', [GateController::class, 'show'])->name('gate');
     Route::post('gate/code', [GateController::class, 'code'])->middleware('throttle:3,1')->name('gate.code');
     Route::post('gate', [GateController::class, 'verify'])->middleware('throttle:6,1')->name('gate.verify');
+
+    // the support inbox is open to every admin (owners and support staff)
+    Route::middleware('admin.gate')->group(function () {
+        Route::get('support', [SupportController::class, 'index'])->name('support');
+        Route::post('support/{thread}/messages', [SupportController::class, 'reply'])->whereNumber('thread')->middleware('throttle:30,1')->name('support.reply');
+        Route::post('support/{thread}/status', [SupportController::class, 'status'])->whereNumber('thread')->name('support.status');
+    });
 
     // everything that shows user data is for owners only (a "support" admin gets the support chat, added later)
     Route::middleware(['admin.gate', 'admin:owner'])->group(function () {

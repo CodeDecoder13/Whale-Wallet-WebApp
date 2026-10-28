@@ -22,7 +22,7 @@ class GateController extends Controller
     public function show(Request $request): Response|RedirectResponse
     {
         if (RequireAdminGate::passed($request)) {
-            return redirect()->intended(route('admin.home'));
+            return redirect()->intended($this->landing($request));
         }
 
         $user = $request->user();
@@ -77,6 +77,12 @@ class GateController extends Controller
         Cache::forget($tries);
         $request->session()->put('admin_gate', [$user->id, now()->timestamp]);
 
-        return redirect()->intended(route('admin.home'));
+        return redirect()->intended($this->landing($request));
+    }
+
+    /** Owners open on the overview; a support admin has no overview, so they land in the support inbox. */
+    private function landing(Request $request): string
+    {
+        return $request->user()->admin_role === 'owner' ? route('admin.home') : route('admin.support');
     }
 }

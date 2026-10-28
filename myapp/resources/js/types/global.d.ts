@@ -21,6 +21,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             whaleDue: number;
+            supportUnread: number;
+            adminSupportUnread: number;
             [key: string]: unknown;
         };
     }

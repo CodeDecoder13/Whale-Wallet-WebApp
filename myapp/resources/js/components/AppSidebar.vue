@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import {
     CircleHelp,
     LayoutGrid,
+    LifeBuoy,
     MessageCircle,
     PiggyBank,
     Receipt,
@@ -28,10 +30,13 @@ import { index as cards } from '@/routes/cards';
 import { index as chat } from '@/routes/chat';
 import { index as pods } from '@/routes/pods';
 import { index as subscriptions } from '@/routes/subscriptions';
+import { index as support } from '@/routes/support';
 import { index as transactions } from '@/routes/transactions';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const unread = computed(() => usePage().props.supportUnread);
+
+const mainNavItems = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'Cards', href: cards(), icon: Wallet },
     { title: 'Pods', href: pods(), icon: PiggyBank },
@@ -39,7 +44,8 @@ const mainNavItems: NavItem[] = [
     { title: 'Forecast', href: forecast(), icon: TrendingUp },
     { title: 'Bills & Subs', href: subscriptions(), icon: Repeat },
     { title: 'Whale Chat', href: chat(), icon: MessageCircle },
-];
+    { title: 'Support', href: support(), icon: LifeBuoy, badge: unread.value },
+]);
 
 const footerNavItems: NavItem[] = [
     {

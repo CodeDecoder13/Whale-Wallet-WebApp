@@ -13,6 +13,7 @@ use App\Http\Controllers\PodController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SupportController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
@@ -104,6 +105,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('chat/drafts/{message}/confirm', [ChatController::class, 'confirm'])->name('chat.confirm');
 
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('support', [SupportController::class, 'index'])->name('support.index');
+    Route::post('support/messages', [SupportController::class, 'store'])->middleware('throttle:20,1')->name('support.store');
 });
 
 require __DIR__.'/settings.php';
