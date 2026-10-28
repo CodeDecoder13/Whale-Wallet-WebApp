@@ -94,6 +94,14 @@ Updated after each phase is built, tested and pushed. `[x]` done, `[ ]` not yet.
 - [x] Every add, change and removal is written to the audit log and emailed to the person and to all owners
 - [x] Tests: `tests/Feature/AdminManagementTest.php`
 
+### Phase 9: Support tickets (templates, attachments, end ticket)
+- [x] A chat is now a **ticket**: a user can have many over time, each with a subject. A ticket the user ended stays closed; their next message starts a new one. A reply from the team reopens the ticket it answers
+- [x] **Topic templates** for a user with no open ticket (balance looks wrong, loan/bill/subscription, receipt scan, can't sign in, reset or delete account, something is not working). Picking one fills the message box so they can add details and sets the ticket subject; or they just write freely. Edit the list in `config/support.php`
+- [x] **Attachments** both ways: a picture (JPG, PNG, WebP) or a PDF, up to 5 MB, one per message, a message can be only a file. Type is checked from the file itself, stored on the private disk, served only through a signed-in, permission-checked route (pictures inline, PDFs as downloads, no sniffing, no cache); the admin opening a file is audited
+- [x] **End ticket** by the user (confirm dialog) or **Close ticket** by the admin; who closed it is recorded. The user sees their past tickets read-only under "Your tickets"
+- [x] **Safekeeping:** closing never deletes anything; the admin keeps every message and file under Closed. The privacy policy and changes log now say so
+- [x] Tests: `tests/Feature/SupportTicketsTest.php` (and updates to `SupportChatTest.php`)
+
 ### Everything in this plan is built
 Phases 0 to 8 and 4b, plus release notes. What is left is on you, not in the code:
 - [ ] Add `MAIL_*` to the whale-scheduler service (daily digest and release-note batches)

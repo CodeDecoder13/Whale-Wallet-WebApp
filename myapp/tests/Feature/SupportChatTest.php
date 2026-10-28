@@ -130,7 +130,13 @@ class SupportChatTest extends TestCase
         $this->get(route('admin.support', ['filter' => 'closed']))->assertInertia(fn (Assert $p) => $p->has('threads', 1));
         $this->get(route('admin.support'))->assertInertia(fn (Assert $p) => $p->has('threads', 0));
 
-        $this->actingAs($user)->post(route('support.store'), ['body' => 'Thanks, one more thing']); // writing reopens it
+        // a closed ticket stays closed: the user's next message starts a new ticket, and the old one is kept
+        $this->actingAs($user)->post(route('support.store'), ['body' => 'Thanks, one more thing']);
+        $this->assertSame('closed', $thread->fresh()->status);
+        $this->assertSame(2, SupportThread::withoutGlobalScopes()->count());
+
+        // but a reply from the team reopens the old ticket it is answering
+        $this->asAdmin($admin)->post(route('admin.support.reply', $thread->id), ['body' => 'Fourth']);
         $this->assertSame('open', $thread->fresh()->status);
         $this->assertDatabaseHas('admin_audit', ['action' => 'support_reply', 'target_user_id' => $user->id]);
     }

@@ -30,6 +30,7 @@ $admin->name('admin.')->middleware(['auth', 'verified', 'admin'])->group(functio
     Route::middleware('admin.gate')->group(function () {
         Route::get('support', [SupportController::class, 'index'])->name('support');
         Route::post('support/{thread}/messages', [SupportController::class, 'reply'])->whereNumber('thread')->middleware('throttle:30,1')->name('support.reply');
+        Route::get('support/files/{message}', [SupportController::class, 'file'])->whereNumber('message')->name('support.file');
         Route::post('support/{thread}/status', [SupportController::class, 'status'])->whereNumber('thread')->name('support.status');
     });
 

@@ -5,6 +5,10 @@ import Doc from '@/components/public/Doc.vue';
 const log = [
     [
         '28 October 2026',
+        'Support tickets: you can attach pictures or PDFs (up to 5 MB) to support messages. Ending a ticket closes it for you, but we keep the conversation and its files for safekeeping until you delete your account.',
+    ],
+    [
+        '28 October 2026',
         'Added an admin area for staff and a support chat. Named administrators can now see account details, transactions, loans and subscriptions, receipts and receipt images, and Whale Chat conversations to help users and keep the service safe. They sign in with a password, a PIN and an emailed code, and every access is logged. We also keep an activity record (sign-ins, scans, and similar) for 90 days. See section 6 of the Privacy Policy.',
     ],
     [

@@ -96,7 +96,9 @@ import Doc from '@/components/public/Doc.vue';
             until you remove that income entry. Deleted chats stay out of your
             list but are erased when you wipe history or delete your account.
             Contact messages are kept until we have answered them and for as
-            long as needed to follow up.
+            long as needed to follow up. When you or we end a support ticket,
+            we keep the whole conversation and any pictures or PDFs attached
+            to it for safekeeping, until you delete your account.
         </p>
 
         <h2>8. Security</h2>

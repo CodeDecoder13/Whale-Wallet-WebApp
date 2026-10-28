@@ -114,6 +114,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('support', [SupportController::class, 'index'])->name('support.index');
     Route::post('support/messages', [SupportController::class, 'store'])->middleware('throttle:20,1')->name('support.store');
+    Route::post('support/{thread}/close', [SupportController::class, 'close'])->whereNumber('thread')->name('support.close');
+    Route::get('support/files/{message}', [SupportController::class, 'file'])->whereNumber('message')->name('support.file');
 });
 
 require __DIR__.'/settings.php';
