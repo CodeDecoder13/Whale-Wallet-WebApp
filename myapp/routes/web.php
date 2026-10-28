@@ -76,6 +76,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('transactions/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
 
     Route::post('income', [IncomeController::class, 'store'])->name('income.store');
+    Route::patch('income/waiting', [IncomeController::class, 'waiting'])->name('income.waiting');
     Route::delete('income/{income}', [IncomeController::class, 'destroy'])->name('income.destroy');
 
     Route::get('forecast', ForecastController::class)->name('forecast');

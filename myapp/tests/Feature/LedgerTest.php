@@ -268,4 +268,18 @@ class LedgerTest extends TestCase
         $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
             ->where('summary.income', 3_500_000)->where('summary.next_income', null));
     }
+
+    public function test_user_can_turn_not_paid_yet_on_and_off_from_the_income_tile()
+    {
+        $user = User::factory()->create(['pay_dates' => [22]]);
+        $user->incomeSources()->create(['name' => 'Income', 'amount' => 3_500_000]);
+        Card::factory()->for($user)->create();
+
+        $this->actingAs($user)->patch(route('income.waiting'), ['waiting' => true])->assertRedirect();
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p->where('summary.income', 0)->where('summary.next_income', 3_500_000));
+
+        $this->patch(route('income.waiting'), ['waiting' => false]);
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p->where('summary.income', 3_500_000)->where('summary.next_income', null));
+        $this->patch(route('income.waiting'), [])->assertSessionHasErrors('waiting');
+    }
 }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { VisDonut, VisSingleContainer } from '@unovis/vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { PiggyBank, Receipt, ShoppingCart, Wallet } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import ForecastChart from '@/components/ForecastChart.vue';
 import BrandLogo from '@/components/BrandLogo.vue';
@@ -15,6 +16,7 @@ import type { Point } from '@/components/ForecastChart.vue';
 import { formatPeso } from '@/lib/currency';
 import { dueTone } from '@/lib/dueTone';
 import { dashboard, forecast as forecastPage } from '@/routes';
+import { waiting as incomeWaiting } from '@/routes/income';
 import { edit as profileEdit } from '@/routes/profile';
 import { index as tipsPage } from '@/routes/tips';
 import { index as transactionsPage } from '@/routes/transactions';
@@ -179,6 +181,22 @@ const split = computed(() =>
 );
 
 const welcomeOpen = ref(props.welcome);
+
+// "Not paid yet this month": the salary counts from next month, so left to spend is 0 until then
+const waitingOpen = ref(false);
+const waiting = ref(false);
+const savingWaiting = ref(false);
+const openWaiting = () => {
+    waiting.value = props.summary.next_income !== null;
+    waitingOpen.value = true;
+};
+const saveWaiting = () =>
+    router.patch(incomeWaiting.url(), { waiting: waiting.value }, {
+        preserveScroll: true,
+        onStart: () => (savingWaiting.value = true),
+        onFinish: () => (savingWaiting.value = false),
+        onSuccess: () => (waitingOpen.value = false),
+    });
 
 // ?income=1 (from Whale Chat) opens the dialog so a proof sent there can be confirmed
 const incomeOpen = ref(
@@ -361,14 +379,14 @@ const dueDate = (d: string) =>
                     <div v-if="t.pace" class="absolute -top-0.5 h-2.5 w-0.5 bg-foreground/40" :style="{ left: `${t.pace * 100}%` }" />
                 </div>
                 <div class="mt-2 text-xs text-muted-foreground">{{ t.hint }}</div>
-                <span
-                    v-if="t.key === 'income'"
-                    role="button"
-                    class="mt-2 inline-block text-xs font-medium underline underline-offset-4"
-                    @click.stop="incomeOpen = true"
-                >
-                    + Add income
-                </span>
+                <div v-if="t.key === 'income'" class="mt-2 flex items-center justify-between gap-2 text-xs font-medium">
+                    <span role="button" class="underline underline-offset-4" @click.stop="incomeOpen = true">
+                        + Add income
+                    </span>
+                    <span role="button" class="text-muted-foreground underline underline-offset-4" @click.stop="openWaiting">
+                        {{ summary.next_income !== null ? 'Waiting for pay' : 'Not paid yet?' }}
+                    </span>
+                </div>
                 <Link
                     v-else-if="t.key === 'spent' && t.amount === 0"
                     :href="transactionsPage()"
@@ -421,6 +439,34 @@ const dueDate = (d: string) =>
             :forecast="forecast"
             :upcoming="upcoming"
         />
+
+        <Dialog v-model:open="waitingOpen">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Have you been paid this month?</DialogTitle>
+                    <DialogDescription>
+                        This sets when your salary starts counting. You can change it any time.
+                    </DialogDescription>
+                </DialogHeader>
+                <fieldset class="grid gap-3 text-sm">
+                    <label class="flex items-start gap-2">
+                        <input v-model="waiting" type="radio" :value="false" class="mt-1" />
+                        <span>Yes, I already got my pay this month.</span>
+                    </label>
+                    <label class="flex items-start gap-2">
+                        <input v-model="waiting" type="radio" :value="true" class="mt-1" />
+                        <span>Not yet. My next pay is next month.</span>
+                    </label>
+                    <p v-if="waiting" class="text-xs text-muted-foreground">
+                        Left to spend is ₱0 until then, and your income shows as expected for your next pay cycle. If you log your pay with + Add income, it counts right away.
+                    </p>
+                </fieldset>
+                <DialogFooter>
+                    <Button variant="ghost" @click="waitingOpen = false">Cancel</Button>
+                    <Button :disabled="savingWaiting" @click="saveWaiting">Save</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <IncomeDialog
             v-model:open="incomeOpen"
