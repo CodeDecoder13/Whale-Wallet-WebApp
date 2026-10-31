@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailOtpController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\IncomeController;
+use App\Http\Controllers\LendController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PodController;
@@ -87,6 +88,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('subscriptions/{subscription}/hide', [SubscriptionController::class, 'hide'])->name('subscriptions.hide');
     Route::post('subscriptions/{subscription}/show', [SubscriptionController::class, 'show'])->name('subscriptions.show');
     Route::post('subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
+
+    Route::get('lends', [LendController::class, 'index'])->name('lends.index');
+    Route::post('lends', [LendController::class, 'store'])->middleware('throttle:10,1')->name('lends.store');
+    Route::post('lends/{lend}/paid', [LendController::class, 'paid'])->whereNumber('lend')->name('lends.paid');
+    Route::delete('lends/{lend}', [LendController::class, 'destroy'])->whereNumber('lend')->name('lends.destroy');
 
     Route::get('tips', [RecommendationController::class, 'index'])->name('tips.index');
     Route::post('tips', [RecommendationController::class, 'store'])->middleware('throttle:6,1')->name('tips.store');

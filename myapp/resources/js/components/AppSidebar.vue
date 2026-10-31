@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import {
     CircleHelp,
+    HandCoins,
     LayoutGrid,
     LifeBuoy,
     MessageCircle,
@@ -28,6 +29,7 @@ import {
 import { dashboard, forecast } from '@/routes';
 import { index as cards } from '@/routes/cards';
 import { index as chat } from '@/routes/chat';
+import { index as lends } from '@/routes/lends';
 import { index as pods } from '@/routes/pods';
 import { index as subscriptions } from '@/routes/subscriptions';
 import { index as support } from '@/routes/support';
@@ -43,6 +45,7 @@ const mainNavItems = computed<NavItem[]>(() => [
     { title: 'Transactions', href: transactions(), icon: Receipt },
     { title: 'Forecast', href: forecast(), icon: TrendingUp },
     { title: 'Bills & Subs', href: subscriptions(), icon: Repeat },
+    { title: 'Who Owes You', href: lends(), icon: HandCoins },
     { title: 'Whale Chat', href: chat(), icon: MessageCircle },
     { title: 'Support', href: support(), icon: LifeBuoy, badge: unread.value },
 ]);

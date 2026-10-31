@@ -271,7 +271,7 @@ const dueDate = (d: string) =>
                         </div>
                         <p class="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-white/60 lg:justify-end">
                             Assets {{ formatPeso(net_worth.assets) }}
-                            <HelpTip text="What you own: the balances on your cash, bank and e-wallet cards, your savings pods, and any credit left in credit cards. Add your real balances in Cards to raise it." />
+                            <HelpTip text="What you own: the balances on your cash, bank and e-wallet cards, your savings pods, cash you lent that is still owed to you (Who Owes You), and any credit left in credit cards. Add your real balances in Cards to raise it." />
                             · Debts {{ formatPeso(net_worth.debts) }}
                             <HelpTip text="What you owe: the full remaining amount on every active loan (payments left × amount), plus credit card balances you owe. Bills and subscriptions are not debt. Each loan payment you make lowers it." />
                         </p>

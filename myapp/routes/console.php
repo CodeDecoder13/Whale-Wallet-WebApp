@@ -72,5 +72,26 @@ Schedule::command('digest:send')->everyFiveMinutes()->withoutOverlapping();
 // release note emails go out in batches until everyone has had theirs
 Schedule::command('release:send')->everyMinute()->withoutOverlapping();
 
+// "Who Owes You": email the borrower on the agreed day before, on the due date, and every 7 days once overdue
+Artisan::command('lends:remind', function () {
+    $sent = 0;
+    // no signed-in user here, so the BelongsToUser scope does not apply
+    foreach (\App\Models\Lend::withoutGlobalScopes()->owed()->with('user')->get() as $lend) {
+        if (! ($kind = $lend->reminderToday()) || $lend->user->suspended_at) {
+            continue;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($lend->email)->send(new \App\Mail\LendNotice($lend, $lend->user, $kind));
+            $lend->update(['reminded_on' => today()]);
+            $sent++;
+        } catch (Throwable $e) {
+            report($e); // one bad address must not stop the rest
+        }
+    }
+    $this->info("Sent {$sent} loan reminders.");
+})->purpose('Email borrowers a reminder on the days agreed for each loan');
+Schedule::command('lends:remind')->dailyAt('09:00')->timezone('Asia/Manila')->withoutOverlapping();
+
 // the admin activity feed keeps 90 days
 Schedule::call(fn () => \App\Models\ActivityLog::where('created_at', '<', now()->subDays(90))->delete())->daily()->name('activity:prune');

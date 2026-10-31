@@ -65,6 +65,7 @@ class AccountResetController extends Controller
                 $r->delete();
             });
             Recommendation::query()->delete();
+            \App\Models\Lend::query()->delete(); // their reminder emails stop too
             app(DataController::class)->clearChat($request);
             Category::seedFor($user);
         });

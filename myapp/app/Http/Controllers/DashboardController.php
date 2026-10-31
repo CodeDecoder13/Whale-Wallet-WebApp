@@ -21,7 +21,7 @@ use Inertia\Response;
 class DashboardController extends Controller
 {
     /**
-     * Centavos. Assets: cash, bank and e-wallet balances plus savings pods. Debts: loans still to pay
+     * Centavos. Assets: cash, bank and e-wallet balances, savings pods and cash lent out that is still owed to you. Debts: loans still to pay
      * (what is left to pay on each) and what is owed on credit cards (a credit card balance goes negative as you spend).
      *
      * @return array{assets: int, debts: int, total: int}
@@ -33,7 +33,7 @@ class DashboardController extends Controller
         $loans = (int) RecurringItem::where('kind', RecurringKind::Debt)->whereNull('hidden_at')->whereNotNull('installments')->get()
             ->sum(fn ($i) => $i->remaining());
 
-        $assets = (int) $cards->where('type', '!=', CardType::Credit)->sum('balance') + (int) Pod::sum('saved_amount') + max(0, $credit);
+        $assets = (int) $cards->where('type', '!=', CardType::Credit)->sum('balance') + (int) Pod::sum('saved_amount') + (int) \App\Models\Lend::owed()->sum('amount') + max(0, $credit);
         $debts = $loans + max(0, -$credit);
 
         return ['assets' => $assets, 'debts' => $debts, 'total' => $assets - $debts];
