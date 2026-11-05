@@ -11,7 +11,7 @@ class AdminAudit extends Model
 
     public $timestamps = false;
 
-    protected $guarded = [];
+    protected $fillable = ['admin_id', 'action', 'target_user_id', 'meta', 'ip', 'created_at'];
 
     protected function casts(): array
     {

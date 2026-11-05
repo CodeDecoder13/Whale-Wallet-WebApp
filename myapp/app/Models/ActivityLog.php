@@ -9,7 +9,7 @@ class ActivityLog extends Model
 {
     public $timestamps = false;
 
-    protected $guarded = [];
+    protected $fillable = ['event', 'user_id', 'meta', 'ip', 'created_at'];
 
     protected function casts(): array
     {

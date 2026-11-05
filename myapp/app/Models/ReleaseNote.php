@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ReleaseNote extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['title', 'version', 'body', 'send_email', 'show_popup', 'created_by', 'status', 'published_at', 'email_status'];
 
     protected function casts(): array
     {
