@@ -22,7 +22,9 @@ Contract for the mobile app. Everything here is live on production unless marked
 | 429 | Throttled (login/register/password 6/min, AI 6–20/min). |
 | 503 | AI provider unavailable: `{message}`. |
 
-**2FA:** an account with two-factor on cannot log in on mobile yet. Login answers `403 {message}`; the message contains "2FA".
+**2FA:** if the account has two-factor on, `POST /auth/login` answers `422` with an error on `code`. Send the same request again with `code` (6 digits from the authenticator) or `recovery_code`. A recovery code works once.
+
+**Tokens:** they expire after 30 days of issue; a `401` means ask for login again. After 5 wrong logins for one email in a minute, login answers `422` ("Too many login attempts") whatever the IP.
 
 ---
 
@@ -33,6 +35,11 @@ Contract for the mobile app. Everything here is live on production unless marked
 | POST | `/auth/register` | `name, email, password, password_confirmation, device_name` | 201 `{token, token_type, user}`. Sends a verification email; most routes 403 until verified. |
 | POST | `/auth/login` | `email, password, device_name` | `{token, token_type, user}`. Logging in again with the same `device_name` replaces that device's token. |
 | POST | `/auth/logout` | – | 204 |
+| POST | `/auth/forgot-password` | `email` | 200 always (never says if the email exists). The email carries a reset token. |
+| POST | `/auth/reset-password` | `token, email, password, password_confirmation` | 200; signs the account out of every device. 422 for a bad or expired token. |
+| POST | `/auth/email/resend` | – | 202. Sends a new 6-digit verification code (3/min). |
+| GET | `/tokens` | – | `{data: [{id, name, created_at, last_used_at}]}` |
+| DELETE | `/tokens/{id}` | – | 204 (sign that device out; 404 for someone else's token) |
 | GET | `/me` | – | `{data: user}` |
 | PATCH | `/me` | `name, email` | `{data: user}` (changing email un-verifies it) |
 | PATCH | `/me/avatar` | `avatar` = `data:image/jpeg;base64,...` (≤40 KB) or `null` to remove | `{data: user}` |
@@ -171,7 +178,7 @@ Errors: 422 without consent (`consent_url`), 429 (quota or throttle), 503 (provi
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/devices` | `expo_push_token` (`ExponentPushToken[...]`), `platform` (`ios` or `android`) → `{data: {id, expo_push_token, platform, last_seen_at}}`. An upsert by token: 201 the first time, 200 after. |
+| POST | `/devices` | `expo_push_token` (`ExponentPushToken[...]`), `platform` (`ios` or `android`) → `{data: {id, expo_push_token, platform, last_seen_at}}`. An upsert by token: 201 the first time, 200 after. A token belongs to one account: registering it from another account moves it, so alerts stop going to the old one. |
 | DELETE | `/devices/{id}` | 204 |
 | DELETE | `/devices` | `{expo_push_token, platform}` → 204. Use this to turn push off after an app restart (you have the token but not the id). |
 

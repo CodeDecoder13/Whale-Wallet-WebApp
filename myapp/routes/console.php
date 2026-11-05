@@ -95,3 +95,10 @@ Schedule::command('lends:remind')->dailyAt('09:00')->timezone('Asia/Manila')->wi
 
 // the admin activity feed keeps 90 days
 Schedule::call(fn () => \App\Models\ActivityLog::where('created_at', '<', now()->subDays(90))->delete())->daily()->name('activity:prune');
+
+// receipts nobody confirmed (failed, or parsed and abandoned) are dropped after 7 days, file included
+Schedule::call(function () {
+    $old = \App\Models\Receipt::withoutGlobalScopes()->where('status', '!=', 'confirmed')->where('created_at', '<', now()->subDays(7));
+    \Illuminate\Support\Facades\Storage::disk()->delete($old->clone()->whereNotNull('path')->pluck('path')->all());
+    $old->delete();
+})->daily()->name('receipts:prune');

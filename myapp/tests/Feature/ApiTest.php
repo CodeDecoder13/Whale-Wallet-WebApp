@@ -78,13 +78,97 @@ class ApiTest extends TestCase
         $this->postJson('/api/v1/auth/login', [])->assertStatus(422)->assertJsonValidationErrors(['email', 'password', 'device_name']);
     }
 
-    public function test_login_refuses_accounts_with_two_factor_enabled()
+    public function test_two_factor_accounts_need_a_code_or_recovery_code_to_log_in()
     {
         User::factory()->withTwoFactor()->create(['email' => 'two@example.com']);
+        $login = ['email' => 'two@example.com', 'password' => 'password', 'device_name' => 'x'];
 
-        $this->postJson('/api/v1/auth/login', ['email' => 'two@example.com', 'password' => 'password', 'device_name' => 'x'])
-            ->assertStatus(403)->assertJsonPath('message', fn ($m) => str_contains($m, '2FA'));
+        $this->postJson('/api/v1/auth/login', $login)->assertStatus(422)->assertJsonValidationErrors('code');
+        $this->postJson('/api/v1/auth/login', $login + ['recovery_code' => 'wrong'])->assertStatus(422)->assertJsonValidationErrors('code');
         $this->assertSame(0, PersonalAccessToken::count());
+
+        $this->postJson('/api/v1/auth/login', $login + ['recovery_code' => 'recovery-code-1'])->assertOk()->assertJsonStructure(['token']);
+        // a recovery code works once
+        $this->postJson('/api/v1/auth/login', $login + ['recovery_code' => 'recovery-code-1'])->assertStatus(422);
+    }
+
+    public function test_login_locks_an_email_after_five_misses_even_from_new_ips()
+    {
+        $this->demo();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.$i"])->postJson('/api/v1/auth/login', ['email' => 'demo@example.com', 'password' => 'bad', 'device_name' => 'x'])->assertStatus(422);
+        }
+
+        // the right password is refused too while locked
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.99'])->postJson('/api/v1/auth/login', ['email' => 'demo@example.com', 'password' => 'password', 'device_name' => 'x'])
+            ->assertStatus(422)->assertJsonPath('errors.email.0', fn ($m) => str_contains($m, 'Too many'));
+    }
+
+    public function test_tokens_can_be_listed_and_revoked_but_only_your_own()
+    {
+        $user = $this->demo();
+        $other = User::factory()->create();
+        $theirs = $other->createToken('theirs')->accessToken;
+
+        $this->as($user)->getJson('/api/v1/tokens')->assertOk()->assertJsonCount(1, 'data');
+        $this->as($user)->deleteJson("/api/v1/tokens/{$theirs->id}")->assertNotFound();
+        $mine = $user->tokens()->first();
+        $this->as($user)->deleteJson("/api/v1/tokens/{$mine->id}")->assertNoContent();
+        $this->assertSame(1, $other->tokens()->count());
+    }
+
+    public function test_forgot_password_never_reveals_whether_the_email_exists()
+    {
+        $this->demo();
+
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'demo@example.com'])->assertOk();
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'nobody@example.com'])->assertOk();
+    }
+
+    public function test_reset_password_changes_it_and_signs_out_every_device()
+    {
+        $user = $this->demo();
+        $user->createToken('phone');
+        $token = \Illuminate\Support\Facades\Password::createToken($user);
+
+        $this->postJson('/api/v1/auth/reset-password', ['token' => 'bad', 'email' => $user->email, 'password' => 'N3w-pass-word!', 'password_confirmation' => 'N3w-pass-word!'])->assertStatus(422);
+        $this->postJson('/api/v1/auth/reset-password', ['token' => $token, 'email' => $user->email, 'password' => 'N3w-pass-word!', 'password_confirmation' => 'N3w-pass-word!'])->assertOk();
+
+        $this->assertSame(0, $user->tokens()->count());
+        $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'N3w-pass-word!', 'device_name' => 'x'])->assertOk();
+    }
+
+    public function test_unverified_users_can_ask_for_a_new_code()
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->as($user)->postJson('/api/v1/auth/email/resend')->assertStatus(202);
+        $this->assertNotNull(\Illuminate\Support\Facades\Cache::get("otp:{$user->id}"));
+    }
+
+    public function test_a_card_with_transactions_cannot_be_deleted()
+    {
+        $user = $this->demo();
+        $used = Card::factory()->create(['user_id' => $user->id])->id;
+        Transaction::factory()->create(['user_id' => $user->id, 'card_id' => $used]);
+        $empty = Card::factory()->create(['user_id' => $user->id]);
+
+        $this->as($user)->deleteJson("/api/v1/cards/{$used}")->assertStatus(422)->assertJsonValidationErrors('card');
+        $this->assertNotNull(Card::find($used));
+        $this->as($user)->deleteJson("/api/v1/cards/{$empty->id}")->assertNoContent();
+    }
+
+    public function test_a_push_token_moves_to_the_account_that_registers_it_last()
+    {
+        $a = $this->demo();
+        $b = User::factory()->create();
+        $body = ['expo_push_token' => 'ExponentPushToken[abc]', 'platform' => 'android'];
+
+        $this->as($a)->postJson('/api/v1/devices', $body)->assertCreated();
+        $this->as($b)->postJson('/api/v1/devices', $body)->assertStatus(200);
+
+        $this->assertSame([$b->id], Device::withoutGlobalScopes()->pluck('user_id')->all());
     }
 
     public function test_login_is_throttled()

@@ -103,9 +103,10 @@ function submit() {
 }
 
 function remove(c: WalletCard) {
-    if (confirm(`Delete ${c.name} and its transactions?`)) {
+    if (confirm(`Delete ${c.name}? Cards that still have transactions cannot be deleted.`)) {
         router.delete(CardController.destroy.url(c.id), {
             preserveScroll: true,
+            onError: (e) => alert(e.card ?? 'Could not delete this card.'),
         });
     }
 }

@@ -18,7 +18,7 @@ class TransactionRequest extends PesoRequest
             'amount' => ['required', 'integer', 'min:1'],
             'card_id' => ['required', $mine('cards')],
             'category_id' => ['nullable', $mine('categories')],
-            'occurred_at' => ['required', 'date'],
+            'occurred_at' => ['required', 'date', 'before_or_equal:tomorrow'],
             'note' => ['nullable', 'string', 'max:500'],
             'reference' => ['nullable', 'string', 'max:80'],
             'source' => ['required', Rule::enum(TransactionSource::class)],

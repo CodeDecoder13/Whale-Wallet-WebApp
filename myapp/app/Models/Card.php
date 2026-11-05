@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 class Card extends Model
 {
@@ -27,6 +28,16 @@ class Card extends Model
             ['transactions as spent' => fn ($q) => $q->where('type', 'expense')->where('occurred_at', '>=', now()->startOfMonth())],
             'amount',
         );
+    }
+
+    protected static function booted(): void
+    {
+        // a card's history is the user's records: never cascade-delete it silently
+        static::deleting(function (Card $card) {
+            if ($card->transactions()->exists()) {
+                throw ValidationException::withMessages(['card' => __("Move or delete this card's transactions first.")]);
+            }
+        });
     }
 
     public function transactions(): HasMany

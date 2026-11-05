@@ -19,11 +19,16 @@ use Illuminate\Support\Facades\Route;
 // Served at /api/v1. Receipts, chat and the CSV export reuse the web controllers: they already answer in JSON.
 Route::name('api.')->prefix('v1')->group(function () {
     Route::post('auth/register', [AccountController::class, 'register'])->middleware('throttle:6,1');
-    Route::post('auth/login',[AuthController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
+        Route::post('auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:3,1');
+        Route::get('tokens', [AuthController::class, 'tokens']);
+        Route::delete('tokens/{token}', [AuthController::class, 'revokeToken'])->whereNumber('token');
         Route::patch('me', [AccountController::class, 'profile']);
         Route::patch('me/avatar', [AccountController::class, 'avatar']);
         Route::patch('me/payday', [AccountController::class, 'payday']);

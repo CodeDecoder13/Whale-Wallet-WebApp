@@ -13,10 +13,9 @@ class DeviceController extends Controller
     /** Registering the same token again just refreshes it (201 the first time, 200 after). */
     public function store(DeviceRequest $request): JsonResponse
     {
-        $device = Device::updateOrCreate(
-            ['expo_push_token' => $request->expo_push_token],
-            ['platform' => $request->platform, 'last_seen_at' => now()],
-        );
+        // one phone token belongs to one account: signing in as someone else moves it, so alerts never reach the old owner
+        $device = Device::withoutGlobalScopes()->firstOrNew(['expo_push_token' => $request->expo_push_token]);
+        $device->forceFill(['user_id' => $request->user()->id, 'platform' => $request->platform, 'last_seen_at' => now()])->save();
 
         return (new DeviceResource($device))->response()->setStatusCode($device->wasRecentlyCreated ? 201 : 200);
     }
