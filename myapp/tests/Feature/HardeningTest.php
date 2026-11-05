@@ -109,4 +109,16 @@ class HardeningTest extends TestCase
         }
         $this->actingAs($user)->getJson('/api/v1/me')->assertDontSee('sk-test-leak-canary', false);
     }
+
+    public function test_health_checks_the_database()
+    {
+        $this->get('/health')->assertOk()->assertSee('ok');
+    }
+
+    public function test_money_fields_have_an_upper_bound()
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/cards', ['name' => 'X', 'type' => 'debit', 'balance' => '99999999999', 'monthly_limit' => ''])->assertSessionHasErrors('balance');
+    }
 }

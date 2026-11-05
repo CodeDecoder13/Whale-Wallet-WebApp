@@ -102,3 +102,8 @@ Schedule::call(function () {
     \Illuminate\Support\Facades\Storage::disk()->delete($old->clone()->whereNotNull('path')->pluck('path')->all());
     $old->delete();
 })->daily()->name('receipts:prune');
+
+// housekeeping: expired API tokens, old failed jobs, push markers past their 35-day window
+Schedule::command('sanctum:prune-expired --hours=24')->daily();
+Schedule::command('queue:prune-failed --hours=720')->daily();
+Schedule::call(fn () => \Illuminate\Support\Facades\DB::table('push_markers')->where('created_at', '<', now()->subDays(35))->delete())->daily()->name('push:prune-markers');

@@ -231,7 +231,20 @@ The pushes are Laravel scheduled commands (`push:bills`, `push:payday`, `push:da
 
 1. Railway project → **New → GitHub Repo** → `CodeDecoder13/Whale-Wallet-WebApp` (a second service, e.g. `whale-scheduler`).
 2. Service **Settings**: Root Directory `/myapp`, Config-as-code path `/myapp/railway.cron.toml`.
-3. **Variables:** copy the web service's variables, at least `APP_KEY`, `APP_ENV`, `DB_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, `APP_URL`. `CACHE_STORE` must survive between runs (database or redis, not `array`): it holds the "already sent" markers.
+3. **Variables:** copy the web service's variables, at least `APP_KEY`, `APP_ENV`, `DB_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, `APP_URL`. The "already sent" markers live in the `push_markers` table, so a cache flush cannot repeat an alert.
 4. Deploy. It runs every 5 minutes (Railway's minimum) and exits; its logs show `Sent N ... alerts.`. Set `APP_TIMEZONE` to change the send times.
 
 Test without waiting: run `php artisan push:daily` in that service (needs a registered device).
+
+### Production checklist (Railway variables)
+
+| Variable | Value | Why |
+|---|---|---|
+| `APP_ENV` / `APP_DEBUG` | `production` / `false` | no stack traces to users; session cookies become Secure |
+| `FILESYSTEM_DISK` | `s3` (+ `AWS_*`, bucket private) | receipt images must outlive a redeploy and be shared by the web and worker services |
+| `LOG_STACK` + `LOG_SLACK_WEBHOOK_URL` | `single,slack` + a Slack incoming webhook | errors and critical queue failures reach you in Slack (the `slack` channel is already configured) |
+| `QUEUE_CONNECTION` / `CACHE_STORE` | `database` / `database` (or redis) | survives restarts |
+| Health check | `GET /health` | 200 `ok`, 503 when the database is down; point the uptime monitor and Railway healthcheck at it |
+| Database backups | enable Railway's Postgres backups (daily) | the only copy of users' money records |
+
+The scheduler also prunes expired API tokens, failed jobs older than 30 days, old push markers and unconfirmed receipts older than 7 days.

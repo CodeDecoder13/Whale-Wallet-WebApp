@@ -575,6 +575,8 @@ class ApiTest extends TestCase
         $this->assertSame(1, $push->payday($loader));
         $this->assertSame(1, $push->daily($loader));
         $this->assertSame(0, $push->payday($loader)); // same alert is not repeated
+        \Illuminate\Support\Facades\Cache::flush();
+        $this->assertSame(0, $push->payday($loader)); // ...not even after the cache is cleared
 
         $types = [];
         \Illuminate\Support\Facades\Http::assertSent(function ($r) use (&$types) {

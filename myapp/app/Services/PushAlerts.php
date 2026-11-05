@@ -8,14 +8,13 @@ use App\Models\RecurringItem;
 use App\Models\User;
 use App\Services\Forecast\ForecastLoader;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 /**
  * Bill and budget push notifications through Expo's HTTP API. Runs from scheduled commands, so there is
  * no signed-in user: the BelongsToUser scope is off and every query filters user_id by hand.
- * A sent-marker in the cache keeps the same alert from going out twice
- * (ponytail: clearing the cache can repeat an alert once; move markers to a table if that matters).
+ * A sent-marker row in push_markers keeps the same alert from going out twice, and survives a cache flush or a deploy.
  */
 class PushAlerts
 {
@@ -108,7 +107,7 @@ class PushAlerts
     /** Sends one alert to every token unless its marker is set; the marker is set only after Expo took the batch. */
     private function deliver(string $type, string $marker, $tokens, string $title, string $body): bool
     {
-        if (Cache::has($marker)) {
+        if (DB::table('push_markers')->where('marker', $marker)->exists()) {
             return false;
         }
 
@@ -127,7 +126,7 @@ class PushAlerts
             }
         }
 
-        Cache::put($marker, true, now()->addDays(35));
+        DB::table('push_markers')->insertOrIgnore(['marker' => $marker, 'created_at' => now()]);
 
         return true;
     }

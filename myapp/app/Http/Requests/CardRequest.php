@@ -14,8 +14,8 @@ class CardRequest extends PesoRequest
         return [
             'name' => ['required', 'string', 'max:80'],
             'type' => ['required', Rule::enum(CardType::class)],
-            'balance' => ['required', 'integer'],
-            'monthly_limit' => ['nullable', 'integer', 'min:1'],
+            'balance' => ['required', 'integer', 'between:-100000000000,100000000000'], // centavos: a credit card balance can be negative
+            'monthly_limit' => ['nullable', 'integer', 'between:1,100000000000'],
             'color' => ['nullable', 'string', 'max:20'],
             'account_name' => ['nullable', 'string', 'max:80'],
             'account_number' => ['nullable', 'string', 'max:40', 'regex:/^[0-9 -]+$/'],

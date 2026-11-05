@@ -39,6 +39,19 @@ Route::inertia('/cookies', 'legal/Cookies')->name('cookies');
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
 
+// for the host's health check / uptime monitor: unlike /up this fails (503) when the database is down. Reveals nothing else.
+Route::get('/health', function () {
+    try {
+        \Illuminate\Support\Facades\DB::select('select 1');
+
+        return response('ok');
+    } catch (Throwable $e) {
+        report($e);
+
+        return response('down', 503);
+    }
+});
+
 Route::get('/.well-known/security.txt', fn () => response(
     "Contact: mailto:support@whalewallet.cloud\nExpires: ".now()->addYear()->toIso8601ZuluString()."\nPreferred-Languages: en, fil\nCanonical: ".url('/.well-known/security.txt')."\n",
     200, ['Content-Type' => 'text/plain; charset=utf-8'],
