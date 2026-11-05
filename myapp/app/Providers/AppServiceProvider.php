@@ -21,7 +21,10 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -42,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        RateLimiter::for('global', fn (Request $r) => Limit::perMinute(240)->by($r->user()?->id ?: $r->ip()));
 
         // the reset-password email uses the Whale Wallet design instead of Laravel's default
         ResetPassword::toMailUsing(fn ($user, string $token) => (new MailMessage)

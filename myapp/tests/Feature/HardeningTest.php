@@ -121,4 +121,21 @@ class HardeningTest extends TestCase
 
         $this->actingAs($user)->post('/cards', ['name' => 'X', 'type' => 'debit', 'balance' => '99999999999', 'monthly_limit' => ''])->assertSessionHasErrors('balance');
     }
+
+    public function test_missing_pages_show_the_branded_error_page()
+    {
+        $this->get('/no-such-page')->assertNotFound()->assertInertia(fn ($p) => $p->component('Error')->where('status', 404));
+        $this->getJson('/no-such-page')->assertNotFound()->assertJsonMissing(['component' => 'Error']);
+    }
+
+    public function test_the_global_limit_answers_429_with_the_error_page_and_json_for_the_api()
+    {
+        \Illuminate\Support\Facades\RateLimiter::for('global', fn () => \Illuminate\Cache\RateLimiting\Limit::perMinute(2)->by('t'));
+
+        $this->get('/health')->assertOk();
+        $this->get('/health')->assertOk();
+        $this->get('/health')->assertStatus(429)->assertInertia(fn ($p) => $p->component('Error')->where('status', 429));
+        \Laravel\Sanctum\Sanctum::actingAs(User::factory()->create());
+        $this->getJson('/api/v1/me')->assertStatus(429)->assertJsonStructure(['message']);
+    }
 }
