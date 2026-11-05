@@ -81,8 +81,8 @@ import Doc from '@/components/public/Doc.vue';
 
         <h2>Contact</h2>
         <p>
-            <a href="mailto:support@whalewallet.cloud"
-                >support@whalewallet.cloud</a
+            <a href="mailto:dev@whale-wallet.cloud"
+                >dev@whale-wallet.cloud</a
             >
         </p>
     </Doc>

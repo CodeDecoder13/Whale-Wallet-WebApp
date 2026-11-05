@@ -37,7 +37,7 @@ class PublicSiteTest extends TestCase
             $this->assertStringContainsString(route($name), $sitemap);
         }
 
-        $this->get('/.well-known/security.txt')->assertOk()->assertSee('Contact: mailto:support@whalewallet.cloud');
+        $this->get('/.well-known/security.txt')->assertOk()->assertSee('Contact: mailto:dev@whale-wallet.cloud');
     }
 
     public function test_responses_carry_security_headers(): void
@@ -55,13 +55,13 @@ class PublicSiteTest extends TestCase
     public function test_contact_form_is_forwarded_to_the_support_inbox_with_reply_to(): void
     {
         Mail::fake();
-        config(['mail.contact_to' => 'support@whale-wallet.cloud']);
+        config(['mail.contact_to' => 'dev@whale-wallet.cloud']);
 
         $this->post(route('contact.store'), ['name' => 'Ana', 'email' => 'ana@example.com', 'topic' => 'Support', 'message' => 'Hello'])->assertRedirect();
         $this->post(route('contact.store'), ['name' => 'Bot', 'email' => 'b@example.com', 'topic' => 'Other', 'message' => 'spam', 'website' => 'x'])->assertRedirect();
 
         Mail::assertSent(ContactReceived::class, 1);
-        Mail::assertSent(ContactReceived::class, fn ($m) => $m->hasTo('support@whale-wallet.cloud') && $m->hasReplyTo('ana@example.com'));
+        Mail::assertSent(ContactReceived::class, fn ($m) => $m->hasTo('dev@whale-wallet.cloud') && $m->hasReplyTo('ana@example.com'));
     }
 
     public function test_contact_form_validates_and_ignores_bots(): void

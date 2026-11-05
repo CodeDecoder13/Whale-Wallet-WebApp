@@ -91,10 +91,10 @@ const linkClass = 'block py-1 hover:text-foreground hover:underline';
                     </template>
                     <a
                         v-if="c.title === 'Company'"
-                        href="mailto:support@whalewallet.cloud"
+                        href="mailto:dev@whale-wallet.cloud"
                         :class="linkClass"
                     >
-                        support@whalewallet.cloud
+                        dev@whale-wallet.cloud
                     </a>
                 </nav>
             </div>

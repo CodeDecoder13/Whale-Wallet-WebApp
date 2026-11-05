@@ -53,7 +53,7 @@ Route::get('/health', function () {
 });
 
 Route::get('/.well-known/security.txt', fn () => response(
-    "Contact: mailto:support@whalewallet.cloud\nExpires: ".now()->addYear()->toIso8601ZuluString()."\nPreferred-Languages: en, fil\nCanonical: ".url('/.well-known/security.txt')."\n",
+    "Contact: mailto:dev@whale-wallet.cloud\nExpires: ".now()->addYear()->toIso8601ZuluString()."\nPreferred-Languages: en, fil\nCanonical: ".url('/.well-known/security.txt')."\n",
     200, ['Content-Type' => 'text/plain; charset=utf-8'],
 ));
 

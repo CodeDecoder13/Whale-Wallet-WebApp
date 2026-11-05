@@ -110,8 +110,8 @@ import Doc from '@/components/public/Doc.vue';
         <h2>15. Contact</h2>
         <p>
             Rhuzzel Paramio, Metro Manila, Philippines,
-            <a href="mailto:support@whalewallet.cloud"
-                >support@whalewallet.cloud</a
+            <a href="mailto:dev@whale-wallet.cloud"
+                >dev@whale-wallet.cloud</a
             >.
         </p>
     </Doc>

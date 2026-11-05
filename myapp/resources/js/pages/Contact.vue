@@ -31,8 +31,8 @@ const send = () =>
     >
         <p>
             Start with the <a href="/docs">documentation</a>. You can also email
-            <a href="mailto:support@whalewallet.cloud"
-                >support@whalewallet.cloud</a
+            <a href="mailto:dev@whale-wallet.cloud"
+                >dev@whale-wallet.cloud</a
             >
             or use the form below. For access, correction or deletion of your
             data, choose the topic “Privacy request”.

@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: /admin
 
-Sitemap: https://whalewallet.cloud/sitemap.xml
+Sitemap: https://whale-wallet.cloud/sitemap.xml

@@ -15,8 +15,8 @@ import Doc from '@/components/public/Doc.vue';
         <p>
             <strong>Who we are.</strong> Rhuzzel Paramio, operating Whale Wallet
             from Metro Manila, Philippines. Contact:
-            <a href="mailto:support@whalewallet.cloud"
-                >support@whalewallet.cloud</a
+            <a href="mailto:dev@whale-wallet.cloud"
+                >dev@whale-wallet.cloud</a
             >.
         </p>
 
@@ -133,8 +133,8 @@ import Doc from '@/components/public/Doc.vue';
         <h2>12. Contact and data protection contact</h2>
         <p>
             Rhuzzel Paramio,
-            <a href="mailto:support@whalewallet.cloud"
-                >support@whalewallet.cloud</a
+            <a href="mailto:dev@whale-wallet.cloud"
+                >dev@whale-wallet.cloud</a
             >, Metro Manila, Philippines.
         </p>
     </Doc>

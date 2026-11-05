@@ -43,8 +43,8 @@ import Doc from '@/components/public/Doc.vue';
         <h2>Report a vulnerability</h2>
         <p>
             Email
-            <a href="mailto:support@whalewallet.cloud"
-                >support@whalewallet.cloud</a
+            <a href="mailto:dev@whale-wallet.cloud"
+                >dev@whale-wallet.cloud</a
             >, or see <a href="/.well-known/security.txt">security.txt</a>.
             Reports made in good faith will not lead to action against you.
             Please do not access other people's data or disrupt the service
