@@ -20,6 +20,7 @@ void createInertiaApp({
             case name.startsWith('privacy/'):
             case name.startsWith('legal/'):
                 return PublicLayout;
+            case name === 'Error':
             case name === 'transactions/Report':
             case name === 'admin/Login':
                 return BareLayout;
