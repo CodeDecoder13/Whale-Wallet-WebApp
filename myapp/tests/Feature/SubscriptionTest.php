@@ -92,6 +92,17 @@ class SubscriptionTest extends TestCase
             ->where('items.3.monthly', 10_000));
     }
 
+    public function test_a_note_is_saved_and_capped_at_500_characters()
+    {
+        $this->actingAs(User::factory()->create());
+        $bill = ['name' => 'Nmax', 'amount' => '9000', 'cadence' => 'monthly', 'next_due_on' => '2026-12-27', 'kind' => 'bill'];
+
+        $this->post(route('subscriptions.store'), $bill + ['note' => 'Plate ABC 123'])->assertRedirect();
+        $this->assertSame('Plate ABC 123', RecurringItem::sole()->note);
+
+        $this->post(route('subscriptions.store'), $bill + ['note' => str_repeat('x', 501)])->assertSessionHasErrors('note');
+    }
+
     public function test_create_update_delete_and_flip_kind()
     {
         $user = User::factory()->create();

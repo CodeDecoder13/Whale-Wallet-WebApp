@@ -36,7 +36,7 @@ class SubscriptionController extends Controller
                 'payments' => ($payments[$i->id] ?? collect())->take(10)->map(fn ($t) => [
                     'id' => $t->id, 'amount' => $t->amount, 'card' => $t->card->name, 'paid_on' => $t->occurred_at->toDateString(),
                 ])->values(),
-                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'total_amount', 'logo', 'card_id', 'cancel_reason']),
+                ...$i->only(['id', 'name', 'amount', 'cadence', 'installments', 'total_amount', 'logo', 'card_id', 'cancel_reason', 'note']),
                 'cancelled' => $i->cancelled_at !== null,
                 'hidden' => $i->hidden_at !== null,
                 'kind' => $i->kind->value,

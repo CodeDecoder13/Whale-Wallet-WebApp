@@ -14,6 +14,7 @@ class SubscriptionRequest extends PesoRequest
             'cadence' => ['required', 'in:weekly,biweekly,monthly,quarterly,yearly'],
             'next_due_on' => ['required', 'date'],
             'kind' => ['required', 'in:bill,subscription,debt'],
+            'note' => ['nullable', 'string', 'max:500'],
             'logo' => ['nullable', 'string', 'max:150000', 'starts_with:data:image/png;base64,,data:image/jpeg;base64,,data:image/webp;base64,'],
             // a loan is paid off in any number of monthly payments, 1 to 360
             'installments' => ['nullable', 'required_if:kind,debt', 'integer', 'between:1,360'],

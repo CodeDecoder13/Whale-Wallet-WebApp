@@ -38,6 +38,7 @@ type Item = {
     cancel_reason: string | null;
     payments: { id: number; amount: number; card: string; paid_on: string }[];
     logo: string | null;
+    note: string | null;
     left: number | null;
     monthly: number;
 };
@@ -183,6 +184,7 @@ const blank = {
     kind: 'bill' as Kind,
     installments: '',
     logo: null as string | null,
+    note: '',
 };
 const editing = ref<number | null>(null);
 const form = useForm({ ...blank });
@@ -199,6 +201,7 @@ function edit(s: Item) {
         kind: s.kind,
         installments: s.installments?.toString() ?? '',
         logo: s.logo,
+        note: s.note ?? '',
     });
     form.reset();
     custom.value = !!s.installments && !terms.some((t) => t.value === String(s.installments));
@@ -541,6 +544,11 @@ const dueDate = (d: string | null) =>
                             </div>
                         </dl>
 
+                        <div v-if="selected.note" class="grid gap-1 rounded-xl border p-4 text-sm">
+                            <div class="text-xs text-muted-foreground">Note</div>
+                            <div class="font-medium whitespace-pre-line break-words">{{ selected.note }}</div>
+                        </div>
+
                         <template v-if="selected.cancelled">
                             <div class="grid gap-1 rounded-xl border p-4 text-sm">
                                 <div class="text-xs text-muted-foreground">Cancelled because</div>
@@ -742,6 +750,18 @@ const dueDate = (d: string | null) =>
                             <span v-else class="text-xs text-muted-foreground">Logo found automatically</span>
                         </div>
                         <InputError :message="form.errors.logo" />
+                        <div class="grid gap-2">
+                            <Label for="note">Note (optional)</Label>
+                            <textarea
+                                id="note"
+                                v-model="form.note"
+                                rows="3"
+                                maxlength="500"
+                                placeholder="e.g. Plate no., account number, who to call"
+                                class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                            <InputError :message="form.errors.note" />
+                        </div>
                         <div class="flex gap-2">
                             <Button :disabled="form.processing">{{ editing ? 'Save changes' : 'Save item' }}</Button>
                             <Button type="button" variant="ghost" @click="cancel">Cancel</Button>
