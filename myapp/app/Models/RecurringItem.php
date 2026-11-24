@@ -33,11 +33,10 @@ class RecurringItem extends Model
         $this->update(['cancelled_at' => now(), 'cancel_reason' => $reason]);
     }
 
-    /** Back in play; a past charge date rolls forward to today or later. */
+    /** Back in play; the due date is left as is, so a past one shows overdue until paid. */
     public function renew(): void
     {
         $this->update(['cancelled_at' => null, 'cancel_reason' => null]);
-        $this->advance();
     }
 
     /** Next date (today included) that falls on this day of the month, clamped for short months. */
@@ -88,19 +87,6 @@ class RecurringItem extends Model
         }
 
         return $dates;
-    }
-
-    /**
-     * Roll next_due_on forward to the first charge date that is today or later.
-     * ponytail: steps from the stored date, so a 31st clamped to the 28th stays on the 28th.
-     */
-    public function advance(): void
-    {
-        for ($k = 0; $this->next_due_on && $this->nth($k)->lt(today()); $k++);
-
-        if ($k > 0) {
-            $this->update(['next_due_on' => $this->nth($k)]);
-        }
     }
 
     /** After a payment: the next charge date, and one fewer payment left on a loan (0 left means paid off). */

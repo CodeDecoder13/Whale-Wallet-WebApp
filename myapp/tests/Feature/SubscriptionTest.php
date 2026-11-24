@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\BudgetSummary;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Schedule;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -48,41 +49,13 @@ class SubscriptionTest extends TestCase
         $this->assertSame($expected, $this->item(['cadence' => $cadence, 'amount' => $amount])->monthlyAmount());
     }
 
-    /** Cadence, due date, expected date after rolling forward (today is 2026-03-10). */
-    public static function rolls(): array
+    public function test_renew_keeps_a_past_due_date_overdue()
     {
-        return [
-            'monthly clamps to month end' => ['monthly', '2026-01-31', '2026-03-31'],
-            'weekly' => ['weekly', '2026-03-01', '2026-03-15'],
-            'biweekly' => ['biweekly', '2026-02-01', '2026-03-15'],
-            'quarterly' => ['quarterly', '2025-09-05', '2026-06-05'],
-            'yearly' => ['yearly', '2025-03-09', '2027-03-09'],
-            'due today stays' => ['monthly', '2026-03-10', '2026-03-10'],
-            'future stays' => ['monthly', '2026-04-02', '2026-04-02'],
-        ];
-    }
+        $item = $this->item(['next_due_on' => '2026-02-27', 'cancelled_at' => now()]);
 
-    #[DataProvider('rolls')]
-    public function test_advance_rolls_forward_past_today(string $cadence, string $due, string $expected)
-    {
-        $item = $this->item(['cadence' => $cadence, 'next_due_on' => $due]);
+        $item->renew();
 
-        $item->advance();
-
-        $this->assertSame($expected, $item->fresh()->next_due_on->toDateString());
-    }
-
-    public function test_scheduled_command_advances_overdue_items_of_every_user()
-    {
-        $overdue = $this->item(['next_due_on' => '2026-02-27']);
-        $other = $this->item(['next_due_on' => '2026-03-01', 'cadence' => 'weekly']);
-        $future = $this->item(['next_due_on' => '2026-03-27']);
-
-        $this->artisan('recurring:advance')->assertSuccessful();
-
-        $this->assertSame('2026-03-27', $overdue->fresh()->next_due_on->toDateString());
-        $this->assertSame('2026-03-15', $other->fresh()->next_due_on->toDateString());
-        $this->assertSame('2026-03-27', $future->fresh()->next_due_on->toDateString());
+        $this->assertSame('2026-02-27', $item->fresh()->next_due_on->toDateString());
     }
 
     public function test_budget_summary_normalises_mixed_cadences()

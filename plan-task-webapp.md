@@ -116,7 +116,7 @@ Complete milestones in order. Each task has acceptance criteria; do not mark don
 - **Done when:** a seeded user sees correct totals (example remaining after fixed costs: 15,844) and all rows are user-scoped (a test proves user A cannot read user B's data).
 
 ### M2: Forecast, subscriptions, recommendations
-- [x] Subscription tracker built on `recurring_items`: next charge date, monthly total (cadence-normalised via `RecurringItem::monthlyAmount()`; daily `recurring:advance` rolls overdue dates forward).
+- [x] Subscription tracker built on `recurring_items`: next charge date, monthly total (cadence-normalised via `RecurringItem::monthlyAmount()`; unpaid items stay overdue until marked paid, nothing rolls dates forward on its own).
 - [x] `ForecastService`: known outflows by due date + trailing 30-day average per category (recent weeks weighted more) up to the next payday; outputs daily balance, lowest point and safe-to-spend.
 - [x] Table-driven PHPUnit tests (Pest is not installed): payday boundary, bills on the 27th, month-end, zero history, cards with limits, savings pod contributions set aside each payday.
 - [x] Forecast page and dashboard sparkline (Unovis, with a skip-a-subscription what-if; vue-echarts only if a confidence band is needed).

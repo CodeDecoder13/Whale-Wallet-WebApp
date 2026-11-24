@@ -12,14 +12,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('recurring:advance', function () {
-    // no signed-in user here, so the BelongsToUser scope does not apply
-    $items = RecurringItem::active()->whereDate('next_due_on', '<', today())->get();
-    $items->each->advance();
-    $this->info("Advanced {$items->count()} recurring items.");
-})->purpose('Roll overdue recurring items forward to their next due date');
-
-Schedule::command('recurring:advance')->daily();
+// Recurring items are never rolled forward automatically: unpaid stays overdue until marked paid (advanceAfterPayment).
 
 Artisan::command('recommendations:generate {email}', function (GenerateRecommendations $generate) {
     $user = User::where('email', $this->argument('email'))->first();
