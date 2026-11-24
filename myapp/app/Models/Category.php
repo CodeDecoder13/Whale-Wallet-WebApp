@@ -18,7 +18,10 @@ class Category extends Model
 
     public static function seedFor(User $user): void
     {
-        $user->categories()->createMany(array_map(fn ($name) => ['name' => $name], self::DEFAULTS));
+        // idempotent: a double submit or a repeated onboarding must not list every default twice
+        foreach (self::DEFAULTS as $name) {
+            $user->categories()->firstOrCreate(['name' => $name]);
+        }
     }
 
     public function transactions(): HasMany
