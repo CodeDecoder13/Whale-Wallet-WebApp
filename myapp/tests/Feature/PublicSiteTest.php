@@ -43,6 +43,7 @@ class PublicSiteTest extends TestCase
     public function test_meta_tags_are_server_rendered_and_private_pages_are_noindex(): void
     {
         $this->get(route('home'))->assertSee('<link rel="canonical"', false)->assertSee('"@type":"FAQPage"', false)->assertSee('index, follow', false);
+        $this->get(route('home'))->assertSee('name="google-site-verification"', false);
         $this->get(route('pricing'))->assertSee('free while we are in early access')->assertDontSee('FAQPage');
         $this->get(route('login'))->assertSee('noindex, nofollow', false)->assertDontSee('rel="canonical"', false);
     }

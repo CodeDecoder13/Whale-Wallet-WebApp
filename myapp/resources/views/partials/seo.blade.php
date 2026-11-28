@@ -19,6 +19,9 @@
             $graph[] = ['@type' => 'FAQPage', 'mainEntity' => array_map(fn ($f) => ['@type' => 'Question', 'name' => $f[0], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]]], config('seo.faq'))];
         }
     @endphp
+        @if ($name === 'home')
+        <meta name="google-site-verification" content="e4eh2MrxJ5V6KnYybiq58hEfYe8G9o8sfmWkxmQBWZM" />
+        @endif
         <meta name="description" content="{{ $description }}">
         <meta name="robots" content="index, follow, max-image-preview:large">
         <link rel="canonical" href="{{ $url }}">
