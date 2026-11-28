@@ -34,14 +34,28 @@
         <link rel="icon" href="/whale-wallet-logo.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+        @include('partials.seo')
+
         @fonts
 
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            <title>{{ config('seo.pages')[request()->route()?->getName()][0] ?? config('app.name', 'Laravel') }}</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">
         <x-inertia::app />
+        @if ($seo = config('seo.pages')[request()->route()?->getName()] ?? null)
+            <noscript>
+                <h1>{{ $seo[0] }}</h1>
+                <p>{{ $seo[1] }}</p>
+                @if (request()->route()->getName() === 'home')
+                    @foreach (config('seo.faq') as [$question, $answer])
+                        <h2>{{ $question }}</h2>
+                        <p>{{ $answer }}</p>
+                    @endforeach
+                @endif
+            </noscript>
+        @endif
     </body>
 </html>

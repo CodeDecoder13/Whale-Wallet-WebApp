@@ -1,4 +1,6 @@
+# Search and AI answer engines are welcome on the public pages
 User-agent: *
 Disallow: /admin
+Disallow: /api
 
 Sitemap: https://whale-wallet.cloud/sitemap.xml

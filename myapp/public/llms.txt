@@ -1,0 +1,21 @@
+# Whale Wallet
+
+> A personal finance app for people in the Philippines. It shows what is safe to spend each day until payday and keeps cards, e-wallets, bills, subscriptions, loans, savings pods and net worth in one place. Free during early access. It tracks money; it does not hold or move it.
+
+## Features
+- Safe-to-spend number and payday forecast
+- Bills, subscriptions and loans that stay overdue until marked paid, with notes
+- Who Owes You: record cash lent, with email reminders to the borrower
+- Whale Chat: log money by typing or voice (English, Tagalog, Taglish)
+- Receipt and transfer screenshot reading
+- Savings pods, side income, daily email digest, data import and export
+
+## Pages
+- [Home](https://whale-wallet.cloud/): overview and frequently asked questions
+- [About](https://whale-wallet.cloud/about)
+- [Pricing](https://whale-wallet.cloud/pricing)
+- [Documentation](https://whale-wallet.cloud/docs): how-to guides
+- [Privacy overview](https://whale-wallet.cloud/privacy)
+- [AI and your data](https://whale-wallet.cloud/privacy/ai)
+- [Security](https://whale-wallet.cloud/privacy/security)
+- [Contact](https://whale-wallet.cloud/contact)

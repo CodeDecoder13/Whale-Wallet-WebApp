@@ -40,6 +40,13 @@ class PublicSiteTest extends TestCase
         $this->get('/.well-known/security.txt')->assertOk()->assertSee('Contact: mailto:dev@whale-wallet.cloud');
     }
 
+    public function test_meta_tags_are_server_rendered_and_private_pages_are_noindex(): void
+    {
+        $this->get(route('home'))->assertSee('<link rel="canonical"', false)->assertSee('"@type":"FAQPage"', false)->assertSee('index, follow', false);
+        $this->get(route('pricing'))->assertSee('free while we are in early access')->assertDontSee('FAQPage');
+        $this->get(route('login'))->assertSee('noindex, nofollow', false)->assertDontSee('rel="canonical"', false);
+    }
+
     public function test_responses_carry_security_headers(): void
     {
         $this->get(route('about'))->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeader('Referrer-Policy');

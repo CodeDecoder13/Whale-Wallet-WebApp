@@ -86,12 +86,7 @@ const bars = [100, 92, 84, 76, 70, 62, 52, 46, 36, 28];
 </script>
 
 <template>
-    <Head title="About">
-        <meta
-            name="description"
-            content="Whale Wallet is a personal finance app for people in the Philippines. It shows what is safe to spend each day until payday, and lets you manage money by chatting with a friendly whale."
-        />
-    </Head>
+    <Head title="About" />
 
     <!-- hero -->
     <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 md:px-8 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-16 lg:pb-24">

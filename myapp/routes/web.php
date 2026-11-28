@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Route;
 // first, so the admin host's '/' and 'transactions' win over the main site's on that host
 require __DIR__.'/admin.php';
 
-Route::inertia('/', 'Welcome')->name('home');
+Route::inertia('/', 'Welcome', ['faq' => config('seo.faq')])->name('home');
 
 // public site: one entry per page, so the sitemap and the footer stay in step with the routes
 Route::inertia('/about', 'About')->name('about');
@@ -59,7 +59,7 @@ Route::get('/.well-known/security.txt', fn () => response(
 
 Route::get('/sitemap.xml', fn () => response(
     '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-    .collect(['home', 'about', 'pricing', 'docs', 'privacy', 'privacy.ai', 'privacy.security', 'privacy.processors', 'privacy.changes', 'privacy.policy', 'terms', 'cookies', 'contact'])
+    .collect(array_keys(config('seo.pages')))
         ->map(fn ($name) => '<url><loc>'.route($name).'</loc></url>')->implode('')
     .'</urlset>',
     200, ['Content-Type' => 'application/xml'],
